@@ -1,4 +1,4 @@
-import type { IAuthLoginRes, ICloudFunctionResponse, ICaptcha, IDoubleTokenRes, IUpdateInfo, IUpdatePassword, IUserInfoRes } from './types/login'
+import type { IAuthLoginRes, ICaptcha, ICloudFunctionResponse, IDoubleTokenRes, IUpdateInfo, IUpdatePassword, IUserInfoRes } from './types/login'
 import { http } from '@/http/http'
 import { callCloudFunction } from '@/cloud'
 
@@ -103,6 +103,31 @@ export async function wxLogin(_data?: { code: string }) {
   return http.post<IAuthLoginRes>('/auth/wxLogin', data)
 }
 
+export async function bindWechatPhoneNumber(data: { code: string }) {
+  const code = data.code.trim()
+
+  if (!code) {
+    throw new Error('缺少手机号授权 code')
+  }
+
+  // #ifdef MP-WEIXIN
+  const res = await callCloudFunction<ICloudFunctionResponse<WechatCloudUser>, Record<string, unknown>>(
+    'bindPhoneNumber',
+    {
+      code,
+    },
+  )
+
+  if (res.code !== 0 || !res.data) {
+    throw new Error(res.message || '手机号授权失败')
+  }
+
+  return normalizeCloudUser(res.data)
+  // #endif
+
+  throw new Error('当前平台暂不支持手机号授权')
+}
+
 async function getCloudUserInfo() {
   const res = await callCloudFunction<ICloudFunctionResponse<WechatCloudUser>>('login')
 
@@ -120,11 +145,13 @@ interface WechatCloudUser {
   nickname?: string
   avatarUrl?: string
   phone?: string
+  countryCode?: string
   role?: IUserInfoRes['role']
   status?: IUserInfoRes['status']
   createdAt?: string | Date
   updatedAt?: string | Date
   lastLoginAt?: string | Date
+  phoneUpdatedAt?: string | Date
 }
 
 function normalizeCloudUser(user: WechatCloudUser): IUserInfoRes {
@@ -138,11 +165,13 @@ function normalizeCloudUser(user: WechatCloudUser): IUserInfoRes {
     avatar: user.avatarUrl || '/static/images/default-avatar.png',
     avatarUrl: user.avatarUrl || '',
     phone: user.phone || '',
+    countryCode: user.countryCode || '',
     role: user.role || 'customer',
     roles: [user.role || 'customer'],
     status: user.status || 'active',
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     lastLoginAt: user.lastLoginAt,
+    phoneUpdatedAt: user.phoneUpdatedAt,
   }
 }

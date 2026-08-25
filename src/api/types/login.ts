@@ -37,6 +37,7 @@ export interface IUserInfoRes {
   avatar?: string
   avatarUrl?: string
   phone?: string
+  countryCode?: string
   status?: UserStatus
   /** 同时支持单角色和多角色，你自行选择一种就行 */
   role?: UserRole
@@ -44,6 +45,7 @@ export interface IUserInfoRes {
   createdAt?: Date | string
   updatedAt?: Date | string
   lastLoginAt?: Date | string
+  phoneUpdatedAt?: Date | string
 }
 
 export interface ICloudAuthLoginRes extends ISingleTokenRes {
