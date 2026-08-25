@@ -3,7 +3,8 @@ import OrderCard from '@/components/OrderCard.vue'
 import OrderStatusTabs from '@/components/OrderStatusTabs.vue'
 import type { ManageOrderStatusFilter, Order, OrderStatus, TodayOrdersData } from '@/api/types/order'
 import { storeToRefs } from 'pinia'
-import { finishTimingOrder, getTodayOrders } from '@/api/order'
+import { getTodayOrders } from '@/api/order'
+import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
 import { useUserStore } from '@/store'
@@ -21,7 +22,7 @@ interface StatusTab {
 }
 
 const statusTabs: StatusTab[] = [
-  { label: '处理中', value: 'active' },
+  { label: '全部待办', value: 'active' },
   { label: '待核销', value: 'paid' },
   { label: '进行中', value: 'in_progress' },
   { label: '待结账', value: 'pending_checkout' },
@@ -44,7 +45,6 @@ const errorText = ref('')
 const activeStatus = ref<ManageOrderStatusFilter>('active')
 const todayOrders = ref<TodayOrdersData>()
 const currentTime = ref(Date.now())
-const finishingOrderId = ref('')
 let timer: ReturnType<typeof setInterval> | undefined
 const userStore = useUserStore()
 const { userInfo } = storeToRefs(userStore)
@@ -57,6 +57,11 @@ const canWaiveOvertime = computed(() => ['admin', 'super_admin'].includes(userIn
 const showInitialLoading = computed(() => requestLoading.value && !todayOrders.value)
 const showLoadingOverlay = computed(() => requestLoading.value && !!todayOrders.value)
 useNativeLoading(showLoadingOverlay, '切换中')
+const { finishingOrderId, handleFinishTiming } = useFinishTimingOrder({
+  currentTime,
+  canWaiveOvertime,
+  onSuccess: () => fetchOrders(),
+})
 
 async function fetchOrders(status: ManageOrderStatusFilter = activeStatus.value) {
   errorText.value = ''
@@ -255,181 +260,6 @@ function formatPrice(price?: number) {
   return `¥${((price || 0) / 100).toFixed(0)}`
 }
 
-function getOvertimeMinutes(order: Order) {
-  const expectedEndedAt = getExpectedEndedAtTime(order)
-
-  if (!expectedEndedAt) {
-    return 0
-  }
-
-  return Math.max(Math.ceil((currentTime.value - expectedEndedAt) / 60 / 1000), 0)
-}
-
-function getOvertimeAmount(overtimeMinutes: number) {
-  if (overtimeMinutes <= 0) {
-    return 0
-  }
-
-  return Math.ceil(overtimeMinutes / 30) * 3000
-}
-
-async function submitFinishTiming(
-  order: Order,
-  options: { waiveOvertime?: boolean, waiverReason?: string, earlyFinishReason?: string } = {},
-) {
-  finishingOrderId.value = order._id
-
-  try {
-    const res = await finishTimingOrder({
-      orderId: order._id,
-      waiveOvertime: !!options.waiveOvertime,
-      waiverReason: options.waiverReason,
-      earlyFinishReason: options.earlyFinishReason,
-    })
-    uni.showToast({
-      title: res.order.status === 'completed' ? '订单已完成' : '已进入待结账',
-      icon: 'success',
-    })
-    await fetchOrders()
-  }
-  catch (error) {
-    uni.showToast({
-      title: error instanceof Error ? error.message : '结束计时失败',
-      icon: 'none',
-    })
-  }
-  finally {
-    finishingOrderId.value = ''
-  }
-}
-
-function handleFinishWithoutOvertime(order: Order) {
-  uni.showModal({
-    title: '完成订单',
-    content: `订单 ${order.orderNo} 未产生超时费用，确认完成订单吗？`,
-    confirmText: '确认完成',
-    confirmColor: '#1f6b56',
-    success: (res) => {
-      if (res.confirm) {
-        submitFinishTiming(order)
-      }
-    },
-  })
-}
-
-function handleEarlyFinish(order: Order, earlyMinutes: number) {
-  if (!canWaiveOvertime.value) {
-    uni.showToast({
-      title: '请管理员确认后提前完成',
-      icon: 'none',
-    })
-    return
-  }
-
-  const reasons = ['顾客提前离场', '设备问题', '老板批准', '其他']
-
-  uni.showActionSheet({
-    itemList: reasons,
-    success: (res) => {
-      const reason = reasons[res.tapIndex] || '其他'
-
-      uni.showModal({
-        title: '提前完成订单',
-        content: `距离预计结束还有约 ${earlyMinutes} 分钟，确认提前完成吗？`,
-        confirmText: '提前完成',
-        confirmColor: '#c9472b',
-        success: (modalRes) => {
-          if (modalRes.confirm) {
-            submitFinishTiming(order, {
-              earlyFinishReason: reason,
-            })
-          }
-        },
-      })
-    },
-  })
-}
-
-function handleFinishWithCheckout(order: Order, overtimeMinutes: number, overtimeAmount: number) {
-  uni.showModal({
-    title: '结束并结算',
-    content: `已超时 ${overtimeMinutes} 分钟，将产生补款 ${formatPrice(overtimeAmount)}。`,
-    confirmText: '生成补款',
-    confirmColor: '#1f6b56',
-    success: (res) => {
-      if (res.confirm) {
-        submitFinishTiming(order)
-      }
-    },
-  })
-}
-
-function handleWaiveOvertime(order: Order) {
-  const reasons = ['顾客收杆延迟', '设备问题', '老板批准', '其他']
-
-  uni.showActionSheet({
-    itemList: reasons,
-    success: (res) => {
-      const reason = reasons[res.tapIndex] || '其他'
-
-      uni.showModal({
-        title: '免收超时费',
-        content: `确认免收订单 ${order.orderNo} 的超时费用并完成订单吗？`,
-        confirmText: '免收并完成',
-        confirmColor: '#c9472b',
-        success: (modalRes) => {
-          if (modalRes.confirm) {
-            submitFinishTiming(order, {
-              waiveOvertime: true,
-              waiverReason: reason,
-            })
-          }
-        },
-      })
-    },
-  })
-}
-
-function handleFinishTiming(order: Order) {
-  if (finishingOrderId.value) {
-    return
-  }
-
-  const overtimeMinutes = getOvertimeMinutes(order)
-  const overtimeAmount = getOvertimeAmount(overtimeMinutes)
-  const expectedEndedAt = getExpectedEndedAtTime(order)
-  const earlyMinutes = expectedEndedAt > currentTime.value
-    ? Math.ceil((expectedEndedAt - currentTime.value) / 60 / 1000)
-    : 0
-
-  if (earlyMinutes > 10) {
-    handleEarlyFinish(order, earlyMinutes)
-    return
-  }
-
-  if (overtimeAmount <= 0) {
-    handleFinishWithoutOvertime(order)
-    return
-  }
-
-  if (!canWaiveOvertime.value) {
-    handleFinishWithCheckout(order, overtimeMinutes, overtimeAmount)
-    return
-  }
-
-  uni.showActionSheet({
-    itemList: ['生成补款', '免收并完成'],
-    success: (res) => {
-      if (res.tapIndex === 0) {
-        handleFinishWithCheckout(order, overtimeMinutes, overtimeAmount)
-        return
-      }
-
-      handleWaiveOvertime(order)
-    },
-  })
-}
-
 function startTimer() {
   if (timer) {
     return
@@ -482,7 +312,7 @@ onUnload(() => {
             {{ summary?.active || 0 }}
           </view>
           <view class="summary-item__label">
-            处理中
+            待办
           </view>
         </view>
         <view class="summary-item">

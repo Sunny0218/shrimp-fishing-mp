@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { OrderDetailData, OrderStatus } from '@/api/types/order'
 import qrcode from 'qrcode-generator'
+import { storeToRefs } from 'pinia'
 import { cancelOrder, getOrderDetail } from '@/api/order'
+import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
+import { useUserStore } from '@/store'
 
 definePage({
   style: {
@@ -16,6 +19,8 @@ const orderDetail = ref<OrderDetailData>()
 const orderId = ref('')
 const currentTime = ref(Date.now())
 let countdownTimer: ReturnType<typeof setInterval> | undefined
+const userStore = useUserStore()
+const { userInfo } = storeToRefs(userStore)
 
 const statusTextMap: Record<OrderStatus, string> = {
   pending_payment: '待支付',
@@ -104,6 +109,9 @@ const expectedEndedAtTime = computed(() => {
   return startedAtTime.value + durationMinutes * 60 * 1000
 })
 const canShowTimingCard = computed(() => !!startedAtTime.value && ['in_progress', 'pending_checkout', 'completed'].includes(order.value?.status || ''))
+const canManageTiming = computed(() => ['staff', 'admin', 'super_admin'].includes(userInfo.value.role || ''))
+const canFinishTiming = computed(() => canManageTiming.value && order.value?.status === 'in_progress')
+const canWaiveOvertime = computed(() => ['admin', 'super_admin'].includes(userInfo.value.role || ''))
 const remainingMilliseconds = computed(() => {
   if (!expectedEndedAtTime.value) {
     return 0
@@ -135,6 +143,11 @@ const countdownText = computed(() => {
   }
 
   return formatCountdown(remainingMilliseconds.value)
+})
+const { finishingOrderId, handleFinishTiming } = useFinishTimingOrder({
+  currentTime,
+  canWaiveOvertime,
+  onSuccess: () => fetchOrderDetail(),
 })
 
 async function fetchOrderDetail() {
@@ -305,6 +318,14 @@ function handleCancelOrder() {
   })
 }
 
+function handleFinishCurrentOrder() {
+  if (!order.value) {
+    return
+  }
+
+  handleFinishTiming(order.value)
+}
+
 onLoad((query) => {
   orderId.value = typeof query?.id === 'string' ? query.id : ''
   startCountdownTimer()
@@ -417,6 +438,15 @@ onUnload(() => {
           <text class="info-row__value">
             {{ formatPrice(order.waivedOvertimeAmount) }}
           </text>
+        </view>
+        <view v-if="canFinishTiming" class="timing-card__actions">
+          <button
+            class="timing-card__finish-btn"
+            :disabled="!!finishingOrderId"
+            @click="handleFinishCurrentOrder"
+          >
+            {{ finishingOrderId === order._id ? '处理中...' : '结束计时' }}
+          </button>
         </view>
       </view>
 
@@ -781,6 +811,24 @@ onUnload(() => {
     font-weight: 700;
     letter-spacing: 0;
     line-height: 1.15;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20rpx;
+  }
+
+  &__finish-btn {
+    width: 220rpx;
+    min-height: 68rpx;
+    margin: 0;
+    border-radius: 8rpx;
+    background: #1f6b56;
+    color: #ffffff;
+    font-size: 26rpx;
+    font-weight: 600;
+    line-height: 68rpx;
   }
 }
 

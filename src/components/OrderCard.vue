@@ -34,24 +34,25 @@ const emit = defineEmits<{
       <view class="order-card__title">
         {{ title }}
       </view>
-      <view class="order-card__status" :class="`order-card__status--${status}`">
-        {{ statusText }}
+      <view class="order-card__aside">
+        <view class="order-card__status" :class="`order-card__status--${status}`">
+          {{ statusText }}
+        </view>
+        <view
+          v-if="timerText"
+          class="order-card__timer"
+          :class="{
+            'order-card__timer--warning': timerLevel === 'warning',
+            'order-card__timer--overtime': timerLevel === 'overtime',
+          }"
+        >
+          {{ timerText }}
+        </view>
       </view>
     </view>
 
     <view class="order-card__line">
       {{ timeText }}
-    </view>
-
-    <view
-      v-if="timerText"
-      class="order-card__timer"
-      :class="{
-        'order-card__timer--warning': timerLevel === 'warning',
-        'order-card__timer--overtime': timerLevel === 'overtime',
-      }"
-    >
-      {{ timerText }}
     </view>
 
     <view class="order-card__meta">
@@ -102,6 +103,15 @@ const emit = defineEmits<{
     line-height: 1.3;
   }
 
+  &__aside {
+    display: flex;
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10rpx;
+    max-width: 240rpx;
+  }
+
   &__status {
     flex-shrink: 0;
     border-radius: 8rpx;
@@ -137,15 +147,14 @@ const emit = defineEmits<{
   }
 
   &__timer {
-    width: fit-content;
-    margin-top: 18rpx;
     border-radius: 8rpx;
     background: #f8f2df;
-    padding: 10rpx 16rpx;
+    padding: 8rpx 12rpx;
     color: #c9472b;
-    font-size: 28rpx;
+    font-size: 24rpx;
     font-weight: 700;
     line-height: 1.2;
+    text-align: right;
 
     &--warning {
       background: #fff3c8;
@@ -185,14 +194,14 @@ const emit = defineEmits<{
   }
 
   &__action-btn {
-    width: 200rpx;
-    min-height: 64rpx;
+    width: 176rpx;
+    min-height: 58rpx;
     margin: 0;
     border-radius: 8rpx;
     background: #1f6b56;
     color: #ffffff;
-    font-size: 26rpx;
-    line-height: 64rpx;
+    font-size: 24rpx;
+    line-height: 58rpx;
   }
 }
 

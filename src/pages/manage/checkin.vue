@@ -18,6 +18,7 @@ const submitting = ref(false)
 const manualCode = ref('')
 const scanPayload = ref<ParsedCheckinPayload>()
 const result = ref<CheckInOrderResult>()
+const hasCheckedIn = computed(() => !!result.value?.order)
 
 const displayPayload = computed<ParsedCheckinPayload | undefined>(() => {
   const safeManualCode = manualCode.value.trim()
@@ -196,6 +197,12 @@ function formatDateTime(value?: string | Date) {
 
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
+
+function handleNextCheckin() {
+  manualCode.value = ''
+  scanPayload.value = undefined
+  result.value = undefined
+}
 </script>
 
 <template>
@@ -205,14 +212,14 @@ function formatDateTime(value?: string | Date) {
         门店工作台
       </view>
       <view class="checkin-hero__title">
-        订单核销
+        {{ hasCheckedIn ? '已开始计时' : '订单核销' }}
       </view>
       <view class="checkin-hero__desc">
-        核销成功后订单进入计时中
+        {{ hasCheckedIn ? '订单已核销，后续在今日订单处理结束计时' : '核销成功后订单进入计时中' }}
       </view>
     </view>
 
-    <view class="checkin-card">
+    <view v-if="!hasCheckedIn" class="checkin-card">
       <button class="checkin-page__scan-btn" :disabled="submitting" @click="handleScan">
         扫码核销
       </button>
@@ -302,6 +309,10 @@ function formatDateTime(value?: string | Date) {
           {{ formatDateTime(result.order.expectedEndedAt) }}
         </text>
       </view>
+
+      <button class="result-card__next-btn" @click="handleNextCheckin">
+        继续核销下一单
+      </button>
     </view>
   </view>
 </template>
@@ -420,6 +431,17 @@ function formatDateTime(value?: string | Date) {
     font-size: 34rpx;
     font-weight: 700;
     line-height: 1.25;
+  }
+
+  &__next-btn {
+    min-height: 78rpx;
+    margin-top: 24rpx;
+    border-radius: 8rpx;
+    background: #1f6b56;
+    color: #ffffff;
+    font-size: 28rpx;
+    font-weight: 600;
+    line-height: 78rpx;
   }
 }
 
