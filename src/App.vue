@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { onHide, onLaunch, onShow } from '@dcloudio/uni-app'
 import { getCurrentInstance, onMounted, onUnmounted } from 'vue'
+import { initWechatCloud } from '@/cloud'
 import { navigateToInterceptor } from '@/router/interceptor'
+import { useTokenStore } from '@/store/token'
 import { tabbarStore } from '@/tabbar/store'
 import { permission } from '@/router/permission'
 
@@ -12,6 +14,13 @@ router && permission.install(router)
 
 onLaunch((options) => {
   console.log('App.vue onLaunch', options)
+  initWechatCloud()
+
+  // #ifdef MP-WEIXIN
+  useTokenStore().wxLogin({ silent: true }).catch((error) => {
+    console.error('微信云静默登录失败', error)
+  })
+  // #endif
 })
 onShow((options) => {
   console.log('App.vue onShow', options)

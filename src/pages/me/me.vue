@@ -14,6 +14,8 @@ const userStore = useUserStore()
 const tokenStore = useTokenStore()
 // 使用storeToRefs解构userInfo
 const { userInfo } = storeToRefs(userStore)
+const manageRoles = ['staff', 'admin', 'super_admin']
+const canEnterManage = computed(() => !!userInfo.value.role && manageRoles.includes(userInfo.value.role))
 
 // 微信小程序下登录
 async function handleLogin() {
@@ -54,6 +56,12 @@ function handleLogout() {
     },
   })
 }
+
+function handleEnterManage() {
+  uni.navigateTo({
+    url: '/pages/manage/index',
+  })
+}
 </script>
 
 <template>
@@ -65,7 +73,13 @@ function handleLogout() {
       {{ JSON.stringify(userInfo, null, 2) }}
     </view>
 
-    <view class="mt-[60vh] px-3">
+    <view v-if="canEnterManage" class="mt-8 px-3">
+      <button type="primary" class="w-full" @click="handleEnterManage">
+        门店管理
+      </button>
+    </view>
+
+    <view class="mt-[52vh] px-3">
       <view class="m-auto w-160px text-center">
         <button v-if="tokenStore.hasLogin" type="warn" class="w-full" @click="handleLogout">
           退出登录

@@ -18,22 +18,42 @@ export interface IDoubleTokenRes {
 /**
  * 登录返回的信息，其实就是 token 信息
  */
-export type IAuthLoginRes = ISingleTokenRes | IDoubleTokenRes
+export type IAuthLoginRes = ISingleTokenRes | IDoubleTokenRes | ICloudAuthLoginRes
 
 /**
  * 用户信息
  */
-export type UserRole = string
+export type UserRole = 'customer' | 'staff' | 'admin' | 'super_admin'
+
+export type UserStatus = 'active' | 'disabled'
 
 export interface IUserInfoRes {
-  userId: number
+  userId: number | string
+  _id?: string
+  openid?: string
+  unionid?: string
   username: string
   nickname: string
   avatar?: string
+  avatarUrl?: string
+  phone?: string
+  status?: UserStatus
   /** 同时支持单角色和多角色，你自行选择一种就行 */
   role?: UserRole
   roles?: UserRole[]
-  [key: string]: any // 允许其他扩展字段
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  lastLoginAt?: Date | string
+}
+
+export interface ICloudAuthLoginRes extends ISingleTokenRes {
+  userInfo: IUserInfoRes
+}
+
+export interface ICloudFunctionResponse<T> {
+  code: number
+  message: string
+  data: T
 }
 
 // 认证存储数据结构

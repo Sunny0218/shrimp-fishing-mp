@@ -30,6 +30,7 @@ import ViteRestart from 'vite-plugin-restart'
 import openDevTools from './scripts/open-dev-tools'
 import vitePluginEruda from './scripts/vite-plugin-eruda'
 import { createCopyNativeResourcesPlugin } from './vite-plugins/copy-native-resources'
+import { createCopyCloudfunctionsPlugin } from './vite-plugins/copy-cloudfunctions'
 import syncManifestPlugin from './vite-plugins/sync-manifest-plugins'
 
 // https://vitejs.dev/config/
@@ -152,6 +153,10 @@ export default defineConfig(({ command, mode }) => {
           verbose: mode === 'development', // 开发模式显示详细日志
         },
       ),
+      createCopyCloudfunctionsPlugin({
+        enabled: UNI_PLATFORM === 'mp-weixin',
+        mode,
+      }),
       syncManifestPlugin(),
       vitePluginEruda({
         open: UNI_PLATFORM === 'h5' && mode === 'development',

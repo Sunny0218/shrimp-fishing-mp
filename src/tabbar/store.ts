@@ -1,4 +1,5 @@
 import type { CustomTabBarItem, CustomTabBarItemBadge } from './types'
+import { storeToRefs } from 'pinia'
 import { computed, reactive } from 'vue'
 import { useUserStore } from '@/store/user'
 
@@ -12,12 +13,12 @@ const baseTabbarList = reactive<CustomTabBarItem[]>(_tabbarList.map(item => ({
 
 const userRoles = computed(() => {
   const userStore = useUserStore()
-  const userInfo = userStore.userInfo.value
-  if (Array.isArray(userInfo?.roles) && userInfo.roles.length > 0) {
-    return userInfo.roles
+  const { userInfo } = storeToRefs(userStore)
+  if (Array.isArray(userInfo.value?.roles) && userInfo.value.roles.length > 0) {
+    return userInfo.value.roles
   }
-  if (userInfo?.role) {
-    return [userInfo.role]
+  if (userInfo.value?.role) {
+    return [userInfo.value.role]
   }
   return []
 })

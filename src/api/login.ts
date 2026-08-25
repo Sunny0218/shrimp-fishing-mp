@@ -1,5 +1,6 @@
-import type { IAuthLoginRes, ICaptcha, IDoubleTokenRes, IUpdateInfo, IUpdatePassword, IUserInfoRes } from './types/login'
+import type { IAuthLoginRes, ICloudFunctionResponse, ICaptcha, IDoubleTokenRes, IUpdateInfo, IUpdatePassword, IUserInfoRes } from './types/login'
 import { http } from '@/http/http'
+import { callCloudFunction } from '@/cloud'
 
 /**
  * 登录表单
@@ -37,6 +38,10 @@ export function refreshToken(refreshToken: string) {
  * 获取用户信息
  */
 export function getUserInfo() {
+  // #ifdef MP-WEIXIN
+  return getCloudUserInfo()
+  // #endif
+
   return http.get<IUserInfoRes>('/user/info')
 }
 
@@ -80,6 +85,64 @@ export function getWxCode() {
  * @param params 微信登录参数，包含code
  * @returns Promise 包含登录结果
  */
-export function wxLogin(data: { code: string }) {
+export async function wxLogin(_data?: { code: string }) {
+  // #ifdef MP-WEIXIN
+  const userInfo = await getCloudUserInfo()
+
+  return {
+    token: `wechat-cloud:${userInfo.openid || userInfo.userId}`,
+    expiresIn: 30 * 24 * 60 * 60,
+    userInfo,
+  }
+  // #endif
+
+  const data = _data
+  if (!data) {
+    throw new Error('缺少微信登录 code')
+  }
   return http.post<IAuthLoginRes>('/auth/wxLogin', data)
+}
+
+async function getCloudUserInfo() {
+  const res = await callCloudFunction<ICloudFunctionResponse<WechatCloudUser>>('login')
+
+  if (res.code !== 0 || !res.data) {
+    throw new Error(res.message || '微信云登录失败')
+  }
+
+  return normalizeCloudUser(res.data)
+}
+
+interface WechatCloudUser {
+  _id: string
+  openid: string
+  unionid?: string
+  nickname?: string
+  avatarUrl?: string
+  phone?: string
+  role?: IUserInfoRes['role']
+  status?: IUserInfoRes['status']
+  createdAt?: string | Date
+  updatedAt?: string | Date
+  lastLoginAt?: string | Date
+}
+
+function normalizeCloudUser(user: WechatCloudUser): IUserInfoRes {
+  return {
+    userId: user._id,
+    _id: user._id,
+    openid: user.openid,
+    unionid: user.unionid || '',
+    username: user.nickname || user.phone || user.openid || '',
+    nickname: user.nickname || '微信用户',
+    avatar: user.avatarUrl || '/static/images/default-avatar.png',
+    avatarUrl: user.avatarUrl || '',
+    phone: user.phone || '',
+    role: user.role || 'customer',
+    roles: [user.role || 'customer'],
+    status: user.status || 'active',
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    lastLoginAt: user.lastLoginAt,
+  }
 }

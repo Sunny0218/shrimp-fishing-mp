@@ -1,0 +1,54 @@
+{
+  "collections": [
+    {
+      "name": "users",
+      "description": "用户、员工、角色权限",
+      "permission": "adminOnly"
+    },
+    {
+      "name": "packages",
+      "description": "固定套餐配置",
+      "permission": "adminOnly"
+    },
+    {
+      "name": "pricing_rules",
+      "description": "实时计费规则",
+      "permission": "adminOnly"
+    },
+    {
+      "name": "time_slots",
+      "description": "预约场次和容量",
+      "permission": "adminOnly"
+    },
+    {
+      "name": "orders",
+      "description": "预约订单和现场开单",
+      "permission": "adminOnly"
+    },
+    {
+      "name": "payments",
+      "description": "微信支付记录",
+      "permission": "adminOnly"
+    },
+    {
+      "name": "checkins",
+      "description": "到店核销记录",
+      "permission": "adminOnly"
+    },
+    {
+      "name": "checkout_records",
+      "description": "结账记录",
+      "permission": "adminOnly"
+    },
+    {
+      "name": "goods",
+      "description": "现场商品",
+      "permission": "adminOnly"
+    },
+    {
+      "name": "settings",
+      "description": "门店基础配置",
+      "permission": "adminOnly"
+    }
+  ]
+}

@@ -107,6 +107,8 @@
     "build:quickapp-webview-union": "uni build -p quickapp-webview-union",
     "upload:changeset": "pnpm changeset && pnpm changeset version",
     "upload:mp": "node ./scripts/upload-weixin.js",
+    "cloud:login": "tcb login",
+    "cloud:db:init": "node ./scripts/cloudbase-init-database.cjs",
     "type-check": "vue-tsc --noEmit",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
@@ -133,6 +135,7 @@
     "@dcloudio/uni-mp-weixin": "3.0.0-4070620250821001",
     "@dcloudio/uni-mp-xhs": "3.0.0-4070620250821001",
     "@dcloudio/uni-quickapp-webview": "3.0.0-4070620250821001",
+    "@wot-ui/ui": "latest",
     "abortcontroller-polyfill": "^1.7.8",
     "alova": "^3.3.3",
     "dayjs": "1.11.10",
@@ -141,10 +144,10 @@
     "vue": "^3.4.21",
     "vue-i18n": "9.1.9",
     "vue-router": "4.5.1",
-    "z-paging": "2.8.7",
-    "@wot-ui/ui": "latest"
+    "z-paging": "2.8.7"
   },
   "devDependencies": {
+    "@cloudbase/cli": "^3.8.0",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@dcloudio/types": "^3.4.8",
@@ -191,6 +194,7 @@
     "rollup-plugin-visualizer": "^6.0.3",
     "sass": "1.77.8",
     "std-env": "^3.9.0",
+    "tencentcloud-sdk-nodejs": "^4.1.300",
     "typescript": "~5.8.0",
     "unocss": "66.0.0",
     "unplugin-auto-import": "^20.0.0",

@@ -106,7 +106,12 @@ export const useTokenStore = defineStore(
     async function _postLogin(tokenInfo: IAuthLoginRes) {
       setTokenInfo(tokenInfo)
       const userStore = useUserStore()
-      await userStore.fetchUserInfo()
+      if ('userInfo' in tokenInfo) {
+        userStore.setUserInfo(tokenInfo.userInfo)
+      }
+      else {
+        await userStore.fetchUserInfo()
+      }
     }
 
     /**
@@ -146,18 +151,29 @@ export const useTokenStore = defineStore(
      * （各有利弊，看业务场景和系统复杂度），这里使用2个接口返回的来模拟
      * @returns 登录结果
      */
-    const wxLogin = async () => {
+    const wxLogin = async (options?: { silent?: boolean }) => {
       try {
+        let res: IAuthLoginRes
+
+        // #ifdef MP-WEIXIN
+        res = await _wxLogin()
+        // #endif
+
+        // #ifndef MP-WEIXIN
         // 获取微信小程序登录的code
         const code = await getWxCode()
         console.log('微信登录-code: ', code)
-        const res = await _wxLogin(code)
+        res = await _wxLogin({ code: code.code })
+        // #endif
+
         console.log('微信登录-res: ', res)
         await _postLogin(res)
-        uni.showToast({
-          title: '登录成功',
-          icon: 'success',
-        })
+        if (!options?.silent) {
+          uni.showToast({
+            title: '登录成功',
+            icon: 'success',
+          })
+        }
         return res
       }
       catch (error) {
@@ -178,8 +194,10 @@ export const useTokenStore = defineStore(
      */
     const logout = async () => {
       try {
+        // #ifndef MP-WEIXIN
         // TODO 实现自己的退出登录逻辑
         await _logout()
+        // #endif
       }
       catch (error) {
         console.error('退出登录失败:', error)
