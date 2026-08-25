@@ -94,6 +94,31 @@ export interface MyOrdersData {
   serverTime: string
 }
 
+export type ManageOrderStatusFilter = OrderStatus | 'active' | 'all'
+
+export interface ManageOrderSummary {
+  all: number
+  active: number
+  paid: number
+  inProgress: number
+  pendingCheckout: number
+  completed: number
+  cancelled: number
+}
+
+export interface GetTodayOrdersParams {
+  status?: ManageOrderStatusFilter
+  date?: string
+}
+
+export interface TodayOrdersData {
+  rows: Order[]
+  total: number
+  summary: ManageOrderSummary
+  date: string
+  serverTime: string
+}
+
 export interface CancelOrderParams {
   orderId: string
 }

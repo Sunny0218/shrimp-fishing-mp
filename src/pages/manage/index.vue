@@ -19,6 +19,12 @@ function handleOpenCheckin() {
   })
 }
 
+function handleOpenTodayOrders() {
+  uni.navigateTo({
+    url: '/pages/manage/orders',
+  })
+}
+
 onLoad(() => {
   if (canManage.value) {
     return
@@ -55,7 +61,7 @@ onLoad(() => {
           扫二维码或输入核销码开始计时
         </view>
       </view>
-      <view class="manage-card">
+      <view class="manage-card" @click="handleOpenTodayOrders">
         <view class="manage-card__title">
           今日订单
         </view>

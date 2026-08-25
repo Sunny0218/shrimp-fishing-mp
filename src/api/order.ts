@@ -1,5 +1,5 @@
 import type { CloudFunctionResponse } from './types/home'
-import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, GetMyOrdersParams, MyOrdersData, OrderDetailData } from './types/order'
+import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, GetMyOrdersParams, GetTodayOrdersParams, MyOrdersData, OrderDetailData, TodayOrdersData } from './types/order'
 import { callCloudFunction } from '@/cloud'
 
 export async function createOrder(params: CreateOrderParams) {
@@ -80,6 +80,40 @@ export async function getMyOrders(params: GetMyOrdersParams = {}) {
   return {
     rows: [],
     total: 0,
+    serverTime: new Date().toISOString(),
+  }
+}
+
+export async function getTodayOrders(params: GetTodayOrdersParams = {}) {
+  // #ifdef MP-WEIXIN
+  const res = await callCloudFunction<CloudFunctionResponse<TodayOrdersData>, Record<string, unknown>>(
+    'getTodayOrders',
+    {
+      status: params.status || 'active',
+      ...(params.date ? { date: params.date.trim() } : {}),
+    },
+  )
+
+  if (res.code !== 0) {
+    throw new Error(res.message || '今日订单获取失败')
+  }
+
+  return res.data
+  // #endif
+
+  return {
+    rows: [],
+    total: 0,
+    summary: {
+      all: 0,
+      active: 0,
+      paid: 0,
+      inProgress: 0,
+      pendingCheckout: 0,
+      completed: 0,
+      cancelled: 0,
+    },
+    date: '',
     serverTime: new Date().toISOString(),
   }
 }
