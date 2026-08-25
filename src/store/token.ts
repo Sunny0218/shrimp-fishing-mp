@@ -27,6 +27,13 @@ const tokenInfoState = isDoubleTokenMode
       token: '',
       expiresIn: 0,
     }
+const TOKEN_STORAGE_KEY = 'token'
+const ACCESS_TOKEN_EXPIRE_STORAGE_KEY = 'accessTokenExpireTime'
+const REFRESH_TOKEN_EXPIRE_STORAGE_KEY = 'refreshTokenExpireTime'
+
+function persistEmptyTokenInfo(tokenInfo: IAuthLoginRes, nowTime: number) {
+  uni.setStorageSync(TOKEN_STORAGE_KEY, JSON.stringify({ tokenInfo, nowTime }))
+}
 
 export const useTokenStore = defineStore(
   'token',
@@ -57,14 +64,14 @@ export const useTokenStore = defineStore(
       if (isSingleTokenRes(val)) {
         // 单token模式
         const expireTime = now + val.expiresIn * 1000
-        uni.setStorageSync('accessTokenExpireTime', expireTime)
+        uni.setStorageSync(ACCESS_TOKEN_EXPIRE_STORAGE_KEY, expireTime)
       }
       else if (isDoubleTokenRes(val)) {
         // 双token模式
         const accessExpireTime = now + val.accessExpiresIn * 1000
         const refreshExpireTime = now + val.refreshExpiresIn * 1000
-        uni.setStorageSync('accessTokenExpireTime', accessExpireTime)
-        uni.setStorageSync('refreshTokenExpireTime', refreshExpireTime)
+        uni.setStorageSync(ACCESS_TOKEN_EXPIRE_STORAGE_KEY, accessExpireTime)
+        uni.setStorageSync(REFRESH_TOKEN_EXPIRE_STORAGE_KEY, refreshExpireTime)
       }
     }
 
@@ -77,7 +84,7 @@ export const useTokenStore = defineStore(
       }
 
       const now = nowTime.value
-      const expireTime = uni.getStorageSync('accessTokenExpireTime')
+      const expireTime = uni.getStorageSync(ACCESS_TOKEN_EXPIRE_STORAGE_KEY)
 
       if (!expireTime)
         return true
@@ -92,7 +99,7 @@ export const useTokenStore = defineStore(
         return true
 
       const now = nowTime.value
-      const refreshExpireTime = uni.getStorageSync('refreshTokenExpireTime')
+      const refreshExpireTime = uni.getStorageSync(REFRESH_TOKEN_EXPIRE_STORAGE_KEY)
 
       if (!refreshExpireTime)
         return true
@@ -203,17 +210,18 @@ export const useTokenStore = defineStore(
         console.error('退出登录失败:', error)
       }
       finally {
-        updateNowTime()
-
         // 无论成功失败，都需要清除本地token信息
-        // 清除存储的过期时间
-        uni.removeStorageSync('accessTokenExpireTime')
-        uni.removeStorageSync('refreshTokenExpireTime')
         console.log('退出登录-清除用户信息')
         tokenInfo.value = { ...tokenInfoState }
-        uni.removeStorageSync('token')
         const userStore = useUserStore()
         userStore.clearUserInfo()
+        updateNowTime()
+
+        // 清除存储的过期时间，并把持久化快照覆盖为未登录状态，避免刷新后恢复旧登录态。
+        uni.removeStorageSync(ACCESS_TOKEN_EXPIRE_STORAGE_KEY)
+        uni.removeStorageSync(REFRESH_TOKEN_EXPIRE_STORAGE_KEY)
+        uni.removeStorageSync(TOKEN_STORAGE_KEY)
+        persistEmptyTokenInfo(tokenInfo.value, nowTime.value)
       }
     }
 

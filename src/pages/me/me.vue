@@ -16,6 +16,7 @@ const tokenStore = useTokenStore()
 const { userInfo } = storeToRefs(userStore)
 const manageRoles = ['staff', 'admin', 'super_admin']
 const canEnterManage = computed(() => !!userInfo.value.role && manageRoles.includes(userInfo.value.role))
+const loggingOut = ref(false)
 
 // 微信小程序下登录
 async function handleLogin() {
@@ -25,18 +26,26 @@ async function handleLogin() {
 }
 
 function handleLogout() {
+  if (loggingOut.value) {
+    return
+  }
+
   uni.showModal({
     title: '提示',
     content: '确定要退出登录吗？',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
-        // 清空用户信息
-        useTokenStore().logout()
-        // 执行退出登录逻辑
-        uni.showToast({
-          title: '退出登录成功',
-          icon: 'success',
-        })
+        loggingOut.value = true
+        try {
+          await tokenStore.logout()
+          uni.showToast({
+            title: '退出登录成功',
+            icon: 'success',
+          })
+        }
+        finally {
+          loggingOut.value = false
+        }
         // #ifdef MP-WEIXIN
         // 微信小程序，去首页
         // uni.reLaunch({ url: '/pages/index/index' })
@@ -140,8 +149,8 @@ const roleText = computed(() => roleTextMap[userInfo.value.role || 'customer'])
     </view>
 
     <view v-if="tokenStore.hasLogin" class="profile-page__footer">
-      <button class="profile-page__logout" @click="handleLogout">
-        退出登录
+      <button class="profile-page__logout" :disabled="loggingOut" @click="handleLogout">
+        {{ loggingOut ? '退出中...' : '退出登录' }}
       </button>
     </view>
   </view>

@@ -14,6 +14,11 @@ const userInfoState: IUserInfoRes = {
   role: 'customer',
   status: 'active',
 }
+const USER_STORAGE_KEY = 'user'
+
+function persistEmptyUserInfo(userInfo: IUserInfoRes) {
+  uni.setStorageSync(USER_STORAGE_KEY, JSON.stringify({ userInfo }))
+}
 
 export const useUserStore = defineStore(
   'user',
@@ -37,7 +42,8 @@ export const useUserStore = defineStore(
     // 删除用户信息
     const clearUserInfo = () => {
       userInfo.value = { ...userInfoState }
-      uni.removeStorageSync('user')
+      uni.removeStorageSync(USER_STORAGE_KEY)
+      persistEmptyUserInfo(userInfo.value)
     }
 
     /**
