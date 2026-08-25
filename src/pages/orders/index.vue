@@ -89,7 +89,7 @@ function getOrderTime(order: Order) {
   const slot = order.slotSnapshot
 
   if (!slot?.date) {
-    return '预约时间待确认'
+    return '到店后安排场次'
   }
 
   return `${slot.date} ${slot.startTime}-${slot.endTime}`

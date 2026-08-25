@@ -14,10 +14,10 @@ const loading = ref(false)
 const submitting = ref(false)
 const selectedPackageId = ref('')
 const selectedSlotId = ref('')
-const peopleCount = ref(1)
-const rodCount = ref(1)
 
 const packageList = computed(() => homeData.value.packages)
+const bookingMode = computed(() => homeData.value.settings.bookingMode || 'walk_in')
+const isSlotBookingMode = computed(() => bookingMode.value === 'slot')
 const timeSlotList = computed(() => homeData.value.timeSlots.filter(slot => slot.status === 'available' && getSlotRemaining(slot) > 0))
 const selectedPackage = computed(() => packageList.value.find(item => item._id === selectedPackageId.value))
 const selectedSlot = computed(() => timeSlotList.value.find(item => item._id === selectedSlotId.value))
@@ -32,7 +32,6 @@ async function fetchBookingData(packageId?: string) {
       ? packageId
       : data.packages[0]?._id || ''
     selectedSlotId.value = data.timeSlots.find(slot => slot.status === 'available' && getSlotRemaining(slot) > 0)?._id || ''
-    rodCount.value = selectedPackage.value?.rodCount || 1
   }
   catch (error) {
     const title = error instanceof Error ? error.message : '预约数据获取失败'
@@ -67,15 +66,6 @@ function getSlotRemaining(slot: TimeSlot) {
 
 function handleSelectPackage(packageItem: ShrimpPackage) {
   selectedPackageId.value = packageItem._id
-  rodCount.value = packageItem.rodCount
-}
-
-function updatePeopleCount(step: number) {
-  peopleCount.value = Math.max(1, peopleCount.value + step)
-}
-
-function updateRodCount(step: number) {
-  rodCount.value = Math.max(1, rodCount.value + step)
 }
 
 async function handleSubmit() {
@@ -87,7 +77,7 @@ async function handleSubmit() {
     return
   }
 
-  if (!selectedSlot.value) {
+  if (isSlotBookingMode.value && !selectedSlot.value) {
     uni.showToast({
       title: '请选择场次',
       icon: 'none',
@@ -100,9 +90,7 @@ async function handleSubmit() {
   try {
     const res = await createOrder({
       packageId: selectedPackage.value._id,
-      slotId: selectedSlot.value._id,
-      peopleCount: peopleCount.value,
-      rodCount: rodCount.value,
+      slotId: isSlotBookingMode.value ? selectedSlot.value?._id : undefined,
     })
 
     uni.showToast({
@@ -140,7 +128,7 @@ onLoad((query) => {
         预约钓虾
       </view>
       <view class="booking-page__subtitle">
-        选择套餐和场次，到店核销后开始计时
+        选择套餐，到店核销后开始计时
       </view>
     </view>
 
@@ -177,7 +165,7 @@ onLoad((query) => {
       </view>
     </view>
 
-    <view class="booking-section">
+    <view v-if="isSlotBookingMode" class="booking-section">
       <view class="booking-section__title">
         场次
       </view>
@@ -208,51 +196,48 @@ onLoad((query) => {
       </view>
     </view>
 
-    <view class="booking-section">
+    <view v-if="selectedPackage" class="booking-section">
       <view class="booking-section__title">
-        人数与杆数
+        套餐包含
       </view>
-      <view class="counter-row">
+      <view class="package-summary">
         <view>
-          <view class="counter-row__label">
-            人数
+          <view class="package-summary__label">
+            建议人数
           </view>
-          <view class="counter-row__desc">
-            到店人数
+          <view class="package-summary__desc">
+            到店后按套餐安排
           </view>
         </view>
-        <view class="counter-row__controls">
-          <button class="counter-row__btn" :disabled="peopleCount <= 1" @click="updatePeopleCount(-1)">
-            -
-          </button>
-          <text class="counter-row__value">
-            {{ peopleCount }}
-          </text>
-          <button class="counter-row__btn" @click="updatePeopleCount(1)">
-            +
-          </button>
-        </view>
+        <text class="package-summary__value">
+          {{ selectedPackage.maxPeople }} 人
+        </text>
       </view>
-      <view class="counter-row">
+      <view class="package-summary">
         <view>
-          <view class="counter-row__label">
+          <view class="package-summary__label">
             杆数
           </view>
-          <view class="counter-row__desc">
-            默认跟随套餐，可手动调整
+          <view class="package-summary__desc">
+            已包含在套餐内
           </view>
         </view>
-        <view class="counter-row__controls">
-          <button class="counter-row__btn" :disabled="rodCount <= 1" @click="updateRodCount(-1)">
-            -
-          </button>
-          <text class="counter-row__value">
-            {{ rodCount }}
-          </text>
-          <button class="counter-row__btn" @click="updateRodCount(1)">
-            +
-          </button>
+        <text class="package-summary__value">
+          {{ selectedPackage.rodCount }} 根
+        </text>
+      </view>
+      <view class="package-summary">
+        <view>
+          <view class="package-summary__label">
+            时长
+          </view>
+          <view class="package-summary__desc">
+            核销后开始计时
+          </view>
         </view>
+        <text class="package-summary__value">
+          {{ formatDuration(selectedPackage.durationMinutes) }}
+        </text>
       </view>
     </view>
 
@@ -368,7 +353,7 @@ onLoad((query) => {
 
 .package-card,
 .slot-card,
-.counter-row {
+.package-summary {
   border: 2rpx solid transparent;
   border-radius: 8rpx;
   background: #ffffff;
@@ -437,12 +422,16 @@ onLoad((query) => {
   }
 }
 
-.counter-row {
+.package-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24rpx;
   margin-bottom: 18rpx;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
 
   &__label {
     color: #17211d;
@@ -456,24 +445,8 @@ onLoad((query) => {
     font-size: 24rpx;
   }
 
-  &__controls {
-    display: flex;
-    align-items: center;
-    gap: 18rpx;
-  }
-
-  &__btn {
-    width: 60rpx;
-    height: 60rpx;
-    border-radius: 8rpx;
-    background: #edf3ef;
-    color: #1f6b56;
-    font-size: 34rpx;
-    line-height: 60rpx;
-  }
-
   &__value {
-    min-width: 40rpx;
+    flex-shrink: 0;
     color: #17211d;
     font-size: 30rpx;
     font-weight: 700;

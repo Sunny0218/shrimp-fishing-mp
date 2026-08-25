@@ -13,6 +13,12 @@ const { userInfo } = storeToRefs(userStore)
 const manageRoles = ['staff', 'admin', 'super_admin']
 const canManage = computed(() => !!userInfo.value.role && manageRoles.includes(userInfo.value.role))
 
+function handleOpenCheckin() {
+  uni.navigateTo({
+    url: '/pages/manage/checkin',
+  })
+}
+
 onLoad(() => {
   if (canManage.value) {
     return
@@ -32,7 +38,7 @@ onLoad(() => {
 <template>
   <view class="min-h-screen bg-[#f5f7f6] px-4 py-5">
     <view class="rounded-2 bg-white p-4 shadow-sm">
-      <view class="text-5 font-600 text-[#17352f]">
+      <view class="text-5 text-[#17352f] font-600">
         门店管理
       </view>
       <view class="mt-2 text-3.5 text-[#6b7d78]">
@@ -40,7 +46,15 @@ onLoad(() => {
       </view>
     </view>
 
-    <view class="mt-4 grid grid-cols-2 gap-3">
+    <view class="grid grid-cols-2 mt-4 gap-3">
+      <view class="manage-card manage-card--primary" @click="handleOpenCheckin">
+        <view class="manage-card__title">
+          核销订单
+        </view>
+        <view class="manage-card__desc">
+          扫二维码或输入核销码开始计时
+        </view>
+      </view>
       <view class="manage-card">
         <view class="manage-card__title">
           今日订单
@@ -84,6 +98,18 @@ onLoad(() => {
   background: #fff;
   padding: 28rpx;
   box-shadow: 0 8rpx 24rpx rgb(24 54 47 / 6%);
+
+  &--primary {
+    background: #1f6b56;
+
+    .manage-card__title {
+      color: #ffffff;
+    }
+
+    .manage-card__desc {
+      color: #dcebe3;
+    }
+  }
 
   &__title {
     color: #17352f;

@@ -18,6 +18,7 @@ export interface PackageSnapshot {
   durationMinutes: number
   price: number
   rodCount: number
+  maxPeople?: number
 }
 
 export interface TimeSlotSnapshot {
@@ -34,13 +35,14 @@ export interface Order {
   openid: string
   orderType: OrderType
   status: OrderStatus
-  slotId: string
+  bookingMode?: 'walk_in' | 'slot'
+  slotId?: string
   packageId: string
   pricingRuleId?: string
   rodCount: number
   peopleCount: number
   packageSnapshot: PackageSnapshot
-  slotSnapshot: TimeSlotSnapshot
+  slotSnapshot?: TimeSlotSnapshot
   baseAmount: number
   goodsAmount: number
   adjustAmount: number
@@ -50,6 +52,10 @@ export interface Order {
   remark: string
   adminRemark: string
   checkinCode: string
+  checkedInAt?: Date | string
+  startedAt?: Date | string
+  expectedEndedAt?: Date | string
+  checkedInBy?: string
   createdBy: string
   createdAt: Date | string
   updatedAt: Date | string
@@ -57,9 +63,9 @@ export interface Order {
 
 export interface CreateOrderParams {
   packageId: string
-  slotId: string
-  peopleCount: number
-  rodCount: number
+  slotId?: string
+  peopleCount?: number
+  rodCount?: number
   remark?: string
 }
 
@@ -67,6 +73,8 @@ export interface CreateOrderResult {
   orderId: string
   orderNo: string
   status: OrderStatus
+  bookedCount?: number
+  slotStatus?: string
 }
 
 export interface OrderDetailData {
@@ -93,4 +101,14 @@ export interface CancelOrderParams {
 export interface CancelOrderResult {
   orderId: string
   status: Extract<OrderStatus, 'cancelled'>
+}
+
+export interface CheckInOrderParams {
+  orderId?: string
+  checkinCode: string
+}
+
+export interface CheckInOrderResult {
+  order: Order
+  checkedInAt: string
 }

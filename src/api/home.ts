@@ -15,6 +15,7 @@ export const defaultHomeData: HomeData = {
     ],
     coverImages: [],
     notice: '欢迎预约到店钓虾，营业信息以门店现场为准。',
+    bookingMode: 'walk_in',
   },
   packages: [],
   timeSlots: [],

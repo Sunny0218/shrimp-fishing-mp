@@ -22,6 +22,7 @@ const errorText = ref('')
 const shopInfo = computed(() => homeData.value.settings)
 const packageList = computed(() => homeData.value.packages)
 const timeSlotList = computed(() => homeData.value.timeSlots)
+const isSlotBookingMode = computed(() => shopInfo.value.bookingMode === 'slot')
 const businessHourText = computed(() => {
   const hours = shopInfo.value.businessHours
 
@@ -79,8 +80,8 @@ function getSlotStatusText(slot: TimeSlot) {
   return `余 ${getSlotRemaining(slot)}`
 }
 
-function handleBooking(packageItem?: ShrimpPackage) {
-  const query = packageItem?._id ? `?packageId=${packageItem._id}` : ''
+function handleBooking(packageItem: ShrimpPackage) {
+  const query = packageItem._id ? `?packageId=${packageItem._id}` : ''
 
   uni.navigateTo({
     url: `/pages/booking/index${query}`,
@@ -127,13 +128,6 @@ onPullDownRefresh(() => {
           {{ shopInfo.address }}
         </view>
         <view class="home-page__actions">
-          <button
-            class="home-page__primary-btn"
-            :disabled="loading"
-            @click="handleBooking()"
-          >
-            立即预约
-          </button>
           <button
             class="home-page__ghost-btn"
             :disabled="loading"
@@ -199,7 +193,7 @@ onPullDownRefresh(() => {
       </view>
     </view>
 
-    <view class="home-section">
+    <view v-if="isSlotBookingMode" class="home-section">
       <view class="home-section__header">
         <view>
           <view class="home-section__title">
@@ -306,7 +300,6 @@ onPullDownRefresh(() => {
     margin-top: 36rpx;
   }
 
-  &__primary-btn,
   &__ghost-btn,
   &__retry-btn {
     min-height: 76rpx;
@@ -315,14 +308,8 @@ onPullDownRefresh(() => {
     line-height: 76rpx;
   }
 
-  &__primary-btn {
-    flex: 1;
-    background: #f6c453;
-    color: #20312b;
-  }
-
   &__ghost-btn {
-    flex: 1;
+    width: 220rpx;
     border: 2rpx solid rgb(255 255 255 / 45%);
     background: transparent;
     color: #ffffff;

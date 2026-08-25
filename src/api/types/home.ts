@@ -1,5 +1,6 @@
 export type PackageStatus = 'active' | 'disabled'
 export type TimeSlotStatus = 'available' | 'full' | 'closed'
+export type BookingMode = 'walk_in' | 'slot'
 
 export interface BusinessHour {
   label: string
@@ -21,6 +22,7 @@ export interface ShopSettings {
   businessHours: BusinessHour[]
   coverImages: string[]
   notice: string
+  bookingMode?: BookingMode
   location?: ShopLocation
   updatedAt?: Date | string
 }

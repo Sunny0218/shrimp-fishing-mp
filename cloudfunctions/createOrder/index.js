@@ -56,16 +56,10 @@ exports.main = async (event = {}) => {
 
   const packageId = typeof event.packageId === 'string' ? event.packageId.trim() : ''
   const slotId = typeof event.slotId === 'string' ? event.slotId.trim() : ''
-  const peopleCount = normalizeCount(event.peopleCount, 1)
-  const rodCount = normalizeCount(event.rodCount, 1)
   const remark = typeof event.remark === 'string' ? event.remark.trim() : ''
 
   if (!packageId) {
     return fail(400, '请选择套餐')
-  }
-
-  if (!slotId) {
-    return fail(400, '请选择场次')
   }
 
   try {
@@ -83,6 +77,60 @@ exports.main = async (event = {}) => {
       return fail(404, '套餐不存在或已下架')
     }
 
+    const now = new Date()
+    const orderNo = createOrderNo()
+    const packageRodCount = Number(packageItem.rodCount || 1)
+    const packageMaxPeople = Number(packageItem.maxPeople || packageRodCount || 1)
+    const rodCount = normalizeCount(event.rodCount, packageRodCount)
+    const peopleCount = normalizeCount(event.peopleCount, packageMaxPeople)
+    const orderData = {
+      orderNo,
+      userId: user._id,
+      openid,
+      orderType: 'package',
+      bookingMode: slotId ? 'slot' : 'walk_in',
+      status: 'paid',
+      packageId,
+      rodCount,
+      peopleCount,
+      packageSnapshot: {
+        packageId,
+        name: packageItem.name || '',
+        durationMinutes: Number(packageItem.durationMinutes || 0),
+        price: Number(packageItem.price || 0),
+        rodCount: Number(packageItem.rodCount || rodCount),
+        maxPeople: Number(packageItem.maxPeople || peopleCount),
+      },
+      baseAmount: Number(packageItem.price || 0),
+      goodsAmount: 0,
+      adjustAmount: 0,
+      discountAmount: 0,
+      paidAmount: 0,
+      finalAmount: Number(packageItem.price || 0),
+      remark,
+      adminRemark: '',
+      checkinCode: createCheckinCode(),
+      createdBy: user._id,
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    if (!slotId) {
+      const result = await db.collection('orders').add({
+        data: orderData,
+      })
+
+      return {
+        code: 0,
+        message: 'ok',
+        data: {
+          orderId: result._id,
+          orderNo,
+          status: orderData.status,
+        },
+      }
+    }
+
     const slotRes = await db.collection('time_slots').doc(slotId).get()
     const slot = slotRes.data
 
@@ -97,45 +145,17 @@ exports.main = async (event = {}) => {
       return fail(409, '当前场次已约满')
     }
 
-    const now = new Date()
-    const orderNo = createOrderNo()
     const nextBookedCount = bookedCount + 1
     const nextSlotStatus = nextBookedCount >= capacity ? 'full' : 'available'
-    const orderData = {
-      orderNo,
-      userId: user._id,
-      openid,
-      orderType: 'package',
-      status: 'paid',
+    const slotOrderData = {
+      ...orderData,
       slotId,
-      packageId,
-      rodCount,
-      peopleCount,
-      packageSnapshot: {
-        packageId,
-        name: packageItem.name || '',
-        durationMinutes: Number(packageItem.durationMinutes || 0),
-        price: Number(packageItem.price || 0),
-        rodCount: Number(packageItem.rodCount || rodCount),
-      },
       slotSnapshot: {
         slotId,
         date: slot.date || '',
         startTime: slot.startTime || '',
         endTime: slot.endTime || '',
       },
-      baseAmount: Number(packageItem.price || 0),
-      goodsAmount: 0,
-      adjustAmount: 0,
-      discountAmount: 0,
-      paidAmount: 0,
-      finalAmount: Number(packageItem.price || 0),
-      remark,
-      adminRemark: '',
-      checkinCode: createCheckinCode(),
-      createdBy: user._id,
-      createdAt: now,
-      updatedAt: now,
     }
 
     const result = await db.runTransaction(async (transaction) => {
@@ -164,7 +184,7 @@ exports.main = async (event = {}) => {
       })
 
       return transaction.collection('orders').add({
-        data: orderData,
+        data: slotOrderData,
       })
     })
 
@@ -174,7 +194,7 @@ exports.main = async (event = {}) => {
       data: {
         orderId: result._id,
         orderNo,
-        status: orderData.status,
+        status: slotOrderData.status,
         bookedCount: nextBookedCount,
         slotStatus: nextSlotStatus,
       },

@@ -1,14 +1,23 @@
 import type { CloudFunctionResponse } from './types/home'
-import type { CancelOrderParams, CancelOrderResult, CreateOrderParams, CreateOrderResult, GetMyOrdersParams, MyOrdersData, OrderDetailData } from './types/order'
+import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, GetMyOrdersParams, MyOrdersData, OrderDetailData } from './types/order'
 import { callCloudFunction } from '@/cloud'
 
 export async function createOrder(params: CreateOrderParams) {
   const requestParams: CreateOrderParams = {
     packageId: params.packageId.trim(),
-    slotId: params.slotId.trim(),
-    peopleCount: params.peopleCount,
-    rodCount: params.rodCount,
     remark: params.remark?.trim() || '',
+  }
+
+  if (params.slotId) {
+    requestParams.slotId = params.slotId.trim()
+  }
+
+  if (params.peopleCount) {
+    requestParams.peopleCount = params.peopleCount
+  }
+
+  if (params.rodCount) {
+    requestParams.rodCount = params.rodCount
   }
 
   // #ifdef MP-WEIXIN
@@ -98,4 +107,31 @@ export async function cancelOrder(params: CancelOrderParams) {
   // #endif
 
   throw new Error('当前平台暂不支持取消预约')
+}
+
+export async function checkInOrder(params: CheckInOrderParams) {
+  const checkinCode = params.checkinCode.trim()
+  const orderId = params.orderId?.trim()
+
+  if (!checkinCode) {
+    throw new Error('请输入核销码')
+  }
+
+  // #ifdef MP-WEIXIN
+  const res = await callCloudFunction<CloudFunctionResponse<CheckInOrderResult>, Record<string, unknown>>(
+    'checkInOrder',
+    {
+      checkinCode,
+      ...(orderId ? { orderId } : {}),
+    },
+  )
+
+  if (res.code !== 0) {
+    throw new Error(res.message || '订单核销失败')
+  }
+
+  return res.data
+  // #endif
+
+  throw new Error('当前平台暂不支持核销订单')
 }
