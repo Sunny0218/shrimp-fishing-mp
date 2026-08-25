@@ -1,6 +1,12 @@
 <script setup lang="ts">
+import OrderCard from '@/components/OrderCard.vue'
+import OrderStatusTabs from '@/components/OrderStatusTabs.vue'
 import type { ManageOrderStatusFilter, Order, OrderStatus, TodayOrdersData } from '@/api/types/order'
-import { getTodayOrders } from '@/api/order'
+import { storeToRefs } from 'pinia'
+import { finishTimingOrder, getTodayOrders } from '@/api/order'
+import { useLatestRequest } from '@/hooks/useLatestRequest'
+import { useNativeLoading } from '@/hooks/useNativeLoading'
+import { useUserStore } from '@/store'
 
 definePage({
   style: {
@@ -19,6 +25,7 @@ const statusTabs: StatusTab[] = [
   { label: '待核销', value: 'paid' },
   { label: '进行中', value: 'in_progress' },
   { label: '待结账', value: 'pending_checkout' },
+  { label: '已完成', value: 'completed' },
   { label: '全部', value: 'all' },
 ]
 const statusTextMap: Record<OrderStatus, string> = {
@@ -33,42 +40,52 @@ const statusTextMap: Record<OrderStatus, string> = {
   refunded: '已退款',
 }
 
-const loading = ref(false)
 const errorText = ref('')
 const activeStatus = ref<ManageOrderStatusFilter>('active')
 const todayOrders = ref<TodayOrdersData>()
 const currentTime = ref(Date.now())
+const finishingOrderId = ref('')
 let timer: ReturnType<typeof setInterval> | undefined
+const userStore = useUserStore()
+const { userInfo } = storeToRefs(userStore)
+const { loading: requestLoading, runLatest } = useLatestRequest()
 
 const orderList = computed(() => todayOrders.value?.rows || [])
 const summary = computed(() => todayOrders.value?.summary)
 const currentDate = computed(() => todayOrders.value?.date || getLocalDateText())
+const canWaiveOvertime = computed(() => ['admin', 'super_admin'].includes(userInfo.value.role || ''))
+const showInitialLoading = computed(() => requestLoading.value && !todayOrders.value)
+const showLoadingOverlay = computed(() => requestLoading.value && !!todayOrders.value)
+useNativeLoading(showLoadingOverlay, '切换中')
 
-async function fetchOrders() {
-  loading.value = true
+async function fetchOrders(status: ManageOrderStatusFilter = activeStatus.value) {
   errorText.value = ''
 
-  try {
-    todayOrders.value = await getTodayOrders({
-      status: activeStatus.value,
-    })
-  }
-  catch (error) {
-    errorText.value = error instanceof Error ? error.message : '今日订单获取失败'
-  }
-  finally {
-    loading.value = false
-    uni.stopPullDownRefresh()
-  }
+  await runLatest(
+    () => getTodayOrders({ status }),
+    {
+      onSuccess: (res) => {
+        todayOrders.value = res
+      },
+      onError: (error) => {
+        errorText.value = error instanceof Error ? error.message : '今日订单获取失败'
+      },
+      onFinally: () => {
+        uni.stopPullDownRefresh()
+      },
+    },
+  )
 }
 
-function handleChangeStatus(status: ManageOrderStatusFilter) {
+function handleChangeStatus(statusValue: string) {
+  const status = statusValue as ManageOrderStatusFilter
+
   if (activeStatus.value === status) {
     return
   }
 
   activeStatus.value = status
-  fetchOrders()
+  fetchOrders(status)
 }
 
 function handleViewDetail(order: Order) {
@@ -142,7 +159,35 @@ function getTimingText(order: Order) {
     return '已超时'
   }
 
+  if (rest <= 10 * 60 * 1000) {
+    return `快到点 ${formatCountdown(rest)}`
+  }
+
   return `剩余 ${formatCountdown(rest)}`
+}
+
+function getTimingLevel(order: Order): 'warning' | 'overtime' | '' {
+  if (order.status !== 'in_progress') {
+    return ''
+  }
+
+  const expectedEndedAt = getExpectedEndedAtTime(order)
+
+  if (!expectedEndedAt) {
+    return ''
+  }
+
+  const rest = expectedEndedAt - currentTime.value
+
+  if (rest <= 0) {
+    return 'overtime'
+  }
+
+  if (rest <= 10 * 60 * 1000) {
+    return 'warning'
+  }
+
+  return ''
 }
 
 function getStatusText(status: OrderStatus) {
@@ -168,6 +213,10 @@ function getOrderTime(order: Order) {
   }
 
   return `下单 ${formatDateTime(order.createdAt)}`
+}
+
+function getOrderMeta(order: Order) {
+  return `${order.peopleCount} 人 / ${order.rodCount} 根杆`
 }
 
 function formatDateTime(value?: string | Date | number) {
@@ -204,6 +253,181 @@ function formatTime(value?: string | Date | number) {
 
 function formatPrice(price?: number) {
   return `¥${((price || 0) / 100).toFixed(0)}`
+}
+
+function getOvertimeMinutes(order: Order) {
+  const expectedEndedAt = getExpectedEndedAtTime(order)
+
+  if (!expectedEndedAt) {
+    return 0
+  }
+
+  return Math.max(Math.ceil((currentTime.value - expectedEndedAt) / 60 / 1000), 0)
+}
+
+function getOvertimeAmount(overtimeMinutes: number) {
+  if (overtimeMinutes <= 0) {
+    return 0
+  }
+
+  return Math.ceil(overtimeMinutes / 30) * 3000
+}
+
+async function submitFinishTiming(
+  order: Order,
+  options: { waiveOvertime?: boolean, waiverReason?: string, earlyFinishReason?: string } = {},
+) {
+  finishingOrderId.value = order._id
+
+  try {
+    const res = await finishTimingOrder({
+      orderId: order._id,
+      waiveOvertime: !!options.waiveOvertime,
+      waiverReason: options.waiverReason,
+      earlyFinishReason: options.earlyFinishReason,
+    })
+    uni.showToast({
+      title: res.order.status === 'completed' ? '订单已完成' : '已进入待结账',
+      icon: 'success',
+    })
+    await fetchOrders()
+  }
+  catch (error) {
+    uni.showToast({
+      title: error instanceof Error ? error.message : '结束计时失败',
+      icon: 'none',
+    })
+  }
+  finally {
+    finishingOrderId.value = ''
+  }
+}
+
+function handleFinishWithoutOvertime(order: Order) {
+  uni.showModal({
+    title: '完成订单',
+    content: `订单 ${order.orderNo} 未产生超时费用，确认完成订单吗？`,
+    confirmText: '确认完成',
+    confirmColor: '#1f6b56',
+    success: (res) => {
+      if (res.confirm) {
+        submitFinishTiming(order)
+      }
+    },
+  })
+}
+
+function handleEarlyFinish(order: Order, earlyMinutes: number) {
+  if (!canWaiveOvertime.value) {
+    uni.showToast({
+      title: '请管理员确认后提前完成',
+      icon: 'none',
+    })
+    return
+  }
+
+  const reasons = ['顾客提前离场', '设备问题', '老板批准', '其他']
+
+  uni.showActionSheet({
+    itemList: reasons,
+    success: (res) => {
+      const reason = reasons[res.tapIndex] || '其他'
+
+      uni.showModal({
+        title: '提前完成订单',
+        content: `距离预计结束还有约 ${earlyMinutes} 分钟，确认提前完成吗？`,
+        confirmText: '提前完成',
+        confirmColor: '#c9472b',
+        success: (modalRes) => {
+          if (modalRes.confirm) {
+            submitFinishTiming(order, {
+              earlyFinishReason: reason,
+            })
+          }
+        },
+      })
+    },
+  })
+}
+
+function handleFinishWithCheckout(order: Order, overtimeMinutes: number, overtimeAmount: number) {
+  uni.showModal({
+    title: '结束并结算',
+    content: `已超时 ${overtimeMinutes} 分钟，将产生补款 ${formatPrice(overtimeAmount)}。`,
+    confirmText: '生成补款',
+    confirmColor: '#1f6b56',
+    success: (res) => {
+      if (res.confirm) {
+        submitFinishTiming(order)
+      }
+    },
+  })
+}
+
+function handleWaiveOvertime(order: Order) {
+  const reasons = ['顾客收杆延迟', '设备问题', '老板批准', '其他']
+
+  uni.showActionSheet({
+    itemList: reasons,
+    success: (res) => {
+      const reason = reasons[res.tapIndex] || '其他'
+
+      uni.showModal({
+        title: '免收超时费',
+        content: `确认免收订单 ${order.orderNo} 的超时费用并完成订单吗？`,
+        confirmText: '免收并完成',
+        confirmColor: '#c9472b',
+        success: (modalRes) => {
+          if (modalRes.confirm) {
+            submitFinishTiming(order, {
+              waiveOvertime: true,
+              waiverReason: reason,
+            })
+          }
+        },
+      })
+    },
+  })
+}
+
+function handleFinishTiming(order: Order) {
+  if (finishingOrderId.value) {
+    return
+  }
+
+  const overtimeMinutes = getOvertimeMinutes(order)
+  const overtimeAmount = getOvertimeAmount(overtimeMinutes)
+  const expectedEndedAt = getExpectedEndedAtTime(order)
+  const earlyMinutes = expectedEndedAt > currentTime.value
+    ? Math.ceil((expectedEndedAt - currentTime.value) / 60 / 1000)
+    : 0
+
+  if (earlyMinutes > 10) {
+    handleEarlyFinish(order, earlyMinutes)
+    return
+  }
+
+  if (overtimeAmount <= 0) {
+    handleFinishWithoutOvertime(order)
+    return
+  }
+
+  if (!canWaiveOvertime.value) {
+    handleFinishWithCheckout(order, overtimeMinutes, overtimeAmount)
+    return
+  }
+
+  uni.showActionSheet({
+    itemList: ['生成补款', '免收并完成'],
+    success: (res) => {
+      if (res.tapIndex === 0) {
+        handleFinishWithCheckout(order, overtimeMinutes, overtimeAmount)
+        return
+      }
+
+      handleWaiveOvertime(order)
+    },
+  })
 }
 
 function startTimer() {
@@ -289,68 +513,49 @@ onUnload(() => {
     </view>
 
     <view class="today-orders-page__tabs">
-      <view
-        v-for="tab in statusTabs"
-        :key="tab.value"
-        class="today-orders-page__tab"
-        :class="{ 'today-orders-page__tab--active': activeStatus === tab.value }"
-        @click="handleChangeStatus(tab.value)"
-      >
-        {{ tab.label }}
+      <OrderStatusTabs
+        :tabs="statusTabs"
+        :active="activeStatus"
+        :disabled="requestLoading"
+        @change="handleChangeStatus"
+      />
+    </view>
+
+    <view class="today-orders-page__content">
+      <view v-if="showInitialLoading" class="today-orders-page__placeholder">
+        正在加载今日订单...
       </view>
-    </view>
 
-    <view v-if="loading" class="today-orders-page__placeholder">
-      正在加载今日订单...
-    </view>
+      <view v-else-if="errorText" class="today-orders-page__error">
+        <text>{{ errorText }}</text>
+        <button class="today-orders-page__retry" @click="fetchOrders()">
+          重试
+        </button>
+      </view>
 
-    <view v-else-if="errorText" class="today-orders-page__error">
-      <text>{{ errorText }}</text>
-      <button class="today-orders-page__retry" @click="fetchOrders">
-        重试
-      </button>
-    </view>
+      <view v-else-if="!orderList.length" class="today-orders-page__placeholder">
+        暂无订单
+      </view>
 
-    <view v-else-if="!orderList.length" class="today-orders-page__placeholder">
-      暂无订单
-    </view>
-
-    <view v-else class="order-list">
-      <view
-        v-for="order in orderList"
-        :key="order._id"
-        class="order-card"
-        @click="handleViewDetail(order)"
-      >
-        <view class="order-card__header">
-          <view class="order-card__title">
-            {{ getOrderTitle(order) }}
-          </view>
-          <view class="order-card__status" :class="`order-card__status--${order.status}`">
-            {{ getStatusText(order.status) }}
-          </view>
-        </view>
-
-        <view class="order-card__line">
-          {{ getOrderTime(order) }}
-        </view>
-
-        <view v-if="getTimingText(order)" class="order-card__timer" :class="{ 'order-card__timer--overtime': getTimingText(order) === '已超时' }">
-          {{ getTimingText(order) }}
-        </view>
-
-        <view class="order-card__meta">
-          {{ order.peopleCount }} 人 / {{ order.rodCount }} 根杆
-        </view>
-
-        <view class="order-card__footer">
-          <text class="order-card__no">
-            {{ order.orderNo }}
-          </text>
-          <text class="order-card__price">
-            {{ formatPrice(order.finalAmount) }}
-          </text>
-        </view>
+      <view v-else class="order-list">
+        <OrderCard
+          v-for="order in orderList"
+          :key="order._id"
+          :title="getOrderTitle(order)"
+          :status="order.status"
+          :status-text="getStatusText(order.status)"
+          :time-text="getOrderTime(order)"
+          :timer-text="getTimingText(order)"
+          :timer-level="getTimingLevel(order)"
+          :meta-text="getOrderMeta(order)"
+          :order-no="order.orderNo"
+          :price-text="formatPrice(order.finalAmount)"
+          :action-label="order.status === 'in_progress' ? '结束计时' : ''"
+          :action-loading="finishingOrderId === order._id"
+          :action-disabled="!!finishingOrderId"
+          @click="handleViewDetail(order)"
+          @action="handleFinishTiming(order)"
+        />
       </view>
     </view>
   </view>
@@ -364,27 +569,7 @@ onUnload(() => {
   color: #17211d;
 
   &__tabs {
-    display: flex;
-    gap: 14rpx;
-    overflow-x: auto;
     padding: 22rpx 0 18rpx;
-    white-space: nowrap;
-  }
-
-  &__tab {
-    flex-shrink: 0;
-    border-radius: 8rpx;
-    background: #ffffff;
-    padding: 14rpx 22rpx;
-    color: #62716b;
-    font-size: 25rpx;
-    line-height: 1.2;
-
-    &--active {
-      background: #1f6b56;
-      color: #ffffff;
-      font-weight: 600;
-    }
   }
 
   &__placeholder,
@@ -406,6 +591,11 @@ onUnload(() => {
     color: #ffffff;
     font-size: 26rpx;
     line-height: 70rpx;
+  }
+
+  &__content {
+    position: relative;
+    min-height: 260rpx;
   }
 }
 
@@ -452,100 +642,6 @@ onUnload(() => {
   display: flex;
   flex-direction: column;
   gap: 20rpx;
-}
-
-.order-card {
-  border-radius: 8rpx;
-  background: #ffffff;
-  padding: 26rpx;
-  box-shadow: 0 10rpx 22rpx rgb(31 59 50 / 5%);
-
-  &__header,
-  &__footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20rpx;
-  }
-
-  &__title {
-    min-width: 0;
-    color: #17211d;
-    font-size: 31rpx;
-    font-weight: 700;
-    line-height: 1.3;
-  }
-
-  &__status {
-    flex-shrink: 0;
-    border-radius: 8rpx;
-    background: #e8f3ed;
-    padding: 8rpx 14rpx;
-    color: #1f6b56;
-    font-size: 22rpx;
-    line-height: 1.2;
-
-    &--in_progress {
-      background: #f8f2df;
-      color: #c9472b;
-    }
-
-    &--pending_checkout {
-      background: #eef1f6;
-      color: #43546c;
-    }
-
-    &--cancelled,
-    &--refunded {
-      background: #f0f2ef;
-      color: #89938f;
-    }
-  }
-
-  &__line,
-  &__meta {
-    margin-top: 16rpx;
-    color: #718079;
-    font-size: 25rpx;
-    line-height: 1.4;
-  }
-
-  &__timer {
-    width: fit-content;
-    margin-top: 18rpx;
-    border-radius: 8rpx;
-    background: #f8f2df;
-    padding: 10rpx 16rpx;
-    color: #c9472b;
-    font-size: 28rpx;
-    font-weight: 700;
-    line-height: 1.2;
-
-    &--overtime {
-      background: #f7e5de;
-    }
-  }
-
-  &__footer {
-    margin-top: 22rpx;
-    border-top: 2rpx solid #eef2ef;
-    padding-top: 18rpx;
-  }
-
-  &__no {
-    min-width: 0;
-    color: #89938f;
-    font-size: 22rpx;
-    line-height: 1.4;
-  }
-
-  &__price {
-    flex-shrink: 0;
-    color: #c9472b;
-    font-size: 30rpx;
-    font-weight: 700;
-    line-height: 1.2;
-  }
 }
 
 button::after {

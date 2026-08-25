@@ -125,6 +125,8 @@ export default defineManifestConfig({
       // 是否启用 ES6 转 ES5
       es6: true,
       minified: true,
+      ignoreDevUnusedFiles: false,
+      ignoreUploadUnusedFiles: false,
     },
     optimization: {
       subPackages: true,

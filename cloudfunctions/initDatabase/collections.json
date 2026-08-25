@@ -41,6 +41,11 @@
       "permission": "adminOnly"
     },
     {
+      "name": "order_logs",
+      "description": "订单操作日志",
+      "permission": "adminOnly"
+    },
+    {
       "name": "goods",
       "description": "现场商品",
       "permission": "adminOnly"

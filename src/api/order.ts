@@ -1,5 +1,5 @@
 import type { CloudFunctionResponse } from './types/home'
-import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, GetMyOrdersParams, GetTodayOrdersParams, MyOrdersData, OrderDetailData, TodayOrdersData } from './types/order'
+import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, FinishTimingOrderParams, FinishTimingOrderResult, GetMyOrdersParams, GetTodayOrdersParams, MyOrdersData, OrderDetailData, TodayOrdersData } from './types/order'
 import { callCloudFunction } from '@/cloud'
 
 export async function createOrder(params: CreateOrderParams) {
@@ -168,4 +168,37 @@ export async function checkInOrder(params: CheckInOrderParams) {
   // #endif
 
   throw new Error('当前平台暂不支持核销订单')
+}
+
+export async function finishTimingOrder(params: FinishTimingOrderParams) {
+  const orderId = params.orderId.trim()
+
+  if (!orderId) {
+    throw new Error('缺少订单 ID')
+  }
+
+  const waiverReason = params.waiverReason?.trim()
+  const earlyFinishReason = params.earlyFinishReason?.trim()
+  const reason = params.reason?.trim()
+
+  // #ifdef MP-WEIXIN
+  const res = await callCloudFunction<CloudFunctionResponse<FinishTimingOrderResult>, Record<string, unknown>>(
+    'finishTimingOrder',
+    {
+      orderId,
+      waiveOvertime: !!params.waiveOvertime,
+      ...(waiverReason ? { waiverReason } : {}),
+      ...(earlyFinishReason ? { earlyFinishReason } : {}),
+      ...(reason ? { reason } : {}),
+    },
+  )
+
+  if (res.code !== 0) {
+    throw new Error(res.message || '结束计时失败')
+  }
+
+  return res.data
+  // #endif
+
+  throw new Error('当前平台暂不支持结束计时')
 }

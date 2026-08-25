@@ -44,7 +44,7 @@ const checkinTipMap: Record<OrderStatus, string> = {
   paid: '到店后向服务员出示核销码，核销后开始计时。',
   checked_in: '订单已核销，服务员将为你开始计时。',
   in_progress: '当前正在计时，结束后由门店完成结账。',
-  pending_checkout: '本次钓虾已结束，请到前台完成结账。',
+  pending_checkout: '本次钓虾已结束，请按门店指引完成补款。',
   completed: '订单已完成，感谢到店体验。',
   cancelled: '该预约已取消，核销码不可用。',
   refund_pending: '订单退款处理中，核销码暂不可用。',
@@ -87,6 +87,7 @@ const checkinTip = computed(() => {
   return checkinTipMap[order.value.status] || '订单状态已更新，如需帮助请联系门店。'
 })
 const startedAtTime = computed(() => getDateTimeValue(order.value?.startedAt || order.value?.checkedInAt))
+const endedAtTime = computed(() => getDateTimeValue(order.value?.endedAt || order.value?.finishedAt))
 const expectedEndedAtTime = computed(() => {
   const savedExpectedEndedAt = getDateTimeValue(order.value?.expectedEndedAt)
 
@@ -109,6 +110,20 @@ const remainingMilliseconds = computed(() => {
   }
 
   return Math.max(expectedEndedAtTime.value - currentTime.value, 0)
+})
+const actualDurationText = computed(() => {
+  if (order.value?.actualDurationMinutes) {
+    return formatDuration(order.value.actualDurationMinutes)
+  }
+
+  if (!startedAtTime.value) {
+    return '-'
+  }
+
+  const endedAt = endedAtTime.value || currentTime.value
+  const duration = Math.max(Math.ceil((endedAt - startedAtTime.value) / 60 / 1000), 0)
+
+  return formatDuration(duration)
 })
 const countdownText = computed(() => {
   if (!expectedEndedAtTime.value) {
@@ -355,6 +370,54 @@ onUnload(() => {
             {{ formatDateTime(expectedEndedAtTime) }}
           </text>
         </view>
+        <view v-if="endedAtTime" class="info-row">
+          <text class="info-row__label">
+            实际结束
+          </text>
+          <text class="info-row__value">
+            {{ formatDateTime(endedAtTime) }}
+          </text>
+        </view>
+        <view class="info-row">
+          <text class="info-row__label">
+            实际用时
+          </text>
+          <text class="info-row__value">
+            {{ actualDurationText }}
+          </text>
+        </view>
+        <view v-if="order.overtimeMinutes" class="info-row">
+          <text class="info-row__label">
+            超时时长
+          </text>
+          <text class="info-row__value">
+            {{ formatDuration(order.overtimeMinutes) }}
+          </text>
+        </view>
+        <view v-if="order.earlyFinishedMinutes" class="info-row">
+          <text class="info-row__label">
+            提前完成
+          </text>
+          <text class="info-row__value">
+            {{ formatDuration(order.earlyFinishedMinutes) }}
+          </text>
+        </view>
+        <view v-if="order.earlyFinishReason" class="info-row">
+          <text class="info-row__label">
+            提前原因
+          </text>
+          <text class="info-row__value">
+            {{ order.earlyFinishReason }}
+          </text>
+        </view>
+        <view v-if="order.waivedOvertimeAmount" class="info-row">
+          <text class="info-row__label">
+            已免收
+          </text>
+          <text class="info-row__value">
+            {{ formatPrice(order.waivedOvertimeAmount) }}
+          </text>
+        </view>
       </view>
 
       <view class="order-card">
@@ -460,6 +523,22 @@ onUnload(() => {
           </text>
           <text class="info-row__value">
             -{{ formatPrice(order.discountAmount) }}
+          </text>
+        </view>
+        <view v-if="order.overtimeAmount" class="info-row">
+          <text class="info-row__label">
+            超时金额
+          </text>
+          <text class="info-row__value">
+            {{ formatPrice(order.overtimeAmount) }}
+          </text>
+        </view>
+        <view v-if="order.checkoutAmount" class="info-row">
+          <text class="info-row__label">
+            待补款
+          </text>
+          <text class="info-row__price">
+            {{ formatPrice(order.checkoutAmount) }}
           </text>
         </view>
         <view v-if="order.adjustAmount" class="info-row">

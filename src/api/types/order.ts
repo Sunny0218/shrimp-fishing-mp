@@ -47,6 +47,9 @@ export interface Order {
   goodsAmount: number
   adjustAmount: number
   discountAmount: number
+  overtimeAmount?: number
+  checkoutAmount?: number
+  waivedOvertimeAmount?: number
   paidAmount: number
   finalAmount: number
   remark: string
@@ -55,6 +58,15 @@ export interface Order {
   checkedInAt?: Date | string
   startedAt?: Date | string
   expectedEndedAt?: Date | string
+  endedAt?: Date | string
+  actualDurationMinutes?: number
+  overtimeMinutes?: number
+  chargedOvertimeMinutes?: number
+  waiverReason?: string
+  earlyFinishedMinutes?: number
+  earlyFinishReason?: string
+  finishedBy?: string
+  finishedAt?: Date | string
   checkedInBy?: string
   createdBy: string
   createdAt: Date | string
@@ -136,4 +148,17 @@ export interface CheckInOrderParams {
 export interface CheckInOrderResult {
   order: Order
   checkedInAt: string
+}
+
+export interface FinishTimingOrderParams {
+  orderId: string
+  waiveOvertime?: boolean
+  waiverReason?: string
+  earlyFinishReason?: string
+  reason?: string
+}
+
+export interface FinishTimingOrderResult {
+  order: Order
+  logSaved?: boolean
 }

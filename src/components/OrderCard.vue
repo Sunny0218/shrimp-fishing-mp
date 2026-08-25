@@ -1,0 +1,206 @@
+<script setup lang="ts">
+import type { OrderStatus } from '@/api/types/order'
+
+withDefaults(defineProps<{
+  title: string
+  status: OrderStatus
+  statusText: string
+  timeText: string
+  metaText: string
+  orderNo: string
+  priceText: string
+  timerText?: string
+  timerLevel?: 'normal' | 'warning' | 'overtime' | ''
+  actionLabel?: string
+  actionLoading?: boolean
+  actionDisabled?: boolean
+}>(), {
+  timerText: '',
+  timerLevel: '',
+  actionLabel: '',
+  actionLoading: false,
+  actionDisabled: false,
+})
+
+const emit = defineEmits<{
+  click: []
+  action: []
+}>()
+</script>
+
+<template>
+  <view class="order-card" @click="emit('click')">
+    <view class="order-card__header">
+      <view class="order-card__title">
+        {{ title }}
+      </view>
+      <view class="order-card__status" :class="`order-card__status--${status}`">
+        {{ statusText }}
+      </view>
+    </view>
+
+    <view class="order-card__line">
+      {{ timeText }}
+    </view>
+
+    <view
+      v-if="timerText"
+      class="order-card__timer"
+      :class="{
+        'order-card__timer--warning': timerLevel === 'warning',
+        'order-card__timer--overtime': timerLevel === 'overtime',
+      }"
+    >
+      {{ timerText }}
+    </view>
+
+    <view class="order-card__meta">
+      {{ metaText }}
+    </view>
+
+    <view class="order-card__footer">
+      <text class="order-card__no">
+        {{ orderNo }}
+      </text>
+      <text class="order-card__price">
+        {{ priceText }}
+      </text>
+    </view>
+
+    <view v-if="actionLabel" class="order-card__actions">
+      <button
+        class="order-card__action-btn"
+        :disabled="actionDisabled"
+        @click.stop="emit('action')"
+      >
+        {{ actionLoading ? '处理中...' : actionLabel }}
+      </button>
+    </view>
+  </view>
+</template>
+
+<style scoped lang="scss">
+.order-card {
+  border-radius: 8rpx;
+  background: #ffffff;
+  padding: 26rpx;
+  box-shadow: 0 10rpx 22rpx rgb(31 59 50 / 5%);
+
+  &__header,
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20rpx;
+  }
+
+  &__title {
+    min-width: 0;
+    color: #17211d;
+    font-size: 31rpx;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  &__status {
+    flex-shrink: 0;
+    border-radius: 8rpx;
+    background: #e8f3ed;
+    padding: 8rpx 14rpx;
+    color: #1f6b56;
+    font-size: 22rpx;
+    line-height: 1.2;
+
+    &--in_progress {
+      background: #f8f2df;
+      color: #c9472b;
+    }
+
+    &--pending_checkout {
+      background: #eef1f6;
+      color: #43546c;
+    }
+
+    &--cancelled,
+    &--refunded {
+      background: #f0f2ef;
+      color: #89938f;
+    }
+  }
+
+  &__line,
+  &__meta {
+    margin-top: 16rpx;
+    color: #718079;
+    font-size: 25rpx;
+    line-height: 1.4;
+  }
+
+  &__timer {
+    width: fit-content;
+    margin-top: 18rpx;
+    border-radius: 8rpx;
+    background: #f8f2df;
+    padding: 10rpx 16rpx;
+    color: #c9472b;
+    font-size: 28rpx;
+    font-weight: 700;
+    line-height: 1.2;
+
+    &--warning {
+      background: #fff3c8;
+      color: #9b6b12;
+    }
+
+    &--overtime {
+      background: #f7e5de;
+    }
+  }
+
+  &__footer {
+    margin-top: 22rpx;
+    border-top: 2rpx solid #eef2ef;
+    padding-top: 18rpx;
+  }
+
+  &__no {
+    min-width: 0;
+    color: #89938f;
+    font-size: 22rpx;
+    line-height: 1.4;
+  }
+
+  &__price {
+    flex-shrink: 0;
+    color: #c9472b;
+    font-size: 30rpx;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20rpx;
+  }
+
+  &__action-btn {
+    width: 200rpx;
+    min-height: 64rpx;
+    margin: 0;
+    border-radius: 8rpx;
+    background: #1f6b56;
+    color: #ffffff;
+    font-size: 26rpx;
+    line-height: 64rpx;
+  }
+}
+
+button::after {
+  border: none;
+}
+
+button[disabled] {
+  opacity: 0.55;
+}
+</style>
