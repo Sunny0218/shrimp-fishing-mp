@@ -62,6 +62,12 @@ function handleEnterManage() {
     url: '/pages/manage/index',
   })
 }
+
+function handleEnterOrders() {
+  uni.navigateTo({
+    url: '/pages/orders/index',
+  })
+}
 </script>
 
 <template>
@@ -73,7 +79,13 @@ function handleEnterManage() {
       {{ JSON.stringify(userInfo, null, 2) }}
     </view>
 
-    <view v-if="canEnterManage" class="mt-8 px-3">
+    <view class="mt-8 px-3">
+      <button type="primary" class="w-full" @click="handleEnterOrders">
+        我的订单
+      </button>
+    </view>
+
+    <view v-if="canEnterManage" class="mt-4 px-3">
       <button type="primary" class="w-full" @click="handleEnterManage">
         门店管理
       </button>

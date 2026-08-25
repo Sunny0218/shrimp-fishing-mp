@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { OrderDetailData, OrderStatus } from '@/api/types/order'
-import { getOrderDetail } from '@/api/order'
+import { cancelOrder, getOrderDetail } from '@/api/order'
 
 definePage({
   style: {
@@ -9,6 +9,7 @@ definePage({
 })
 
 const loading = ref(false)
+const cancelling = ref(false)
 const errorText = ref('')
 const orderDetail = ref<OrderDetailData>()
 const orderId = ref('')
@@ -16,6 +17,7 @@ const orderId = ref('')
 const order = computed(() => orderDetail.value?.order)
 const packageSnapshot = computed(() => order.value?.packageSnapshot)
 const slotSnapshot = computed(() => order.value?.slotSnapshot)
+const canCancel = computed(() => order.value ? ['pending_payment', 'paid'].includes(order.value.status) : false)
 
 const statusTextMap: Record<OrderStatus, string> = {
   pending_payment: '待支付',
@@ -77,6 +79,47 @@ function handleRetry() {
 function handleBackHome() {
   uni.switchTab({
     url: '/pages/index/index',
+  })
+}
+
+function handleCancelOrder() {
+  if (!order.value || cancelling.value) {
+    return
+  }
+
+  uni.showModal({
+    title: '取消预约',
+    content: '核销前可以取消预约，取消后会释放该场次名额。',
+    confirmText: '确认取消',
+    confirmColor: '#c9472b',
+    success: async (res) => {
+      if (!res.confirm) {
+        return
+      }
+
+      cancelling.value = true
+
+      try {
+        await cancelOrder({
+          orderId: order.value?._id || '',
+        })
+        uni.showToast({
+          title: '已取消预约',
+          icon: 'success',
+        })
+        await fetchOrderDetail()
+      }
+      catch (error) {
+        const title = error instanceof Error ? error.message : '取消预约失败'
+        uni.showToast({
+          title,
+          icon: 'none',
+        })
+      }
+      finally {
+        cancelling.value = false
+      }
+    },
   })
 }
 
@@ -195,6 +238,14 @@ onLoad((query) => {
       <button class="order-detail-page__home-btn" @click="handleBackHome">
         返回首页
       </button>
+      <button
+        v-if="canCancel"
+        class="order-detail-page__cancel-btn"
+        :disabled="cancelling"
+        @click="handleCancelOrder"
+      >
+        取消预约
+      </button>
     </view>
   </view>
 </template>
@@ -217,11 +268,10 @@ onLoad((query) => {
   }
 
   &__retry,
-  &__home-btn {
+  &__home-btn,
+  &__cancel-btn {
     min-height: 76rpx;
     border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
     font-size: 28rpx;
     line-height: 76rpx;
   }
@@ -229,10 +279,21 @@ onLoad((query) => {
   &__retry {
     width: 180rpx;
     margin-top: 24rpx;
+    background: #1f6b56;
+    color: #ffffff;
   }
 
   &__home-btn {
     margin-top: 28rpx;
+    background: #1f6b56;
+    color: #ffffff;
+  }
+
+  &__cancel-btn {
+    margin-top: 18rpx;
+    border: 2rpx solid #e8d0c7;
+    background: #ffffff;
+    color: #c9472b;
   }
 }
 
@@ -342,5 +403,9 @@ onLoad((query) => {
 
 button::after {
   border: none;
+}
+
+button[disabled] {
+  opacity: 0.6;
 }
 </style>

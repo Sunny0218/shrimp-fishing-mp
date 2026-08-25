@@ -75,3 +75,22 @@ export interface OrderDetailData {
   timeSlot?: TimeSlot
   serverTime: string
 }
+
+export interface GetMyOrdersParams {
+  status?: OrderStatus | 'all'
+}
+
+export interface MyOrdersData {
+  rows: Order[]
+  total: number
+  serverTime: string
+}
+
+export interface CancelOrderParams {
+  orderId: string
+}
+
+export interface CancelOrderResult {
+  orderId: string
+  status: Extract<OrderStatus, 'cancelled'>
+}
