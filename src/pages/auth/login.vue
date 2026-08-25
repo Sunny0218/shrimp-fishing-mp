@@ -94,11 +94,13 @@ async function handlePhoneLogin(event: GetPhoneNumberEvent) {
     return
   }
 
+  console.info('[auth/login] getPhoneNumber detail:', event.detail)
+
   const phoneCode = event.detail.code
 
   if (!phoneCode) {
     uni.showToast({
-      title: '需要授权手机号后才能登录',
+      title: '未授权手机号，可先用微信登录',
       icon: 'none',
     })
     return
@@ -114,6 +116,12 @@ async function handlePhoneLogin(event: GetPhoneNumberEvent) {
     const user = await bindWechatPhoneNumber({
       code: phoneCode,
     })
+    console.info('[auth/login] bindPhoneNumber success:', {
+      _id: user._id,
+      openid: user.openid,
+      phone: user.phone,
+      countryCode: user.countryCode,
+    })
     userStore.setUserInfo(user)
 
     uni.showToast({
@@ -123,6 +131,7 @@ async function handlePhoneLogin(event: GetPhoneNumberEvent) {
     goAfterLogin()
   }
   catch (error) {
+    console.error('[auth/login] bindPhoneNumber failed:', error)
     const title = error instanceof Error ? error.message : '登录失败，请重试'
     uni.showToast({
       title,
@@ -160,7 +169,7 @@ onLoad((query) => {
         微信授权登录
       </view>
       <view class="login-card__desc">
-        系统会通过微信身份和手机号创建用户档案，用于关联你的预约和订单。
+        推荐授权手机号，方便门店联系和核对订单；也可以先用微信身份登录，之后再补绑手机号。
       </view>
       <!-- #ifdef MP-WEIXIN -->
       <button
@@ -170,6 +179,13 @@ onLoad((query) => {
         @getphonenumber="handlePhoneLogin"
       >
         {{ logging ? '登录中...' : '手机号授权登录' }}
+      </button>
+      <button
+        class="login-card__secondary-button"
+        :disabled="logging"
+        @click="handleWechatLogin"
+      >
+        微信登录，暂不绑定手机号
       </button>
       <!-- #endif -->
       <!-- #ifndef MP-WEIXIN -->
@@ -257,6 +273,17 @@ onLoad((query) => {
     color: #ffffff;
     font-size: 30rpx;
     line-height: 82rpx;
+  }
+
+  &__secondary-button {
+    margin-top: 18rpx;
+    min-height: 76rpx;
+    border: 2rpx solid #d9e3df;
+    border-radius: 8rpx;
+    background: #ffffff;
+    color: #1f6b56;
+    font-size: 28rpx;
+    line-height: 76rpx;
   }
 
   &__tip {
