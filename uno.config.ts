@@ -76,6 +76,8 @@ export default defineConfig({
   safelist: [
     'i-carbon-code',
     'i-carbon-home',
+    'i-carbon-list-boxes',
+    'i-carbon-store',
     'i-carbon-user',
     'i-carbon-ibm-watson-language-translator',
     'i-carbon-menu',

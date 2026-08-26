@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// i-carbon-code
+// i-carbon-code i-carbon-home i-carbon-list-boxes i-carbon-store i-carbon-user
 import { customTabbarEnable, needHideNativeTabbar, tabbarCacheEnable } from './config'
 import { tabbarList, tabbarStore } from './store'
 import TabbarItem from './TabbarItem.vue'
@@ -88,11 +88,18 @@ onMounted(() => {
   })
 })
 // #endif
-const activeColor = 'var(--wot-color-theme, #1890ff)'
+const activeColor = 'var(--wot-color-theme, #1f6b56)'
 const inactiveColor = '#666'
 function getColorByIndex(index: number) {
   return tabbarStore.curIdx === index ? activeColor : inactiveColor
 }
+
+watch(
+  () => tabbarList.value.map(item => item.pagePath).join('|'),
+  () => {
+    tabbarStore.syncCurIdxByCurrentPageAsync()
+  },
+)
 </script>
 
 <template>
