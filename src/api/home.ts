@@ -1,4 +1,4 @@
-import type { BusinessHour, CloudFunctionResponse, HomeData, ShopSettings, ShrimpPackage, TimeSlot } from './types/home'
+import type { BusinessHour, CloudFunctionResponse, HomeData, SaveShopSettingsParams, SaveShopSettingsResult, ShopSettings, ShrimpPackage, TimeSlot } from './types/home'
 import { callCloudFunction } from '@/cloud'
 
 export const defaultHomeData: HomeData = {
@@ -34,6 +34,38 @@ export async function getHomeData() {
   // #endif
 
   return normalizeHomeData(defaultHomeData)
+}
+
+export async function saveShopSettings(params: SaveShopSettingsParams) {
+  const requestParams: SaveShopSettingsParams = {
+    shopName: params.shopName.trim(),
+    address: params.address.trim(),
+    phone: params.phone.trim(),
+    businessHours: params.businessHours.map(item => ({
+      label: item.label.trim(),
+      startTime: item.startTime,
+      endTime: item.endTime,
+    })),
+    notice: params.notice.trim(),
+    bookingMode: params.bookingMode,
+  }
+
+  // #ifdef MP-WEIXIN
+  const res = await callCloudFunction<CloudFunctionResponse<SaveShopSettingsResult>, Record<string, unknown>>(
+    'saveShopSettings',
+    { ...requestParams },
+  )
+
+  if (res.code !== 0) {
+    throw new Error(res.message || '门店信息保存失败')
+  }
+
+  return {
+    settings: normalizeSettings(res.data.settings),
+  }
+  // #endif
+
+  throw new Error('当前平台暂不支持保存门店信息')
 }
 
 function normalizeHomeData(data: HomeData): HomeData {

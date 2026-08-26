@@ -11,7 +11,16 @@ definePage({
 const userStore = useUserStore()
 const { userInfo } = storeToRefs(userStore)
 const manageRoles = ['staff', 'admin', 'super_admin']
+const editRoles = ['admin', 'super_admin']
 const canManage = computed(() => !!userInfo.value.role && manageRoles.includes(userInfo.value.role))
+const canEditShop = computed(() => !!userInfo.value.role && editRoles.includes(userInfo.value.role))
+const roleTextMap = {
+  customer: '顾客',
+  staff: '服务员',
+  admin: '管理员',
+  super_admin: '超级管理员',
+}
+const roleText = computed(() => roleTextMap[userInfo.value.role || 'customer'])
 
 function handleOpenCheckin() {
   uni.navigateTo({
@@ -28,6 +37,20 @@ function handleOpenTodayOrders() {
 function handleOpenPackages() {
   uni.navigateTo({
     url: '/pages/manage/packages',
+  })
+}
+
+function handleOpenSettings() {
+  if (!canEditShop.value) {
+    uni.showToast({
+      title: '仅管理员可维护门店信息',
+      icon: 'none',
+    })
+    return
+  }
+
+  uni.navigateTo({
+    url: '/pages/manage/settings',
   })
 }
 
@@ -54,7 +77,7 @@ onLoad(() => {
         门店管理
       </view>
       <view class="mt-2 text-3.5 text-[#6b7d78]">
-        当前角色：{{ userInfo.role || 'customer' }}
+        当前角色：{{ roleText }}
       </view>
     </view>
 
@@ -91,12 +114,12 @@ onLoad(() => {
           配置固定套餐价格
         </view>
       </view>
-      <view class="manage-card">
+      <view class="manage-card" :class="{ 'manage-card--disabled': !canEditShop }" @click="handleOpenSettings">
         <view class="manage-card__title">
-          计费规则
+          门店信息
         </view>
         <view class="manage-card__desc">
-          配置阶梯计费价格
+          {{ canEditShop ? '维护首页展示和联系方式' : '仅管理员可维护' }}
         </view>
       </view>
     </view>
@@ -121,6 +144,10 @@ onLoad(() => {
     .manage-card__desc {
       color: #dcebe3;
     }
+  }
+
+  &--disabled {
+    opacity: 0.72;
   }
 
   &__title {

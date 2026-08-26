@@ -60,7 +60,7 @@ function handleLogout() {
 }
 
 function handleEnterManage() {
-  uni.navigateTo({
+  uni.switchTab({
     url: '/pages/manage/index',
   })
 }
@@ -73,7 +73,7 @@ function handleEnterOrders() {
     return
   }
 
-  uni.navigateTo({
+  uni.switchTab({
     url: '/pages/orders/index',
   })
 }

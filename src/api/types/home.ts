@@ -27,6 +27,19 @@ export interface ShopSettings {
   updatedAt?: Date | string
 }
 
+export interface SaveShopSettingsParams {
+  shopName: string
+  address: string
+  phone: string
+  businessHours: BusinessHour[]
+  notice: string
+  bookingMode: BookingMode
+}
+
+export interface SaveShopSettingsResult {
+  settings: ShopSettings
+}
+
 export interface ShrimpPackage {
   _id: string
   name: string

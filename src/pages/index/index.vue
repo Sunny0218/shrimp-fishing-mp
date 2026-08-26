@@ -19,11 +19,13 @@ definePage({
 const homeData = ref<HomeData>({ ...defaultHomeData })
 const loading = ref(false)
 const errorText = ref('')
+const currentTime = ref(new Date())
 
 const shopInfo = computed(() => homeData.value.settings)
 const packageList = computed(() => homeData.value.packages)
 const timeSlotList = computed(() => homeData.value.timeSlots)
 const isSlotBookingMode = computed(() => shopInfo.value.bookingMode === 'slot')
+const hasOpenTimeSlot = computed(() => timeSlotList.value.some(slot => slot.status !== 'closed' && getSlotRemaining(slot) > 0))
 const businessHourText = computed(() => {
   const hours = shopInfo.value.businessHours
 
@@ -32,6 +34,42 @@ const businessHourText = computed(() => {
   }
 
   return hours.map(item => `${item.label} ${item.startTime}-${item.endTime}`).join(' / ')
+})
+const todayBusinessStatus = computed(() => getTodayBusinessStatus())
+const heroStatusText = computed(() => {
+  if (loading.value) {
+    return '加载中'
+  }
+
+  if (errorText.value) {
+    return '信息待确认'
+  }
+
+  if (!packageList.value.length) {
+    return '套餐待配置'
+  }
+
+  if (isSlotBookingMode.value && !hasOpenTimeSlot.value) {
+    return '场次待开放'
+  }
+
+  if (todayBusinessStatus.value === 'before_open') {
+    return '今日未开始'
+  }
+
+  if (todayBusinessStatus.value === 'after_close') {
+    return '今日已打烊'
+  }
+
+  if (todayBusinessStatus.value === 'unknown') {
+    return '时间待设置'
+  }
+
+  if (todayBusinessStatus.value === 'closed') {
+    return '暂未营业'
+  }
+
+  return '今日可预约'
 })
 
 async function fetchHomeData() {
@@ -81,6 +119,71 @@ function getSlotStatusText(slot: TimeSlot) {
   return `余 ${getSlotRemaining(slot)}`
 }
 
+function parseMinute(timeText: string) {
+  const matched = /^(\d{2}):(\d{2})$/.exec(timeText)
+
+  if (!matched) {
+    return null
+  }
+
+  const hour = Number(matched[1])
+  const minute = Number(matched[2])
+
+  if (hour === 24 && minute === 0) {
+    return 24 * 60
+  }
+
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return null
+  }
+
+  return hour * 60 + minute
+}
+
+function getTodayBusinessStatus() {
+  const hours = shopInfo.value.businessHours
+
+  if (!hours.length) {
+    return 'unknown'
+  }
+
+  const nowMinutes = currentTime.value.getHours() * 60 + currentTime.value.getMinutes()
+  let earliestStart = 24 * 60
+  let latestEnd = 0
+  let hasValidHour = false
+
+  for (const hour of hours) {
+    const startMinutes = parseMinute(hour.startTime)
+    const endMinutes = parseMinute(hour.endTime)
+
+    if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
+      continue
+    }
+
+    hasValidHour = true
+    earliestStart = Math.min(earliestStart, startMinutes)
+    latestEnd = Math.max(latestEnd, endMinutes)
+
+    if (nowMinutes >= startMinutes && nowMinutes < endMinutes) {
+      return 'open'
+    }
+  }
+
+  if (!hasValidHour) {
+    return 'unknown'
+  }
+
+  if (nowMinutes < earliestStart) {
+    return 'before_open'
+  }
+
+  if (nowMinutes >= latestEnd) {
+    return 'after_close'
+  }
+
+  return 'closed'
+}
+
 function handleBooking(packageItem: ShrimpPackage) {
   const query = packageItem._id ? `?packageId=${packageItem._id}` : ''
 
@@ -100,6 +203,16 @@ function handleCallShop() {
 
   uni.makePhoneCall({
     phoneNumber: shopInfo.value.phone,
+    fail(error) {
+      if (error.errMsg?.includes('cancel')) {
+        return
+      }
+
+      uni.showToast({
+        title: '拨号失败，请稍后再试',
+        icon: 'none',
+      })
+    },
   })
 }
 
@@ -108,6 +221,8 @@ onLoad(() => {
 })
 
 onShow(() => {
+  currentTime.value = new Date()
+
   if (consumeHomeDataDirty()) {
     fetchHomeData()
   }
@@ -123,7 +238,7 @@ onPullDownRefresh(() => {
     <view class="home-page__hero">
       <view class="home-page__hero-content">
         <view class="home-page__status">
-          今日可预约
+          {{ heroStatusText }}
         </view>
         <view class="home-page__title">
           {{ shopInfo.shopName }}
