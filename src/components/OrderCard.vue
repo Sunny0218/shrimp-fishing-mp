@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type { OrderStatus } from '@/api/types/order'
+import type { OrderTimeItem } from '@/utils/orderDisplay'
 
 withDefaults(defineProps<{
   title: string
   status: OrderStatus
   statusText: string
-  timeText: string
+  timeText?: string
+  timeItems?: OrderTimeItem[]
   metaText: string
   orderNo: string
   priceText: string
@@ -15,6 +17,8 @@ withDefaults(defineProps<{
   actionLoading?: boolean
   actionDisabled?: boolean
 }>(), {
+  timeText: '',
+  timeItems: () => [],
   timerText: '',
   timerLevel: '',
   actionLabel: '',
@@ -51,7 +55,21 @@ const emit = defineEmits<{
       </view>
     </view>
 
-    <view class="order-card__line">
+    <view v-if="timeItems.length" class="order-card__time-list">
+      <view
+        v-for="item in timeItems"
+        :key="`${item.label}-${item.value}`"
+        class="order-card__time-item"
+      >
+        <text class="order-card__time-label">
+          {{ item.label }}
+        </text>
+        <text class="order-card__time-value">
+          {{ item.value }}
+        </text>
+      </view>
+    </view>
+    <view v-else-if="timeText" class="order-card__line">
       {{ timeText }}
     </view>
 
@@ -144,6 +162,34 @@ const emit = defineEmits<{
     color: #718079;
     font-size: 25rpx;
     line-height: 1.4;
+  }
+
+  &__time-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10rpx;
+    margin-top: 18rpx;
+  }
+
+  &__time-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18rpx;
+    color: #718079;
+    font-size: 24rpx;
+    line-height: 1.35;
+  }
+
+  &__time-label {
+    flex-shrink: 0;
+    color: #89938f;
+  }
+
+  &__time-value {
+    min-width: 0;
+    color: #4f5f58;
+    text-align: right;
   }
 
   &__timer {

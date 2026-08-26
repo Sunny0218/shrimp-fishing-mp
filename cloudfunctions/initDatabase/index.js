@@ -209,6 +209,19 @@ async function upsertShopSettings() {
 async function upsertDemoPackages() {
   const packages = [
     {
+      seedKey: 'demo-package-5min',
+      data: {
+        name: '测试 5 分钟套餐',
+        description: '用于快速测试核销计时、超时补款和待结账流程。',
+        durationMinutes: 5,
+        price: 100,
+        rodCount: 1,
+        maxPeople: 1,
+        status: 'active',
+        sort: 0,
+      },
+    },
+    {
       seedKey: 'demo-package-2h',
       data: {
         name: '双人畅钓 2 小时',

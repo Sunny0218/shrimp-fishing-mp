@@ -1,5 +1,5 @@
 import type { CloudFunctionResponse } from './types/home'
-import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, FinishTimingOrderParams, FinishTimingOrderResult, GetMyOrdersParams, GetTodayOrdersParams, MyOrdersData, OrderDetailData, TodayOrdersData } from './types/order'
+import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, FinishTimingOrderParams, FinishTimingOrderResult, GetMyOrdersParams, GetOrdersParams, MyOrdersData, OrderDetailData, OrdersData, PayCheckoutOrderParams, PayCheckoutOrderResult } from './types/order'
 import { callCloudFunction } from '@/cloud'
 
 export async function createOrder(params: CreateOrderParams) {
@@ -84,18 +84,20 @@ export async function getMyOrders(params: GetMyOrdersParams = {}) {
   }
 }
 
-export async function getTodayOrders(params: GetTodayOrdersParams = {}) {
+export async function getOrders(params: GetOrdersParams = {}) {
   // #ifdef MP-WEIXIN
-  const res = await callCloudFunction<CloudFunctionResponse<TodayOrdersData>, Record<string, unknown>>(
-    'getTodayOrders',
+  const res = await callCloudFunction<CloudFunctionResponse<OrdersData>, Record<string, unknown>>(
+    'getOrders',
     {
       status: params.status || 'active',
       ...(params.date ? { date: params.date.trim() } : {}),
+      ...(params.startDate ? { startDate: params.startDate.trim() } : {}),
+      ...(params.endDate ? { endDate: params.endDate.trim() } : {}),
     },
   )
 
   if (res.code !== 0) {
-    throw new Error(res.message || '今日订单获取失败')
+    throw new Error(res.message || '门店订单获取失败')
   }
 
   return res.data
@@ -114,6 +116,8 @@ export async function getTodayOrders(params: GetTodayOrdersParams = {}) {
       cancelled: 0,
     },
     date: '',
+    startDate: '',
+    endDate: '',
     serverTime: new Date().toISOString(),
   }
 }
@@ -201,4 +205,29 @@ export async function finishTimingOrder(params: FinishTimingOrderParams) {
   // #endif
 
   throw new Error('当前平台暂不支持结束计时')
+}
+
+export async function payCheckoutOrder(params: PayCheckoutOrderParams) {
+  const orderId = params.orderId.trim()
+
+  if (!orderId) {
+    throw new Error('缺少订单 ID')
+  }
+
+  // #ifdef MP-WEIXIN
+  const res = await callCloudFunction<CloudFunctionResponse<PayCheckoutOrderResult>, Record<string, unknown>>(
+    'payCheckoutOrder',
+    {
+      orderId,
+    },
+  )
+
+  if (res.code !== 0) {
+    throw new Error(res.message || '支付补款失败')
+  }
+
+  return res.data
+  // #endif
+
+  throw new Error('当前平台暂不支持支付补款')
 }

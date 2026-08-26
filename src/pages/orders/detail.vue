@@ -2,7 +2,7 @@
 import type { OrderDetailData, OrderStatus } from '@/api/types/order'
 import qrcode from 'qrcode-generator'
 import { storeToRefs } from 'pinia'
-import { cancelOrder, getOrderDetail } from '@/api/order'
+import { cancelOrder, getOrderDetail, payCheckoutOrder } from '@/api/order'
 import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
 import { useUserStore } from '@/store'
 
@@ -14,6 +14,7 @@ definePage({
 
 const loading = ref(false)
 const cancelling = ref(false)
+const payingCheckout = ref(false)
 const errorText = ref('')
 const orderDetail = ref<OrderDetailData>()
 const orderId = ref('')
@@ -60,6 +61,7 @@ const order = computed(() => orderDetail.value?.order)
 const packageSnapshot = computed(() => order.value?.packageSnapshot)
 const slotSnapshot = computed(() => order.value?.slotSnapshot)
 const canCancel = computed(() => order.value ? ['pending_payment', 'paid'].includes(order.value.status) : false)
+const canPayCheckout = computed(() => order.value?.status === 'pending_checkout' && Number(order.value.checkoutAmount || 0) > 0)
 const canShowCheckinCode = computed(() => order.value?.status === 'paid' && !!order.value.checkinCode)
 const checkinQrCodeUrl = computed(() => {
   if (!order.value?.checkinCode) {
@@ -176,6 +178,24 @@ function getStatusText(status?: OrderStatus) {
 
 function formatPrice(price?: number) {
   return `¥${((price || 0) / 100).toFixed(0)}`
+}
+
+function getPaidAmount(orderData = order.value) {
+  if (!orderData) {
+    return 0
+  }
+
+  const paidAmount = Number(orderData.paidAmount || 0)
+
+  if (paidAmount > 0) {
+    return paidAmount
+  }
+
+  if (['paid', 'in_progress', 'pending_checkout', 'completed'].includes(orderData.status)) {
+    return Math.max(Number(orderData.baseAmount || 0) - Number(orderData.discountAmount || 0), 0)
+  }
+
+  return 0
 }
 
 function formatDuration(minutes?: number) {
@@ -326,6 +346,48 @@ function handleFinishCurrentOrder() {
   handleFinishTiming(order.value)
 }
 
+function handlePayCheckout() {
+  if (!order.value || payingCheckout.value || !canPayCheckout.value) {
+    return
+  }
+
+  const currentOrder = order.value
+
+  uni.showModal({
+    title: '支付补款',
+    content: `本次需补款 ${formatPrice(currentOrder.checkoutAmount)}，确认支付吗？`,
+    confirmText: '确认支付',
+    confirmColor: '#1f6b56',
+    success: async (res) => {
+      if (!res.confirm) {
+        return
+      }
+
+      payingCheckout.value = true
+
+      try {
+        await payCheckoutOrder({
+          orderId: currentOrder._id,
+        })
+        uni.showToast({
+          title: '补款成功',
+          icon: 'success',
+        })
+        await fetchOrderDetail()
+      }
+      catch (error) {
+        uni.showToast({
+          title: error instanceof Error ? error.message : '支付补款失败',
+          icon: 'none',
+        })
+      }
+      finally {
+        payingCheckout.value = false
+      }
+    },
+  })
+}
+
 onLoad((query) => {
   orderId.value = typeof query?.id === 'string' ? query.id : ''
   startCountdownTimer()
@@ -450,6 +512,30 @@ onUnload(() => {
         </view>
       </view>
 
+      <view v-if="canPayCheckout" class="order-card checkout-card">
+        <view class="order-card__header">
+          <view class="order-card__title">
+            待结账补款
+          </view>
+          <view class="order-card__tag order-card__tag--warning">
+            待支付
+          </view>
+        </view>
+        <view class="checkout-card__amount">
+          {{ formatPrice(order.checkoutAmount) }}
+        </view>
+        <view class="checkout-card__desc">
+          本次超时产生补款，支付完成后订单将自动完成。
+        </view>
+        <button
+          class="checkout-card__pay-btn"
+          :disabled="payingCheckout"
+          @click="handlePayCheckout"
+        >
+          {{ payingCheckout ? '支付中...' : '支付补款' }}
+        </button>
+      </view>
+
       <view class="order-card">
         <view class="order-card__title">
           预约信息
@@ -569,6 +655,30 @@ onUnload(() => {
           </text>
           <text class="info-row__price">
             {{ formatPrice(order.checkoutAmount) }}
+          </text>
+        </view>
+        <view v-if="order.checkoutPaidAmount" class="info-row">
+          <text class="info-row__label">
+            已补款
+          </text>
+          <text class="info-row__value">
+            {{ formatPrice(order.checkoutPaidAmount) }}
+          </text>
+        </view>
+        <view v-if="order.checkoutPaidAt" class="info-row">
+          <text class="info-row__label">
+            补款时间
+          </text>
+          <text class="info-row__value">
+            {{ formatDateTime(order.checkoutPaidAt) }}
+          </text>
+        </view>
+        <view class="info-row">
+          <text class="info-row__label">
+            已支付
+          </text>
+          <text class="info-row__value">
+            {{ formatPrice(getPaidAmount(order)) }}
           </text>
         </view>
         <view v-if="order.adjustAmount" class="info-row">
@@ -739,6 +849,11 @@ onUnload(() => {
       background: #f0f2ef;
       color: #89938f;
     }
+
+    &--warning {
+      background: #f8f2df;
+      color: #c9472b;
+    }
   }
 
   &__tip {
@@ -782,6 +897,33 @@ onUnload(() => {
     color: #c9472b;
     font-size: 32rpx;
     font-weight: 700;
+  }
+}
+
+.checkout-card {
+  &__amount {
+    color: #c9472b;
+    font-size: 56rpx;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  &__desc {
+    margin-top: 12rpx;
+    color: #718079;
+    font-size: 25rpx;
+    line-height: 1.5;
+  }
+
+  &__pay-btn {
+    min-height: 78rpx;
+    margin-top: 24rpx;
+    border-radius: 8rpx;
+    background: #1f6b56;
+    color: #ffffff;
+    font-size: 28rpx;
+    font-weight: 600;
+    line-height: 78rpx;
   }
 }
 

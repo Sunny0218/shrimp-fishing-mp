@@ -36,6 +36,7 @@ export interface Order {
   orderType: OrderType
   status: OrderStatus
   bookingMode?: 'walk_in' | 'slot'
+  businessDate?: string
   slotId?: string
   packageId: string
   pricingRuleId?: string
@@ -49,6 +50,8 @@ export interface Order {
   discountAmount: number
   overtimeAmount?: number
   checkoutAmount?: number
+  checkoutPaidAmount?: number
+  checkoutPaidAt?: Date | string
   waivedOvertimeAmount?: number
   paidAmount: number
   finalAmount: number
@@ -67,6 +70,10 @@ export interface Order {
   earlyFinishReason?: string
   finishedBy?: string
   finishedAt?: Date | string
+  completedAt?: Date | string
+  cancelledAt?: Date | string
+  refundedAt?: Date | string
+  refundAt?: Date | string
   checkedInBy?: string
   createdBy: string
   createdAt: Date | string
@@ -118,16 +125,20 @@ export interface ManageOrderSummary {
   cancelled: number
 }
 
-export interface GetTodayOrdersParams {
+export interface GetOrdersParams {
   status?: ManageOrderStatusFilter
   date?: string
+  startDate?: string
+  endDate?: string
 }
 
-export interface TodayOrdersData {
+export interface OrdersData {
   rows: Order[]
   total: number
   summary: ManageOrderSummary
   date: string
+  startDate?: string
+  endDate?: string
   serverTime: string
 }
 
@@ -161,4 +172,22 @@ export interface FinishTimingOrderParams {
 export interface FinishTimingOrderResult {
   order: Order
   logSaved?: boolean
+}
+
+export interface PayCheckoutOrderParams {
+  orderId: string
+}
+
+export interface CheckoutPayment {
+  _id: string
+  paymentNo: string
+  amount: number
+  type: 'checkout'
+  status: 'paid'
+  paidAt: Date | string
+}
+
+export interface PayCheckoutOrderResult {
+  order: Order
+  payment: CheckoutPayment
 }

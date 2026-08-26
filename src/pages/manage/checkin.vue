@@ -215,7 +215,7 @@ function handleNextCheckin() {
         {{ hasCheckedIn ? '已开始计时' : '订单核销' }}
       </view>
       <view class="checkin-hero__desc">
-        {{ hasCheckedIn ? '订单已核销，后续在今日订单处理结束计时' : '核销成功后订单进入计时中' }}
+        {{ hasCheckedIn ? '订单已核销，后续在门店订单处理结束计时' : '核销成功后订单进入计时中' }}
       </view>
     </view>
 

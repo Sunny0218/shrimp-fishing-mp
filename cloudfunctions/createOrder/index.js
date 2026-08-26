@@ -108,7 +108,7 @@ exports.main = async (event = {}) => {
       overtimeAmount: 0,
       checkoutAmount: 0,
       waivedOvertimeAmount: 0,
-      paidAmount: 0,
+      paidAmount: Number(packageItem.price || 0),
       finalAmount: Number(packageItem.price || 0),
       remark,
       adminRemark: '',

@@ -5,6 +5,7 @@ import type { Order, OrderStatus } from '@/api/types/order'
 import { getMyOrders } from '@/api/order'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
+import { getOrderTimeItems } from '@/utils/orderDisplay'
 
 definePage({
   style: {
@@ -97,14 +98,8 @@ function getOrderTitle(order: Order) {
   return order.packageSnapshot?.name || '套餐预约'
 }
 
-function getOrderTime(order: Order) {
-  const slot = order.slotSnapshot
-
-  if (!slot?.date) {
-    return '到店后安排场次'
-  }
-
-  return `${slot.date} ${slot.startTime}-${slot.endTime}`
+function getOrderTimes(order: Order) {
+  return getOrderTimeItems(order)
 }
 
 function getOrderMeta(order: Order) {
@@ -160,7 +155,7 @@ onPullDownRefresh(() => {
           :title="getOrderTitle(order)"
           :status="order.status"
           :status-text="getStatusText(order.status)"
-          :time-text="getOrderTime(order)"
+          :time-items="getOrderTimes(order)"
           :meta-text="getOrderMeta(order)"
           :order-no="order.orderNo"
           :price-text="formatPrice(order.finalAmount)"

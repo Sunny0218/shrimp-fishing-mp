@@ -63,10 +63,10 @@ onLoad(() => {
       </view>
       <view class="manage-card" @click="handleOpenTodayOrders">
         <view class="manage-card__title">
-          今日订单
+          门店订单
         </view>
         <view class="manage-card__desc">
-          查看预约与进行中订单
+          按日期查看预约与进行中订单
         </view>
       </view>
       <view class="manage-card">
