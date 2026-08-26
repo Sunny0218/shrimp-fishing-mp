@@ -1,4 +1,4 @@
-export type PackageStatus = 'active' | 'disabled'
+export type PackageStatus = 'active' | 'disabled' | 'deleted'
 export type TimeSlotStatus = 'available' | 'full' | 'closed'
 export type BookingMode = 'walk_in' | 'slot'
 

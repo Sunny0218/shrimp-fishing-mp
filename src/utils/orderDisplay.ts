@@ -5,7 +5,7 @@ export interface OrderTimeItem {
   value: string
 }
 
-export function getDateTimeValue(value?: string | Date) {
+export function getDateTimeValue(value?: string | Date | number) {
   if (!value) {
     return 0
   }

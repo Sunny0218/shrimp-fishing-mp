@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { HomeData, ShrimpPackage, TimeSlot } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
+import { consumeHomeDataDirty } from '@/utils/homeDataRefresh'
 
 defineOptions({
   name: 'Home',
@@ -104,6 +105,12 @@ function handleCallShop() {
 
 onLoad(() => {
   fetchHomeData()
+})
+
+onShow(() => {
+  if (consumeHomeDataDirty()) {
+    fetchHomeData()
+  }
 })
 
 onPullDownRefresh(() => {

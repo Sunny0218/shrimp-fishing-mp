@@ -70,6 +70,12 @@ export function useFinishTimingOrder(options: FinishTimingOptions) {
     payload: { waiveOvertime?: boolean, waiverReason?: string, earlyFinishReason?: string } = {},
   ) {
     finishingOrderId.value = order._id
+    console.info('[finishTimingOrder] submit:', {
+      orderId: order._id,
+      waiveOvertime: !!payload.waiveOvertime,
+      waiverReason: payload.waiverReason || '',
+      earlyFinishReason: payload.earlyFinishReason || '',
+    })
 
     try {
       const res = await finishTimingOrder({
@@ -164,19 +170,9 @@ export function useFinishTimingOrder(options: FinishTimingOptions) {
       success: (res) => {
         const reason = reasons[res.tapIndex] || '其他'
 
-        uni.showModal({
-          title: '免收超时费',
-          content: `确认免收订单 ${order.orderNo} 的超时费用并完成订单吗？`,
-          confirmText: '免收并完成',
-          confirmColor: '#c9472b',
-          success: (modalRes) => {
-            if (modalRes.confirm) {
-              submitFinishTiming(order, {
-                waiveOvertime: true,
-                waiverReason: reason,
-              })
-            }
-          },
+        submitFinishTiming(order, {
+          waiveOvertime: true,
+          waiverReason: reason,
         })
       },
     })

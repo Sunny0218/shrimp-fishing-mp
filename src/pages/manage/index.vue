@@ -25,6 +25,12 @@ function handleOpenTodayOrders() {
   })
 }
 
+function handleOpenPackages() {
+  uni.navigateTo({
+    url: '/pages/manage/packages',
+  })
+}
+
 onLoad(() => {
   if (canManage.value) {
     return
@@ -77,7 +83,7 @@ onLoad(() => {
           按杆数创建实时计费订单
         </view>
       </view>
-      <view class="manage-card">
+      <view class="manage-card" @click="handleOpenPackages">
         <view class="manage-card__title">
           套餐管理
         </view>
