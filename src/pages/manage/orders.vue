@@ -224,6 +224,10 @@ function formatCountdown(milliseconds: number) {
 }
 
 function getTimingText(order: Order) {
+  if (order.status === 'pending_checkout') {
+    return `待顾客支付 ${formatPrice(order.checkoutAmount)}`
+  }
+
   if (order.status !== 'in_progress') {
     return ''
   }
@@ -475,7 +479,7 @@ onUnload(() => {
           :type-variant="order.orderType"
           :time-items="getOrderTimes(order)"
           :timer-text="getTimingText(order)"
-          :timer-level="getTimingLevel(order)"
+          :timer-level="order.status === 'pending_checkout' ? 'warning' : getTimingLevel(order)"
           :meta-text="getOrderMeta(order)"
           :order-no="order.orderNo"
           :price-text="formatPrice(order.finalAmount)"

@@ -245,11 +245,11 @@ export async function payCheckoutOrder(params: PayCheckoutOrderParams) {
   )
 
   if (res.code !== 0) {
-    throw new Error(res.message || '支付补款失败')
+    throw new Error(res.message || '支付结算金额失败')
   }
 
   return res.data
   // #endif
 
-  throw new Error('当前平台暂不支持支付补款')
+  throw new Error('当前平台暂不支持支付结算金额')
 }

@@ -210,6 +210,7 @@ export interface CheckoutPayment {
   paymentNo: string
   amount: number
   type: 'checkout'
+  checkoutType?: 'metered_checkout' | 'overtime_checkout'
   status: 'paid'
   paidAt: Date | string
 }

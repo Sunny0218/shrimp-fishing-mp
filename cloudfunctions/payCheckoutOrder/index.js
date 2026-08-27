@@ -37,7 +37,7 @@ exports.main = async (event = {}) => {
   const orderId = typeof event.orderId === 'string' ? event.orderId.trim() : ''
 
   if (!openid) {
-    return fail(401, '请先登录后再支付补款')
+    return fail(401, '请先登录后再支付结算金额')
   }
 
   if (!orderId) {
@@ -66,17 +66,18 @@ exports.main = async (event = {}) => {
       }
 
       if (order.status !== 'pending_checkout') {
-        throw new Error('当前订单不需要补款')
+        throw new Error('当前订单不需要结账')
       }
 
       const checkoutAmount = Number(order.checkoutAmount || 0)
 
       if (checkoutAmount <= 0) {
-        throw new Error('订单补款金额异常')
+        throw new Error('订单结账金额异常')
       }
 
       const now = new Date()
       const paymentNo = createPaymentNo()
+      const checkoutType = order.orderType === 'metered' ? 'metered_checkout' : 'overtime_checkout'
       const paidBaseAmount = Math.max(
         Number(order.paidAmount || 0),
         Number(order.baseAmount || 0) - Number(order.discountAmount || 0),
@@ -100,6 +101,7 @@ exports.main = async (event = {}) => {
           openid,
           amount: checkoutAmount,
           type: 'checkout',
+          checkoutType,
           channel: 'mock',
           status: 'paid',
           paidAt: now,
@@ -115,6 +117,7 @@ exports.main = async (event = {}) => {
           userId: user._id,
           openid,
           amount: checkoutAmount,
+          checkoutType,
           paymentId: paymentRes._id,
           paymentNo,
           status: 'paid',
@@ -137,6 +140,7 @@ exports.main = async (event = {}) => {
           paymentNo,
           amount: checkoutAmount,
           type: 'checkout',
+          checkoutType,
           status: 'paid',
           paidAt: now,
         },

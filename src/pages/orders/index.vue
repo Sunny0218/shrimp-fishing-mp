@@ -118,6 +118,16 @@ function getOrderMeta(order: Order) {
   return `${order.peopleCount} 人 / ${order.rodCount} 根杆`
 }
 
+function getCheckoutText(order: Order) {
+  if (order.status !== 'pending_checkout') {
+    return ''
+  }
+
+  return order.orderType === 'metered'
+    ? `待支付 ${formatPrice(order.checkoutAmount)}`
+    : `待补款 ${formatPrice(order.checkoutAmount)}`
+}
+
 onLoad(() => {
   fetchOrders()
 })
@@ -170,6 +180,8 @@ onPullDownRefresh(() => {
           :type-label="getOrderTypeLabel(order)"
           :type-variant="order.orderType"
           :time-items="getOrderTimes(order)"
+          :timer-text="getCheckoutText(order)"
+          :timer-level="order.status === 'pending_checkout' ? 'warning' : ''"
           :meta-text="getOrderMeta(order)"
           :order-no="order.orderNo"
           :price-text="formatPrice(order.finalAmount)"

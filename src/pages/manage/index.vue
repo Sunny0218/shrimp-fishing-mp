@@ -88,12 +88,12 @@ onLoad(() => {
     </view>
 
     <view class="grid grid-cols-2 mt-4 gap-3">
-      <view class="manage-card manage-card--primary" @click="handleOpenCheckin">
+      <view class="manage-card" @click="handleOpenCheckin">
         <view class="manage-card__title">
-          开始计时
+          套餐核销
         </view>
         <view class="manage-card__desc">
-          扫码或输入顾客出示的开始计时码
+          扫码或输入预约套餐核销码
         </view>
       </view>
       <view class="manage-card" @click="handleOpenTodayOrders">
@@ -106,7 +106,7 @@ onLoad(() => {
       </view>
       <view class="manage-card" @click="handleOpenCheckin">
         <view class="manage-card__title">
-          开始计时
+          到店计时
         </view>
         <view class="manage-card__desc">
           现场确认顾客订单并开始计时
@@ -142,22 +142,32 @@ onLoad(() => {
 
 <style scoped lang="scss">
 .manage-card {
+  position: relative;
+  overflow: hidden;
   min-height: 180rpx;
   border-radius: 8rpx;
-  background: #fff;
+  border: 2rpx solid #edf3ef;
+  background: linear-gradient(135deg, #ffffff 0%, #fbfdfb 100%);
   padding: 28rpx;
   box-shadow: 0 8rpx 24rpx rgb(24 54 47 / 6%);
 
-  &--primary {
+  &::before {
+    position: absolute;
+    top: 24rpx;
+    left: 0;
+    width: 8rpx;
+    height: 44rpx;
+    border-radius: 0 8rpx 8rpx 0;
     background: #1f6b56;
+    content: '';
+  }
 
-    .manage-card__title {
-      color: #ffffff;
-    }
+  &:active {
+    background: #eef6f2;
+  }
 
-    .manage-card__desc {
-      color: #dcebe3;
-    }
+  &:nth-child(2n)::before {
+    background: #f6c453;
   }
 
   &--disabled {

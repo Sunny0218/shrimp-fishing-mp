@@ -164,6 +164,16 @@ const countdownText = computed(() => {
 
   return formatCountdown(remainingMilliseconds.value)
 })
+const checkoutTitle = computed(() => order.value?.orderType === 'metered' ? '待支付结算金额' : '待结账补款')
+const checkoutDesc = computed(() => {
+  if (order.value?.orderType === 'metered') {
+    return '本次钓虾已结束，请支付结算金额，支付完成后订单将自动完成。'
+  }
+
+  return '本次超时产生补款，支付完成后订单将自动完成。'
+})
+const checkoutPayText = computed(() => order.value?.orderType === 'metered' ? '支付结算金额' : '支付补款')
+const canShowMeteredSettlement = computed(() => !!order.value && ['pending_checkout', 'completed'].includes(order.value.status))
 const { finishingOrderId, handleFinishTiming } = useFinishTimingOrder({
   currentTime,
   canWaiveOvertime,
@@ -374,10 +384,11 @@ function handlePayCheckout() {
   }
 
   const currentOrder = order.value
+  const paymentText = currentOrder.orderType === 'metered' ? '结算金额' : '补款'
 
   uni.showModal({
-    title: '支付补款',
-    content: `本次需补款 ${formatPrice(currentOrder.checkoutAmount)}，确认支付吗？`,
+    title: currentOrder.orderType === 'metered' ? '支付结算金额' : '支付补款',
+    content: `本次需支付${paymentText} ${formatPrice(currentOrder.checkoutAmount)}，确认支付吗？`,
     confirmText: '确认支付',
     confirmColor: '#1f6b56',
     success: async (res) => {
@@ -392,7 +403,7 @@ function handlePayCheckout() {
           orderId: currentOrder._id,
         })
         uni.showToast({
-          title: '补款成功',
+          title: currentOrder.orderType === 'metered' ? '支付成功' : '补款成功',
           icon: 'success',
         })
         await fetchOrderDetail()
@@ -537,7 +548,7 @@ onUnload(() => {
       <view v-if="canPayCheckout" class="order-card checkout-card">
         <view class="order-card__header">
           <view class="order-card__title">
-            待结账补款
+            {{ checkoutTitle }}
           </view>
           <view class="order-card__tag order-card__tag--warning">
             待支付
@@ -547,14 +558,14 @@ onUnload(() => {
           {{ formatPrice(order.checkoutAmount) }}
         </view>
         <view class="checkout-card__desc">
-          本次超时产生补款，支付完成后订单将自动完成。
+          {{ checkoutDesc }}
         </view>
         <button
           class="checkout-card__pay-btn"
           :disabled="payingCheckout"
           @click="handlePayCheckout"
         >
-          {{ payingCheckout ? '支付中...' : '支付补款' }}
+          {{ payingCheckout ? '支付中...' : checkoutPayText }}
         </button>
       </view>
 
@@ -697,54 +708,114 @@ onUnload(() => {
         <view class="order-card__title">
           费用明细
         </view>
-        <view class="info-row">
-          <text class="info-row__label">
-            套餐金额
-          </text>
-          <text class="info-row__value">
-            {{ formatPrice(order.baseAmount) }}
-          </text>
-        </view>
-        <view v-if="order.discountAmount" class="info-row">
-          <text class="info-row__label">
-            优惠金额
-          </text>
-          <text class="info-row__value">
-            -{{ formatPrice(order.discountAmount) }}
-          </text>
-        </view>
-        <view v-if="order.overtimeAmount" class="info-row">
-          <text class="info-row__label">
-            超时金额
-          </text>
-          <text class="info-row__value">
-            {{ formatPrice(order.overtimeAmount) }}
-          </text>
-        </view>
-        <view v-if="order.checkoutAmount" class="info-row">
-          <text class="info-row__label">
-            待补款
-          </text>
-          <text class="info-row__price">
-            {{ formatPrice(order.checkoutAmount) }}
-          </text>
-        </view>
-        <view v-if="order.checkoutPaidAmount" class="info-row">
-          <text class="info-row__label">
-            已补款
-          </text>
-          <text class="info-row__value">
-            {{ formatPrice(order.checkoutPaidAmount) }}
-          </text>
-        </view>
-        <view v-if="order.checkoutPaidAt" class="info-row">
-          <text class="info-row__label">
-            补款时间
-          </text>
-          <text class="info-row__value">
-            {{ formatDateTime(order.checkoutPaidAt) }}
-          </text>
-        </view>
+        <template v-if="order.orderType === 'metered'">
+          <view v-if="order.actualDurationMinutes" class="info-row">
+            <text class="info-row__label">
+              实际计时
+            </text>
+            <text class="info-row__value">
+              {{ formatDuration(order.actualDurationMinutes) }}
+            </text>
+          </view>
+          <view v-if="order.chargedMeteredMinutes" class="info-row">
+            <text class="info-row__label">
+              结算时长
+            </text>
+            <text class="info-row__value">
+              {{ formatDuration(order.chargedMeteredMinutes) }}
+            </text>
+          </view>
+          <view v-if="canShowMeteredSettlement" class="info-row">
+            <text class="info-row__label">
+              现场计时金额
+            </text>
+            <text class="info-row__price">
+              {{ formatPrice(order.finalAmount) }}
+            </text>
+          </view>
+          <view v-else class="info-row">
+            <text class="info-row__label">
+              结算金额
+            </text>
+            <text class="info-row__value">
+              结束计时后生成
+            </text>
+          </view>
+          <view v-if="order.checkoutAmount" class="info-row">
+            <text class="info-row__label">
+              待支付
+            </text>
+            <text class="info-row__price">
+              {{ formatPrice(order.checkoutAmount) }}
+            </text>
+          </view>
+          <view v-if="order.checkoutPaidAmount" class="info-row">
+            <text class="info-row__label">
+              已支付结算
+            </text>
+            <text class="info-row__value">
+              {{ formatPrice(order.checkoutPaidAmount) }}
+            </text>
+          </view>
+          <view v-if="order.checkoutPaidAt" class="info-row">
+            <text class="info-row__label">
+              支付时间
+            </text>
+            <text class="info-row__value">
+              {{ formatDateTime(order.checkoutPaidAt) }}
+            </text>
+          </view>
+        </template>
+        <template v-else>
+          <view class="info-row">
+            <text class="info-row__label">
+              套餐金额
+            </text>
+            <text class="info-row__value">
+              {{ formatPrice(order.baseAmount) }}
+            </text>
+          </view>
+          <view v-if="order.discountAmount" class="info-row">
+            <text class="info-row__label">
+              优惠金额
+            </text>
+            <text class="info-row__value">
+              -{{ formatPrice(order.discountAmount) }}
+            </text>
+          </view>
+          <view v-if="order.overtimeAmount" class="info-row">
+            <text class="info-row__label">
+              超时金额
+            </text>
+            <text class="info-row__value">
+              {{ formatPrice(order.overtimeAmount) }}
+            </text>
+          </view>
+          <view v-if="order.checkoutAmount" class="info-row">
+            <text class="info-row__label">
+              待补款
+            </text>
+            <text class="info-row__price">
+              {{ formatPrice(order.checkoutAmount) }}
+            </text>
+          </view>
+          <view v-if="order.checkoutPaidAmount" class="info-row">
+            <text class="info-row__label">
+              已补款
+            </text>
+            <text class="info-row__value">
+              {{ formatPrice(order.checkoutPaidAmount) }}
+            </text>
+          </view>
+          <view v-if="order.checkoutPaidAt" class="info-row">
+            <text class="info-row__label">
+              补款时间
+            </text>
+            <text class="info-row__value">
+              {{ formatDateTime(order.checkoutPaidAt) }}
+            </text>
+          </view>
+        </template>
         <view class="info-row">
           <text class="info-row__label">
             已支付
