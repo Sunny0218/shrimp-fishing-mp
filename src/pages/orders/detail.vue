@@ -412,7 +412,7 @@ function formatDuration(minutes?: number) {
   return restMinutes ? `${hours}小时${restMinutes}分钟` : `${hours}小时`
 }
 
-function getDateTimeValue(value?: OrderDateValue) {
+function getDateTimeValue(value?: OrderDateValue | number) {
   if (!value) {
     return 0
   }
@@ -435,12 +435,16 @@ function getDateTimeValue(value?: OrderDateValue) {
     }
   }
 
-  const time = new Date(value).getTime()
+  if (typeof value === 'string' || typeof value === 'number') {
+    const time = new Date(value).getTime()
 
-  return Number.isNaN(time) ? 0 : time
+    return Number.isNaN(time) ? 0 : time
+  }
+
+  return 0
 }
 
-function formatDateTime(value?: OrderDateValue) {
+function formatDateTime(value?: OrderDateValue | number) {
   if (!value) {
     return '-'
   }

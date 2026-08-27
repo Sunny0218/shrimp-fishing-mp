@@ -1,18 +1,18 @@
 import type { Ref } from 'vue'
 import { ref } from 'vue'
-import type { Order } from '@/api/types/order'
+import type { Order, OrderDateValue } from '@/api/types/order'
 import { finishTimingOrder } from '@/api/order'
 
 interface FinishTimingOptions {
   currentTime: Ref<number>
   canWaiveOvertime: Ref<boolean>
-  onSuccess?: (order: Order) => Promise<void> | void
+  onSuccess?: (order: Order) => Promise<void | boolean> | void
 }
 
 export function useFinishTimingOrder(options: FinishTimingOptions) {
   const finishingOrderId = ref('')
 
-  function getDateTimeValue(value?: string | Date) {
+  function getDateTimeValue(value?: OrderDateValue) {
     if (!value) {
       return 0
     }
@@ -21,9 +21,27 @@ export function useFinishTimingOrder(options: FinishTimingOptions) {
       return Number.isNaN(value.getTime()) ? 0 : value.getTime()
     }
 
-    const time = new Date(value).getTime()
+    if (typeof value === 'object') {
+      if (typeof value.toDate === 'function') {
+        const date = value.toDate()
 
-    return Number.isNaN(time) ? 0 : time
+        return Number.isNaN(date.getTime()) ? 0 : date.getTime()
+      }
+
+      if (value.$date) {
+        const time = new Date(value.$date).getTime()
+
+        return Number.isNaN(time) ? 0 : time
+      }
+    }
+
+    if (typeof value === 'string') {
+      const time = new Date(value).getTime()
+
+      return Number.isNaN(time) ? 0 : time
+    }
+
+    return 0
   }
 
   function getExpectedEndedAtTime(order: Order) {

@@ -1,11 +1,11 @@
-import type { Order } from '@/api/types/order'
+import type { Order, OrderDateValue } from '@/api/types/order'
 
 export interface OrderTimeItem {
   label: string
   value: string
 }
 
-export function getDateTimeValue(value?: string | Date | number) {
+export function getDateTimeValue(value?: OrderDateValue | number) {
   if (!value) {
     return 0
   }
@@ -14,44 +14,56 @@ export function getDateTimeValue(value?: string | Date | number) {
     return Number.isNaN(value.getTime()) ? 0 : value.getTime()
   }
 
-  const time = new Date(value).getTime()
+  if (typeof value === 'object') {
+    if (typeof value.toDate === 'function') {
+      const date = value.toDate()
 
-  return Number.isNaN(time) ? 0 : time
+      return Number.isNaN(date.getTime()) ? 0 : date.getTime()
+    }
+
+    if (value.$date) {
+      const time = new Date(value.$date).getTime()
+
+      return Number.isNaN(time) ? 0 : time
+    }
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const time = new Date(value).getTime()
+
+    return Number.isNaN(time) ? 0 : time
+  }
+
+  return 0
 }
 
-export function formatDateText(value?: string | Date | number) {
-  if (!value) {
+export function formatDateText(value?: OrderDateValue | number) {
+  const time = getDateTimeValue(value)
+
+  if (!time) {
     return ''
   }
 
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-
+  const date = new Date(time)
   const pad = (num: number) => `${num}`.padStart(2, '0')
 
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
-export function formatTimeText(value?: string | Date | number) {
-  if (!value) {
+export function formatTimeText(value?: OrderDateValue | number) {
+  const time = getDateTimeValue(value)
+
+  if (!time) {
     return ''
   }
 
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-
+  const date = new Date(time)
   const pad = (num: number) => `${num}`.padStart(2, '0')
 
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-export function formatDateTimeText(value?: string | Date | number) {
+export function formatDateTimeText(value?: OrderDateValue | number) {
   const time = getDateTimeValue(value)
 
   if (!time) {
@@ -61,7 +73,7 @@ export function formatDateTimeText(value?: string | Date | number) {
   return `${formatDateText(time)} ${formatTimeText(time)}`
 }
 
-function firstDateText(values: Array<string | Date | undefined>) {
+function firstDateText(values: Array<OrderDateValue | undefined>) {
   for (const value of values) {
     const dateText = formatDateText(value)
 

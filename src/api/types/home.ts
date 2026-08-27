@@ -34,6 +34,7 @@ export interface SaveShopSettingsParams {
   shopName: string
   address: string
   phone: string
+  coverImages: string[]
   businessHours: BusinessHour[]
   notice: string
   bookingMode: BookingMode
@@ -43,6 +44,7 @@ export interface SaveShopSettingsParams {
 
 export interface SaveShopSettingsResult {
   settings: ShopSettings
+  deletedCoverImages?: Array<Record<string, unknown>>
 }
 
 export interface ShrimpPackage {

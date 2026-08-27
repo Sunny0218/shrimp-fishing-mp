@@ -44,6 +44,7 @@ export async function saveShopSettings(params: SaveShopSettingsParams) {
     shopName: params.shopName.trim(),
     address: params.address.trim(),
     phone: params.phone.trim(),
+    coverImages: params.coverImages.map(item => item.trim()).filter(Boolean),
     businessHours: params.businessHours.map(item => ({
       label: item.label.trim(),
       startTime: item.startTime,

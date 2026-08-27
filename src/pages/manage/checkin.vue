@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { CheckInOrderResult } from '@/api/types/order'
+import type { CheckInOrderResult, OrderDateValue } from '@/api/types/order'
 import { checkInOrder } from '@/api/order'
+import { getDateTimeValue } from '@/utils/orderDisplay'
 
 definePage({
   style: {
@@ -253,17 +254,18 @@ function getExpectedEndedAtText(order: CheckInOrderResult['order']) {
   return formatDateTime(order.expectedEndedAt)
 }
 
-function formatDateTime(value?: string | Date) {
+function formatDateTime(value?: OrderDateValue) {
   if (!value) {
     return '-'
   }
 
-  const date = new Date(value)
+  const time = getDateTimeValue(value)
 
-  if (Number.isNaN(date.getTime())) {
-    return `${value}`
+  if (!time) {
+    return '-'
   }
 
+  const date = new Date(time)
   const pad = (num: number) => `${num}`.padStart(2, '0')
 
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`

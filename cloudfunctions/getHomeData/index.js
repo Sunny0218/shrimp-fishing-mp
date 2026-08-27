@@ -6,6 +6,7 @@ cloud.init({
 
 const db = cloud.database()
 const command = db.command
+const shopSettingsSeedKey = 'default-shop-settings'
 
 const defaultSettings = {
   shopName: '钓虾乐园',
@@ -21,6 +22,8 @@ const defaultSettings = {
   coverImages: [],
   notice: '欢迎预约到店钓虾，营业信息以门店现场为准。',
   bookingMode: 'walk_in',
+  paymentMode: 'mock_auto_paid',
+  pendingPaymentExpireMinutes: 1,
 }
 
 function getTodayText(date) {
@@ -31,11 +34,23 @@ function getTodayText(date) {
   return `${year}-${month}-${day}`
 }
 
+async function getShopSettings() {
+  const seededRes = await db.collection('settings').where({ seedKey: shopSettingsSeedKey }).limit(1).get()
+
+  if (seededRes.data[0]) {
+    return seededRes.data[0]
+  }
+
+  const settingsRes = await db.collection('settings').limit(1).get()
+
+  return settingsRes.data[0] || defaultSettings
+}
+
 exports.main = async () => {
   try {
     const today = getTodayText(new Date())
-    const [settingsRes, packagesRes, timeSlotsRes, pricingRuleRes] = await Promise.all([
-      db.collection('settings').limit(1).get(),
+    const [settings, packagesRes, timeSlotsRes, pricingRuleRes] = await Promise.all([
+      getShopSettings(),
       db.collection('packages').where({ status: 'active' }).orderBy('sort', 'asc').limit(10).get(),
       db
         .collection('time_slots')
@@ -54,7 +69,7 @@ exports.main = async () => {
       code: 0,
       message: 'ok',
       data: {
-        settings: settingsRes.data[0] || defaultSettings,
+        settings,
         packages: packagesRes.data,
         timeSlots: timeSlotsRes.data,
         pricingRule: pricingRuleRes.data[0],

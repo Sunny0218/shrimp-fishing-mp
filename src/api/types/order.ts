@@ -5,7 +5,7 @@ export interface CloudDateValue {
   toDate?: () => Date
 }
 
-export type OrderDateValue = Date | string | number | CloudDateValue
+export type OrderDateValue = Date | string | CloudDateValue
 
 export type OrderType = 'package' | 'metered'
 export type OrderStatus

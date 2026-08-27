@@ -8,6 +8,7 @@ const db = cloud.database()
 const editRoles = ['admin', 'super_admin']
 const validBookingModes = ['walk_in', 'slot']
 const validPaymentModes = ['mock_auto_paid', 'mock_pending_payment']
+const shopSettingsSeedKey = 'default-shop-settings'
 
 function fail(code, message) {
   return {
@@ -43,11 +44,48 @@ function normalizeBusinessHours(hours) {
     .filter(item => item.startTime && item.endTime)
 }
 
+function normalizeCoverImages(images) {
+  if (!Array.isArray(images)) {
+    return []
+  }
+
+  return images
+    .map(normalizeString)
+    .filter(Boolean)
+    .slice(0, 3)
+}
+
+function getRemovedCoverImageFileIDs(previousImages, nextImages) {
+  const nextImageSet = new Set(normalizeCoverImages(nextImages))
+
+  return normalizeCoverImages(previousImages)
+    .filter(fileID => fileID.startsWith('cloud://') && !nextImageSet.has(fileID))
+    .filter((fileID, index, list) => list.indexOf(fileID) === index)
+}
+
+async function deleteRemovedCoverImages(fileList) {
+  if (!fileList.length) {
+    return []
+  }
+
+  try {
+    const res = await cloud.deleteFile({ fileList })
+
+    return res.fileList || []
+  }
+  catch (error) {
+    console.warn('[saveShopSettings] delete removed cover images failed', error)
+
+    return []
+  }
+}
+
 function normalizeSettings(event) {
   const shopName = normalizeString(event.shopName)
   const address = normalizeString(event.address)
   const phone = normalizeString(event.phone)
   const notice = normalizeString(event.notice)
+  const coverImages = normalizeCoverImages(event.coverImages)
   const bookingMode = validBookingModes.includes(event.bookingMode) ? event.bookingMode : 'walk_in'
   const paymentMode = validPaymentModes.includes(event.paymentMode) ? event.paymentMode : 'mock_auto_paid'
   const pendingPaymentExpireMinutes = Math.max(Math.floor(Number(event.pendingPaymentExpireMinutes || 1)), 0)
@@ -84,6 +122,7 @@ function normalizeSettings(event) {
       shopName,
       address,
       phone,
+      coverImages,
       businessHours,
       notice,
       bookingMode,
@@ -91,6 +130,18 @@ function normalizeSettings(event) {
       pendingPaymentExpireMinutes,
     },
   }
+}
+
+async function getCurrentSettings(settingsCollection) {
+  const seededRes = await settingsCollection.where({ seedKey: shopSettingsSeedKey }).limit(1).get()
+
+  if (seededRes.data[0]) {
+    return seededRes.data[0]
+  }
+
+  const settingsRes = await settingsCollection.limit(1).get()
+
+  return settingsRes.data[0]
 }
 
 exports.main = async (event = {}) => {
@@ -121,19 +172,22 @@ exports.main = async (event = {}) => {
 
     const now = new Date()
     const settingsCollection = db.collection('settings')
-    const settingsRes = await settingsCollection.limit(1).get()
-    const currentSettings = settingsRes.data[0]
+    const currentSettings = await getCurrentSettings(settingsCollection)
     const payload = {
       ...normalized.data,
+      seedKey: currentSettings?.seedKey || shopSettingsSeedKey,
       updatedAt: now,
       updatedBy: openid,
     }
 
     if (currentSettings?._id) {
+      const removedCoverImages = getRemovedCoverImageFileIDs(currentSettings.coverImages, payload.coverImages)
+
       await settingsCollection.doc(currentSettings._id).update({
         data: payload,
       })
 
+      const deletedCoverImages = await deleteRemovedCoverImages(removedCoverImages)
       const updatedRes = await settingsCollection.doc(currentSettings._id).get()
 
       return {
@@ -141,6 +195,7 @@ exports.main = async (event = {}) => {
         message: 'ok',
         data: {
           settings: updatedRes.data,
+          deletedCoverImages,
         },
       }
     }
@@ -148,7 +203,6 @@ exports.main = async (event = {}) => {
     const addRes = await settingsCollection.add({
       data: {
         ...payload,
-        coverImages: [],
         createdAt: now,
         createdBy: openid,
       },

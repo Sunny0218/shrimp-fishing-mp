@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { BookingMode, BusinessHour, PaymentMode, ShopSettings } from '@/api/types/home'
 import { defaultHomeData, getHomeData, saveShopSettings } from '@/api/home'
+import { uploadShopCoverImage } from '@/api/upload'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
 import { markHomeDataDirty } from '@/utils/homeDataRefresh'
 
@@ -15,6 +16,7 @@ interface SettingsForm {
   shopName: string
   address: string
   phone: string
+  coverImages: string[]
   notice: string
   bookingMode: BookingMode
   paymentMode: PaymentMode
@@ -39,6 +41,7 @@ const form = reactive<SettingsForm>({
   shopName: '',
   address: '',
   phone: '',
+  coverImages: [],
   notice: '',
   bookingMode: 'walk_in',
   paymentMode: 'mock_auto_paid',
@@ -47,6 +50,7 @@ const form = reactive<SettingsForm>({
 })
 const loading = ref(false)
 const saving = ref(false)
+const uploadingCoverImage = ref(false)
 const errorText = ref('')
 const hasFetched = ref(false)
 const bookingModeIndex = computed(() => Math.max(bookingModeOptions.findIndex(item => item.value === form.bookingMode), 0))
@@ -58,6 +62,7 @@ function fillForm(settings: ShopSettings) {
   form.shopName = settings.shopName || ''
   form.address = settings.address || ''
   form.phone = settings.phone || ''
+  form.coverImages = Array.isArray(settings.coverImages) ? [...settings.coverImages] : []
   form.notice = settings.notice || ''
   form.bookingMode = settings.bookingMode || 'walk_in'
   form.paymentMode = settings.paymentMode || 'mock_auto_paid'
@@ -134,6 +139,123 @@ function handleRemoveHour(index: number) {
   form.businessHours.splice(index, 1)
 }
 
+interface ChosenCoverImage {
+  tempFilePath: string
+  size: number
+}
+
+interface ChooseMediaFile {
+  tempFilePath?: string
+  path?: string
+  size?: number
+}
+
+function chooseCoverImage() {
+  return new Promise<ChosenCoverImage>((resolve, reject) => {
+    // #ifdef MP-WEIXIN
+    uni.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success: (res) => {
+        const file = res.tempFiles[0] as ChooseMediaFile | undefined
+        const tempFilePath = file?.tempFilePath || file?.path || ''
+
+        if (!tempFilePath) {
+          reject(new Error('图片选择失败'))
+          return
+        }
+
+        resolve({
+          tempFilePath,
+          size: Number(file?.size || 0),
+        })
+      },
+      fail: (error) => {
+        if (error.errMsg?.includes('cancel')) {
+          reject(new Error('已取消选择'))
+          return
+        }
+
+        reject(new Error('图片选择失败'))
+      },
+    })
+    // #endif
+
+    // #ifndef MP-WEIXIN
+    uni.chooseImage({
+      count: 1,
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success: (res) => {
+        const tempFilePath = res.tempFilePaths[0] || ''
+        const file = res.tempFiles[0]
+
+        if (!tempFilePath) {
+          reject(new Error('图片选择失败'))
+          return
+        }
+
+        resolve({
+          tempFilePath,
+          size: Number(file?.size || 0),
+        })
+      },
+      fail: (error) => {
+        if (error.errMsg?.includes('cancel')) {
+          reject(new Error('已取消选择'))
+          return
+        }
+
+        reject(new Error('图片选择失败'))
+      },
+    })
+    // #endif
+  })
+}
+
+async function handleUploadCoverImage() {
+  if (uploadingCoverImage.value || saving.value) {
+    return
+  }
+
+  if (form.coverImages.length >= 3) {
+    showToast('最多配置 3 张封面图')
+    return
+  }
+
+  uploadingCoverImage.value = true
+
+  try {
+    const file = await chooseCoverImage()
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('图片不能超过 5MB')
+      return
+    }
+
+    const res = await uploadShopCoverImage(file.tempFilePath)
+    form.coverImages.push(res.fileID)
+    showToast('上传成功', 'success')
+  }
+  catch (error) {
+    const message = error instanceof Error ? error.message : '封面图上传失败'
+
+    if (message !== '已取消选择') {
+      showToast(message)
+    }
+  }
+  finally {
+    uploadingCoverImage.value = false
+  }
+}
+
+function handleRemoveCoverImage(index: number) {
+  form.coverImages.splice(index, 1)
+  showToast('保存后生效并清理云文件')
+}
+
 async function handleSave() {
   if (saving.value) {
     return
@@ -143,6 +265,7 @@ async function handleSave() {
   const address = form.address.trim()
   const phone = form.phone.trim()
   const notice = form.notice.trim()
+  const coverImages = form.coverImages.map(item => item.trim()).filter(Boolean)
   const pendingPaymentExpireMinutes = Math.max(Math.floor(Number(form.pendingPaymentExpireMinutes)), 0)
   const businessHours = form.businessHours.map(item => ({
     label: item.label.trim() || '营业',
@@ -177,6 +300,7 @@ async function handleSave() {
       shopName,
       address,
       phone,
+      coverImages,
       notice,
       businessHours,
       bookingMode: form.bookingMode,
@@ -256,6 +380,38 @@ onPullDownRefresh(() => {
           联系电话
         </view>
         <input v-model.trim="form.phone" class="form-field__input" type="tel" :maxlength="30" placeholder="用于首页一键联系">
+      </view>
+
+      <view class="settings-section">
+        <view class="settings-section__header">
+          <view class="settings-section__title">
+            首页封面图
+          </view>
+          <button class="settings-section__btn settings-section__btn--wide" :disabled="saving || uploadingCoverImage" @click="handleUploadCoverImage">
+            {{ uploadingCoverImage ? '上传中' : '上传' }}
+          </button>
+        </view>
+
+        <view v-if="!form.coverImages.length" class="settings-empty">
+          未配置封面图，首页将使用主题背景
+        </view>
+        <view v-for="(imageUrl, index) in form.coverImages" :key="index" class="cover-card">
+          <image v-if="imageUrl" class="cover-card__preview" :src="imageUrl" mode="aspectFill" />
+          <view v-else class="cover-card__placeholder">
+            预览图
+          </view>
+          <view class="cover-card__content">
+            <view class="form-field">
+              <view class="form-field__label">
+                云存储地址
+              </view>
+              <input v-model.trim="form.coverImages[index]" class="form-field__input" :maxlength="300" placeholder="上传后自动填入 cloud:// 地址">
+            </view>
+            <button class="cover-card__remove" :disabled="saving" @click="handleRemoveCoverImage(index)">
+              删除
+            </button>
+          </view>
+        </view>
       </view>
 
       <view class="form-field">
@@ -460,7 +616,21 @@ onPullDownRefresh(() => {
     color: #ffffff;
     font-size: 24rpx;
     line-height: 56rpx;
+
+    &--wide {
+      width: 136rpx;
+    }
   }
+}
+
+.settings-empty {
+  border-radius: 8rpx;
+  background: #f4f7f2;
+  padding: 28rpx 20rpx;
+  color: #84918c;
+  font-size: 24rpx;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .form-field {
@@ -507,6 +677,56 @@ onPullDownRefresh(() => {
     color: #84918c;
     font-size: 22rpx;
     line-height: 1.4;
+  }
+}
+
+.cover-card {
+  display: flex;
+  gap: 18rpx;
+  border: 2rpx solid #e6eee9;
+  border-radius: 8rpx;
+  background: #fbfcfb;
+  padding: 18rpx;
+
+  & + & {
+    margin-top: 18rpx;
+  }
+
+  &__preview,
+  &__placeholder {
+    flex-shrink: 0;
+    width: 160rpx;
+    height: 120rpx;
+    border-radius: 8rpx;
+  }
+
+  &__placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef2ef;
+    color: #84918c;
+    font-size: 23rpx;
+  }
+
+  &__content {
+    min-width: 0;
+    flex: 1;
+
+    .form-field {
+      margin-top: 0;
+    }
+  }
+
+  &__remove {
+    width: 128rpx;
+    min-height: 52rpx;
+    margin: 16rpx 0 0;
+    border-radius: 8rpx;
+    background: #f8ebe7;
+    color: #c9472b;
+    font-size: 23rpx;
+    line-height: 52rpx;
   }
 }
 
