@@ -187,6 +187,15 @@ export interface CancelOrderResult {
   refundNo?: string
 }
 
+export interface PayOrderParams {
+  orderId: string
+}
+
+export interface PayOrderResult {
+  order: Order
+  payment: PaymentRecord
+}
+
 export interface CheckInOrderParams {
   orderId?: string
   checkinCode: string

@@ -7,6 +7,7 @@ cloud.init({
 const db = cloud.database()
 const editRoles = ['admin', 'super_admin']
 const validBookingModes = ['walk_in', 'slot']
+const validPaymentModes = ['mock_auto_paid', 'mock_pending_payment']
 
 function fail(code, message) {
   return {
@@ -48,6 +49,7 @@ function normalizeSettings(event) {
   const phone = normalizeString(event.phone)
   const notice = normalizeString(event.notice)
   const bookingMode = validBookingModes.includes(event.bookingMode) ? event.bookingMode : 'walk_in'
+  const paymentMode = validPaymentModes.includes(event.paymentMode) ? event.paymentMode : 'mock_auto_paid'
   const businessHours = normalizeBusinessHours(event.businessHours)
 
   if (!shopName) {
@@ -80,6 +82,7 @@ function normalizeSettings(event) {
       businessHours,
       notice,
       bookingMode,
+      paymentMode,
     },
   }
 }

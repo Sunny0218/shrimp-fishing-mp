@@ -68,6 +68,13 @@ function normalizeCount(value, defaultValue) {
   return Math.max(Math.floor(count), defaultValue)
 }
 
+async function getPaymentMode() {
+  const settingsRes = await db.collection('settings').limit(1).get().catch(() => ({ data: [] }))
+  const paymentMode = settingsRes.data[0]?.paymentMode
+
+  return paymentMode === 'mock_pending_payment' ? 'mock_pending_payment' : 'mock_auto_paid'
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -99,20 +106,22 @@ exports.main = async (event = {}) => {
       return fail(404, '套餐不存在或已下架')
     }
 
+    const paymentMode = await getPaymentMode()
+    const isPendingPaymentMode = paymentMode === 'mock_pending_payment'
     const now = new Date()
     const orderNo = createOrderNo()
     const packageRodCount = Number(packageItem.rodCount || 1)
     const packageMaxPeople = Number(packageItem.maxPeople || packageRodCount || 1)
     const rodCount = normalizeCount(event.rodCount, packageRodCount)
     const peopleCount = normalizeCount(event.peopleCount, packageMaxPeople)
-    const checkinCode = await createUniqueCheckinCode()
+    const checkinCode = isPendingPaymentMode ? '' : await createUniqueCheckinCode()
     const orderData = {
       orderNo,
       userId: user._id,
       openid,
       orderType: 'package',
       bookingMode: slotId ? 'slot' : 'walk_in',
-      status: 'paid',
+      status: isPendingPaymentMode ? 'pending_payment' : 'paid',
       packageId,
       rodCount,
       peopleCount,
@@ -131,7 +140,7 @@ exports.main = async (event = {}) => {
       overtimeAmount: 0,
       checkoutAmount: 0,
       waivedOvertimeAmount: 0,
-      paidAmount: Number(packageItem.price || 0),
+      paidAmount: isPendingPaymentMode ? 0 : Number(packageItem.price || 0),
       finalAmount: Number(packageItem.price || 0),
       remark,
       adminRemark: '',
@@ -141,10 +150,18 @@ exports.main = async (event = {}) => {
       updatedAt: now,
     }
 
-    async function addPaidOrder(transaction, data) {
+    async function addOrderWithOptionalPayment(transaction, data) {
       const orderRes = await transaction.collection('orders').add({
         data,
       })
+
+      if (isPendingPaymentMode) {
+        return {
+          orderRes,
+          payment: null,
+        }
+      }
+
       const payment = await createMockPaidPayment(transaction, {
         order: data,
         orderId: orderRes._id,
@@ -163,7 +180,7 @@ exports.main = async (event = {}) => {
 
     if (!slotId) {
       const result = await db.runTransaction(async (transaction) => {
-        return addPaidOrder(transaction, orderData)
+        return addOrderWithOptionalPayment(transaction, orderData)
       })
 
       return {
@@ -173,14 +190,14 @@ exports.main = async (event = {}) => {
           orderId: result.orderRes._id,
           orderNo,
           status: orderData.status,
-          payment: {
+          ...(result.payment ? { payment: {
             _id: result.payment._id,
             paymentNo: result.payment.paymentNo,
             amount: result.payment.amount,
             type: result.payment.type,
             status: result.payment.status,
             paidAt: result.payment.paidAt,
-          },
+          } } : {}),
         },
       }
     }
@@ -237,7 +254,7 @@ exports.main = async (event = {}) => {
         },
       })
 
-      return addPaidOrder(transaction, slotOrderData)
+      return addOrderWithOptionalPayment(transaction, slotOrderData)
     })
 
     return {
@@ -249,14 +266,14 @@ exports.main = async (event = {}) => {
         status: slotOrderData.status,
         bookedCount: nextBookedCount,
         slotStatus: nextSlotStatus,
-        payment: {
+        ...(result.payment ? { payment: {
           _id: result.payment._id,
           paymentNo: result.payment.paymentNo,
           amount: result.payment.amount,
           type: result.payment.type,
           status: result.payment.status,
           paidAt: result.payment.paidAt,
-        },
+        } } : {}),
       },
     }
   }

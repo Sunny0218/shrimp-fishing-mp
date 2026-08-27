@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BookingMode, BusinessHour, ShopSettings } from '@/api/types/home'
+import type { BookingMode, BusinessHour, PaymentMode, ShopSettings } from '@/api/types/home'
 import { defaultHomeData, getHomeData, saveShopSettings } from '@/api/home'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
 import { markHomeDataDirty } from '@/utils/homeDataRefresh'
@@ -17,6 +17,7 @@ interface SettingsForm {
   phone: string
   notice: string
   bookingMode: BookingMode
+  paymentMode: PaymentMode
   businessHours: BusinessHour[]
 }
 
@@ -29,12 +30,17 @@ const bookingModeOptions: Array<{ label: string, value: BookingMode, desc: strin
   { label: '到店安排', value: 'walk_in', desc: '首页只展示套餐，顾客预约后到店核销开始计时' },
   { label: '按场次预约', value: 'slot', desc: '预留给后续按日期和时间段预约' },
 ]
+const paymentModeOptions: Array<{ label: string, value: PaymentMode, desc: string }> = [
+  { label: '自动模拟支付', value: 'mock_auto_paid', desc: '提交预约后自动支付成功，订单直接进入待到店' },
+  { label: '停留待支付', value: 'mock_pending_payment', desc: '提交预约后停留在待支付，用于测试支付和未支付取消' },
+]
 const form = reactive<SettingsForm>({
   shopName: '',
   address: '',
   phone: '',
   notice: '',
   bookingMode: 'walk_in',
+  paymentMode: 'mock_auto_paid',
   businessHours: [{ ...defaultHour }],
 })
 const loading = ref(false)
@@ -42,6 +48,7 @@ const saving = ref(false)
 const errorText = ref('')
 const hasFetched = ref(false)
 const bookingModeIndex = computed(() => Math.max(bookingModeOptions.findIndex(item => item.value === form.bookingMode), 0))
+const paymentModeIndex = computed(() => Math.max(paymentModeOptions.findIndex(item => item.value === form.paymentMode), 0))
 const showLoadingOverlay = computed(() => loading.value && hasFetched.value)
 useNativeLoading(showLoadingOverlay, '加载中')
 
@@ -51,6 +58,7 @@ function fillForm(settings: ShopSettings) {
   form.phone = settings.phone || ''
   form.notice = settings.notice || ''
   form.bookingMode = settings.bookingMode || 'walk_in'
+  form.paymentMode = settings.paymentMode || 'mock_auto_paid'
   form.businessHours = normalizeBusinessHours(settings.businessHours)
 }
 
@@ -90,6 +98,15 @@ function handleBookingModeChange(event: { detail: { value: number | string } }) 
 
   if (option) {
     form.bookingMode = option.value
+  }
+}
+
+function handlePaymentModeChange(event: { detail: { value: number | string } }) {
+  const index = Number(event.detail.value)
+  const option = paymentModeOptions[index]
+
+  if (option) {
+    form.paymentMode = option.value
   }
 }
 
@@ -154,6 +171,7 @@ async function handleSave() {
       notice,
       businessHours,
       bookingMode: form.bookingMode,
+      paymentMode: form.paymentMode,
     })
     fillForm(res.settings)
     markHomeDataDirty()
@@ -241,6 +259,20 @@ onPullDownRefresh(() => {
         </picker>
         <view class="form-field__help">
           {{ bookingModeOptions[bookingModeIndex]?.desc }}
+        </view>
+      </view>
+
+      <view class="form-field">
+        <view class="form-field__label">
+          支付模式
+        </view>
+        <picker :value="paymentModeIndex" :range="paymentModeOptions" range-key="label" @change="handlePaymentModeChange">
+          <view class="form-field__picker">
+            {{ paymentModeOptions[paymentModeIndex]?.label || '自动模拟支付' }}
+          </view>
+        </picker>
+        <view class="form-field__help">
+          {{ paymentModeOptions[paymentModeIndex]?.desc }}
         </view>
       </view>
 

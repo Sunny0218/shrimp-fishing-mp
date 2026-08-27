@@ -1,6 +1,7 @@
 export type PackageStatus = 'active' | 'disabled' | 'deleted'
 export type TimeSlotStatus = 'available' | 'full' | 'closed'
 export type BookingMode = 'walk_in' | 'slot'
+export type PaymentMode = 'mock_auto_paid' | 'mock_pending_payment'
 
 export interface BusinessHour {
   label: string
@@ -23,6 +24,7 @@ export interface ShopSettings {
   coverImages: string[]
   notice: string
   bookingMode?: BookingMode
+  paymentMode?: PaymentMode
   location?: ShopLocation
   updatedAt?: Date | string
 }
@@ -34,6 +36,7 @@ export interface SaveShopSettingsParams {
   businessHours: BusinessHour[]
   notice: string
   bookingMode: BookingMode
+  paymentMode: PaymentMode
 }
 
 export interface SaveShopSettingsResult {

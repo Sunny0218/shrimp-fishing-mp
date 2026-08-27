@@ -1,5 +1,5 @@
 import type { CloudFunctionResponse } from './types/home'
-import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, CreateWalkInOrderParams, CreateWalkInOrderResult, FinishTimingOrderParams, FinishTimingOrderResult, GetMyOrdersParams, GetOrdersParams, MyOrdersData, OrderDetailData, OrdersData, PayCheckoutOrderParams, PayCheckoutOrderResult } from './types/order'
+import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, CreateWalkInOrderParams, CreateWalkInOrderResult, FinishTimingOrderParams, FinishTimingOrderResult, GetMyOrdersParams, GetOrdersParams, MyOrdersData, OrderDetailData, OrdersData, PayCheckoutOrderParams, PayCheckoutOrderResult, PayOrderParams, PayOrderResult } from './types/order'
 import { callCloudFunction } from '@/cloud'
 
 export async function createOrder(params: CreateOrderParams) {
@@ -167,6 +167,31 @@ export async function cancelOrder(params: CancelOrderParams) {
   // #endif
 
   throw new Error('当前平台暂不支持取消预约')
+}
+
+export async function payOrder(params: PayOrderParams) {
+  const orderId = params.orderId.trim()
+
+  if (!orderId) {
+    throw new Error('缺少订单 ID')
+  }
+
+  // #ifdef MP-WEIXIN
+  const res = await callCloudFunction<CloudFunctionResponse<PayOrderResult>, Record<string, unknown>>(
+    'payOrder',
+    {
+      orderId,
+    },
+  )
+
+  if (res.code !== 0) {
+    throw new Error(res.message || '订单支付失败')
+  }
+
+  return res.data
+  // #endif
+
+  throw new Error('当前平台暂不支持订单支付')
 }
 
 export async function checkInOrder(params: CheckInOrderParams) {

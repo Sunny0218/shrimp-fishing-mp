@@ -2,7 +2,7 @@
 import type { Order, OrderDetailData, OrderStatus, PricingRuleSnapshot } from '@/api/types/order'
 import qrcode from 'qrcode-generator'
 import { storeToRefs } from 'pinia'
-import { cancelOrder, getOrderDetail, payCheckoutOrder } from '@/api/order'
+import { cancelOrder, getOrderDetail, payCheckoutOrder, payOrder } from '@/api/order'
 import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
 import { useUserStore } from '@/store'
 
@@ -14,6 +14,7 @@ definePage({
 
 const loading = ref(false)
 const cancelling = ref(false)
+const payingOrder = ref(false)
 const payingCheckout = ref(false)
 const errorText = ref('')
 const orderDetail = ref<OrderDetailData>()
@@ -114,6 +115,7 @@ const cancelModalContent = computed(() => {
   return '当前订单尚未支付，取消后会关闭订单。'
 })
 const cancelSuccessText = computed(() => isRefundCancel.value ? '退款成功' : '已取消预约')
+const canPayOrder = computed(() => order.value?.status === 'pending_payment')
 const canPayCheckout = computed(() => order.value?.status === 'pending_checkout' && Number(order.value.checkoutAmount || 0) > 0)
 const canShowCheckinCode = computed(() => order.value?.status === 'paid' && !!order.value.checkinCode)
 const checkinQrCodeUrl = computed(() => {
@@ -478,6 +480,48 @@ function handleCancelOrder() {
       }
       finally {
         cancelling.value = false
+      }
+    },
+  })
+}
+
+function handlePayOrder() {
+  if (!order.value || payingOrder.value || !canPayOrder.value) {
+    return
+  }
+
+  const currentOrder = order.value
+
+  uni.showModal({
+    title: '模拟支付',
+    content: `本次需支付 ${formatPrice(currentOrder.finalAmount || currentOrder.baseAmount)}，确认模拟支付吗？`,
+    confirmText: '确认支付',
+    confirmColor: '#1f6b56',
+    success: async (res) => {
+      if (!res.confirm) {
+        return
+      }
+
+      payingOrder.value = true
+
+      try {
+        await payOrder({
+          orderId: currentOrder._id,
+        })
+        uni.showToast({
+          title: '支付成功',
+          icon: 'success',
+        })
+        await fetchOrderDetail()
+      }
+      catch (error) {
+        uni.showToast({
+          title: error instanceof Error ? error.message : '订单支付失败',
+          icon: 'none',
+        })
+      }
+      finally {
+        payingOrder.value = false
       }
     },
   })
@@ -1009,6 +1053,14 @@ onUnload(() => {
         返回首页
       </button>
       <button
+        v-if="canPayOrder"
+        class="order-detail-page__pay-btn"
+        :disabled="payingOrder"
+        @click="handlePayOrder"
+      >
+        {{ payingOrder ? '支付中...' : '模拟支付' }}
+      </button>
+      <button
         v-if="canCancel"
         class="order-detail-page__cancel-btn"
         :disabled="cancelling"
@@ -1039,6 +1091,7 @@ onUnload(() => {
 
   &__retry,
   &__home-btn,
+  &__pay-btn,
   &__cancel-btn {
     min-height: 76rpx;
     border-radius: 8rpx;
@@ -1057,6 +1110,13 @@ onUnload(() => {
     margin-top: 28rpx;
     background: #1f6b56;
     color: #ffffff;
+  }
+
+  &__pay-btn {
+    margin-top: 18rpx;
+    background: #f6c453;
+    color: #20312b;
+    font-weight: 700;
   }
 
   &__cancel-btn {

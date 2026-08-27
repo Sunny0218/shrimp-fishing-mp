@@ -94,7 +94,7 @@ async function handleSubmit() {
     })
 
     uni.showToast({
-      title: '预约成功',
+      title: res.status === 'pending_payment' ? '订单待支付' : '预约成功',
       icon: 'success',
     })
 

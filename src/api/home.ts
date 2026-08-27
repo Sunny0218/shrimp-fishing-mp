@@ -16,6 +16,7 @@ export const defaultHomeData: HomeData = {
     coverImages: [],
     notice: '欢迎预约到店钓虾，营业信息以门店现场为准。',
     bookingMode: 'walk_in',
+    paymentMode: 'mock_auto_paid',
   },
   packages: [],
   timeSlots: [],
@@ -49,6 +50,7 @@ export async function saveShopSettings(params: SaveShopSettingsParams) {
     })),
     notice: params.notice.trim(),
     bookingMode: params.bookingMode,
+    paymentMode: params.paymentMode,
   }
 
   // #ifdef MP-WEIXIN
@@ -80,12 +82,15 @@ function normalizeHomeData(data: HomeData): HomeData {
 }
 
 function normalizeSettings(settings?: Partial<ShopSettings>): ShopSettings {
+  const paymentMode = settings?.paymentMode === 'mock_pending_payment' ? 'mock_pending_payment' : 'mock_auto_paid'
+
   return {
     ...defaultHomeData.settings,
     ...settings,
     businessHours: normalizeBusinessHours(settings?.businessHours),
     coverImages: Array.isArray(settings?.coverImages) ? settings.coverImages : [],
     notice: settings?.notice || defaultHomeData.settings.notice,
+    paymentMode,
   }
 }
 

@@ -140,6 +140,7 @@ async function upsertShopSettings() {
       coverImages: [],
       notice: '测试数据已开放预约。到店后出示订单核销码，由服务员核销并开始计时。',
       bookingMode: 'walk_in',
+      paymentMode: 'mock_auto_paid',
       location: {
         latitude: 22.5328,
         longitude: 113.9887,
