@@ -66,6 +66,10 @@ export interface Order {
   checkoutPaidAmount?: number
   checkoutPaidAt?: Date | string
   waivedOvertimeAmount?: number
+  refundAmount?: number
+  refundNo?: string
+  refundStatus?: 'pending' | 'refunded' | string
+  refundReason?: string
   paidAmount: number
   finalAmount: number
   remark: string
@@ -177,7 +181,9 @@ export interface CancelOrderParams {
 
 export interface CancelOrderResult {
   orderId: string
-  status: Extract<OrderStatus, 'cancelled'>
+  status: Extract<OrderStatus, 'cancelled' | 'refunded'>
+  refundAmount?: number
+  refundNo?: string
 }
 
 export interface CheckInOrderParams {

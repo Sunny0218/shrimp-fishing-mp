@@ -103,6 +103,17 @@ const overtimePricingRule = computed(() => {
 })
 const slotSnapshot = computed(() => order.value?.slotSnapshot)
 const canCancel = computed(() => order.value ? ['pending_payment', 'paid'].includes(order.value.status) : false)
+const isRefundCancel = computed(() => order.value?.status === 'paid' && getRefundableAmount() > 0)
+const cancelActionText = computed(() => isRefundCancel.value ? '申请退款' : '取消预约')
+const cancelModalTitle = computed(() => isRefundCancel.value ? '申请退款' : '取消预约')
+const cancelModalContent = computed(() => {
+  if (isRefundCancel.value) {
+    return `当前订单已支付且尚未核销，可申请退款 ${formatPrice(getRefundableAmount())}。确认后将模拟退款并关闭订单。`
+  }
+
+  return '当前订单尚未支付，取消后会关闭订单。'
+})
+const cancelSuccessText = computed(() => isRefundCancel.value ? '退款成功' : '已取消预约')
 const canPayCheckout = computed(() => order.value?.status === 'pending_checkout' && Number(order.value.checkoutAmount || 0) > 0)
 const canShowCheckinCode = computed(() => order.value?.status === 'paid' && !!order.value.checkinCode)
 const checkinQrCodeUrl = computed(() => {
@@ -320,6 +331,18 @@ function getPaidAmount(orderData = order.value) {
   return 0
 }
 
+function getRefundableAmount(orderData = order.value) {
+  if (!orderData) {
+    return 0
+  }
+
+  return Math.max(
+    Number(orderData.paidAmount || 0),
+    Number(orderData.finalAmount || 0),
+    Number(orderData.baseAmount || 0) - Number(orderData.discountAmount || 0),
+  )
+}
+
 function formatDuration(minutes?: number) {
   const duration = minutes || 0
 
@@ -425,9 +448,9 @@ function handleCancelOrder() {
   }
 
   uni.showModal({
-    title: '取消预约',
-    content: '开始计时前可以取消预约，取消后会释放该场次名额。',
-    confirmText: '确认取消',
+    title: cancelModalTitle.value,
+    content: cancelModalContent.value,
+    confirmText: isRefundCancel.value ? '确认退款' : '确认取消',
     confirmColor: '#c9472b',
     success: async (res) => {
       if (!res.confirm) {
@@ -441,13 +464,13 @@ function handleCancelOrder() {
           orderId: order.value?._id || '',
         })
         uni.showToast({
-          title: '已取消预约',
+          title: cancelSuccessText.value,
           icon: 'success',
         })
         await fetchOrderDetail()
       }
       catch (error) {
-        const title = error instanceof Error ? error.message : '取消预约失败'
+        const title = error instanceof Error ? error.message : `${cancelActionText.value}失败`
         uni.showToast({
           title,
           icon: 'none',
@@ -922,6 +945,32 @@ onUnload(() => {
             </text>
           </view>
         </template>
+        <template v-if="order.refundAmount || order.refundedAt || order.refundNo">
+          <view v-if="order.refundAmount" class="info-row">
+            <text class="info-row__label">
+              退款金额
+            </text>
+            <text class="info-row__price">
+              {{ formatPrice(order.refundAmount) }}
+            </text>
+          </view>
+          <view v-if="order.refundedAt" class="info-row">
+            <text class="info-row__label">
+              退款时间
+            </text>
+            <text class="info-row__value">
+              {{ formatDateTime(order.refundedAt) }}
+            </text>
+          </view>
+          <view v-if="order.refundNo" class="info-row">
+            <text class="info-row__label">
+              退款单号
+            </text>
+            <text class="info-row__value">
+              {{ order.refundNo }}
+            </text>
+          </view>
+        </template>
         <view class="info-row">
           <text class="info-row__label">
             已支付
@@ -965,7 +1014,7 @@ onUnload(() => {
         :disabled="cancelling"
         @click="handleCancelOrder"
       >
-        取消预约
+        {{ cancelling ? '处理中...' : cancelActionText }}
       </button>
     </view>
   </view>
