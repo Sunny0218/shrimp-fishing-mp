@@ -6,6 +6,7 @@ cloud.init({
 
 const db = cloud.database()
 const command = db.command
+const { createMockPaidPayment } = require('./paymentService')
 
 function fail(code, message) {
   return {
@@ -140,18 +141,46 @@ exports.main = async (event = {}) => {
       updatedAt: now,
     }
 
+    async function addPaidOrder(transaction, data) {
+      const orderRes = await transaction.collection('orders').add({
+        data,
+      })
+      const payment = await createMockPaidPayment(transaction, {
+        order: data,
+        orderId: orderRes._id,
+        userId: user._id,
+        openid,
+        amount: data.paidAmount,
+        type: 'order',
+        now,
+      })
+
+      return {
+        orderRes,
+        payment,
+      }
+    }
+
     if (!slotId) {
-      const result = await db.collection('orders').add({
-        data: orderData,
+      const result = await db.runTransaction(async (transaction) => {
+        return addPaidOrder(transaction, orderData)
       })
 
       return {
         code: 0,
         message: 'ok',
         data: {
-          orderId: result._id,
+          orderId: result.orderRes._id,
           orderNo,
           status: orderData.status,
+          payment: {
+            _id: result.payment._id,
+            paymentNo: result.payment.paymentNo,
+            amount: result.payment.amount,
+            type: result.payment.type,
+            status: result.payment.status,
+            paidAt: result.payment.paidAt,
+          },
         },
       }
     }
@@ -208,20 +237,26 @@ exports.main = async (event = {}) => {
         },
       })
 
-      return transaction.collection('orders').add({
-        data: slotOrderData,
-      })
+      return addPaidOrder(transaction, slotOrderData)
     })
 
     return {
       code: 0,
       message: 'ok',
       data: {
-        orderId: result._id,
+        orderId: result.orderRes._id,
         orderNo,
         status: slotOrderData.status,
         bookedCount: nextBookedCount,
         slotStatus: nextSlotStatus,
+        payment: {
+          _id: result.payment._id,
+          paymentNo: result.payment.paymentNo,
+          amount: result.payment.amount,
+          type: result.payment.type,
+          status: result.payment.status,
+          paidAt: result.payment.paidAt,
+        },
       },
     }
   }

@@ -7,6 +7,7 @@ cloud.init({
 const db = cloud.database()
 const command = db.command
 const cancellableStatuses = ['pending_payment', 'paid']
+const { createMockRefundPayment } = require('./paymentService')
 
 function fail(code, message) {
   return {
@@ -14,23 +15,6 @@ function fail(code, message) {
     message,
     data: null,
   }
-}
-
-function createRefundNo() {
-  const now = new Date()
-  const dateText = [
-    now.getFullYear(),
-    `${now.getMonth() + 1}`.padStart(2, '0'),
-    `${now.getDate()}`.padStart(2, '0'),
-  ].join('')
-  const timeText = [
-    `${now.getHours()}`.padStart(2, '0'),
-    `${now.getMinutes()}`.padStart(2, '0'),
-    `${now.getSeconds()}`.padStart(2, '0'),
-  ].join('')
-  const randomText = Math.random().toString(36).slice(2, 8).toUpperCase()
-
-  return `REF${dateText}${timeText}${randomText}`
 }
 
 exports.main = async (event = {}) => {
@@ -74,13 +58,22 @@ exports.main = async (event = {}) => {
         ? paidAmount
         : 0
       const nextStatus = isRefundOrder ? 'refunded' : 'cancelled'
-      const refundNo = isRefundOrder ? createRefundNo() : ''
+      const refundPayment = isRefundOrder
+        ? await createMockRefundPayment(transaction, {
+            order,
+            orderId,
+            openid,
+            amount: refundAmount,
+            reason: '用户核销前取消预约',
+            now,
+          })
+        : null
       const updateData = {
         status: nextStatus,
         updatedAt: now,
         cancelledAt: now,
         refundAmount,
-        refundNo,
+        refundNo: refundPayment?.refundNo || '',
         refundStatus: isRefundOrder ? 'refunded' : '',
         refundReason: isRefundOrder ? '用户核销前取消预约' : '',
         refundedAt: isRefundOrder ? now : null,
@@ -89,26 +82,6 @@ exports.main = async (event = {}) => {
       await transaction.collection('orders').doc(orderId).update({
         data: updateData,
       })
-
-      if (isRefundOrder) {
-        await transaction.collection('payments').add({
-          data: {
-            paymentNo: refundNo,
-            orderId,
-            orderNo: order.orderNo,
-            userId: order.userId,
-            openid,
-            amount: refundAmount,
-            type: 'refund',
-            channel: 'mock',
-            status: 'refunded',
-            refundReason: updateData.refundReason,
-            refundedAt: now,
-            createdAt: now,
-            updatedAt: now,
-          },
-        })
-      }
 
       if (order.slotId) {
         const slotRes = await transaction.collection('time_slots').doc(order.slotId).get().catch(() => ({ data: null }))
@@ -130,7 +103,7 @@ exports.main = async (event = {}) => {
         orderId,
         status: nextStatus,
         refundAmount,
-        refundNo,
+        refundNo: refundPayment?.refundNo || '',
       }
     })
 

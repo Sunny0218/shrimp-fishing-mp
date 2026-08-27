@@ -5,6 +5,7 @@ cloud.init({
 })
 
 const db = cloud.database()
+const { createMockPaidPayment } = require('./paymentService')
 
 function fail(code, message) {
   return {
@@ -12,23 +13,6 @@ function fail(code, message) {
     message,
     data: null,
   }
-}
-
-function createPaymentNo() {
-  const now = new Date()
-  const dateText = [
-    now.getFullYear(),
-    `${now.getMonth() + 1}`.padStart(2, '0'),
-    `${now.getDate()}`.padStart(2, '0'),
-  ].join('')
-  const timeText = [
-    `${now.getHours()}`.padStart(2, '0'),
-    `${now.getMinutes()}`.padStart(2, '0'),
-    `${now.getSeconds()}`.padStart(2, '0'),
-  ].join('')
-  const randomText = Math.random().toString(36).slice(2, 8).toUpperCase()
-
-  return `PAY${dateText}${timeText}${randomText}`
 }
 
 exports.main = async (event = {}) => {
@@ -76,7 +60,6 @@ exports.main = async (event = {}) => {
       }
 
       const now = new Date()
-      const paymentNo = createPaymentNo()
       const checkoutType = order.orderType === 'metered' ? 'metered_checkout' : 'overtime_checkout'
       const paidBaseAmount = Math.max(
         Number(order.paidAmount || 0),
@@ -92,22 +75,15 @@ exports.main = async (event = {}) => {
         completedAt: now,
         updatedAt: now,
       }
-      const paymentRes = await transaction.collection('payments').add({
-        data: {
-          paymentNo,
-          orderId,
-          orderNo: order.orderNo,
-          userId: user._id,
-          openid,
-          amount: checkoutAmount,
-          type: 'checkout',
-          checkoutType,
-          channel: 'mock',
-          status: 'paid',
-          paidAt: now,
-          createdAt: now,
-          updatedAt: now,
-        },
+      const payment = await createMockPaidPayment(transaction, {
+        order,
+        orderId,
+        userId: user._id,
+        openid,
+        amount: checkoutAmount,
+        type: 'checkout',
+        checkoutType,
+        now,
       })
 
       await transaction.collection('checkout_records').add({
@@ -118,8 +94,8 @@ exports.main = async (event = {}) => {
           openid,
           amount: checkoutAmount,
           checkoutType,
-          paymentId: paymentRes._id,
-          paymentNo,
+          paymentId: payment._id,
+          paymentNo: payment.paymentNo,
           status: 'paid',
           createdAt: now,
           updatedAt: now,
@@ -136,8 +112,8 @@ exports.main = async (event = {}) => {
           ...updateData,
         },
         payment: {
-          _id: paymentRes._id,
-          paymentNo,
+          _id: payment._id,
+          paymentNo: payment.paymentNo,
           amount: checkoutAmount,
           type: 'checkout',
           checkoutType,

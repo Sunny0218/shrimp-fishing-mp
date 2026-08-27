@@ -112,6 +112,7 @@ export interface CreateOrderResult {
   status: OrderStatus
   bookedCount?: number
   slotStatus?: string
+  payment?: PaymentRecord
 }
 
 export interface CreateWalkInOrderParams {
@@ -213,17 +214,22 @@ export interface PayCheckoutOrderParams {
   orderId: string
 }
 
-export interface CheckoutPayment {
+export type PaymentType = 'order' | 'checkout' | 'refund'
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded'
+
+export interface PaymentRecord {
   _id: string
   paymentNo: string
   amount: number
-  type: 'checkout'
+  type: PaymentType
   checkoutType?: 'metered_checkout' | 'overtime_checkout'
-  status: 'paid'
-  paidAt: Date | string
+  status: PaymentStatus
+  paidAt?: Date | string
+  refundedAt?: Date | string
+  refundNo?: string
 }
 
 export interface PayCheckoutOrderResult {
   order: Order
-  payment: CheckoutPayment
+  payment: PaymentRecord
 }
