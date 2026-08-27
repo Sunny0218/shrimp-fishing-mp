@@ -78,6 +78,42 @@ function getOvertimeAmount(overtimeMinutes) {
   }
 }
 
+function getMeteredRule(order) {
+  const snapshot = order.pricingRuleSnapshot || {}
+  const pricePerHour = Number(snapshot.pricePerHour || 0)
+  const firstHourAmount = Number(snapshot.firstHourAmount || pricePerHour)
+  const extraPricePerHour = Number(snapshot.extraPricePerHour || pricePerHour)
+  const minimumMinutes = Number(snapshot.minimumMinutes || 0)
+  const unitMinutes = Number(snapshot.unitMinutes || 60)
+
+  if (firstHourAmount <= 0 || extraPricePerHour <= 0 || unitMinutes <= 0) {
+    return null
+  }
+
+  return {
+    firstHourAmount,
+    extraPricePerHour,
+    minimumMinutes,
+    unitMinutes,
+  }
+}
+
+function getMeteredAmount(actualDurationMinutes, rule) {
+  const billableMinutes = Math.max(actualDurationMinutes, rule.minimumMinutes)
+  const extraMinutes = Math.max(billableMinutes - 60, 0)
+  const chargedExtraMinutes = extraMinutes > 0
+    ? Math.ceil(extraMinutes / rule.unitMinutes) * rule.unitMinutes
+    : 0
+  const chargedMinutes = Math.max(60, Math.min(billableMinutes, 60) + chargedExtraMinutes)
+  const amount = rule.firstHourAmount + Math.ceil((chargedExtraMinutes / 60) * rule.extraPricePerHour)
+
+  return {
+    chargedMinutes,
+    chargedExtraMinutes,
+    amount,
+  }
+}
+
 function getFinalAmount(order, overtimeAmount) {
   return Number(order.baseAmount || 0)
     + Number(order.goodsAmount || 0)
@@ -141,13 +177,18 @@ exports.main = async (event = {}) => {
       const endedAt = now.getTime()
       const expectedEndedAt = getExpectedEndedAt(order)
 
-      if (!startedAt || !expectedEndedAt) {
+      if (!startedAt) {
         throw new Error('订单缺少计时信息，无法结束')
       }
 
+      if (order.orderType !== 'metered' && !expectedEndedAt) {
+        throw new Error('订单缺少预计结束时间，无法结束')
+      }
+
       const actualDurationMinutes = getActualDurationMinutes(startedAt, endedAt)
-      const overtimeMinutes = getOvertimeMinutes(expectedEndedAt, endedAt)
-      const earlyFinishedMinutes = endedAt < expectedEndedAt
+      const isMeteredOrder = order.orderType === 'metered'
+      const overtimeMinutes = isMeteredOrder ? 0 : getOvertimeMinutes(expectedEndedAt, endedAt)
+      const earlyFinishedMinutes = !isMeteredOrder && endedAt < expectedEndedAt
         ? Math.ceil((expectedEndedAt - endedAt) / 60 / 1000)
         : 0
 
@@ -159,14 +200,25 @@ exports.main = async (event = {}) => {
         throw new Error('请填写提前完成原因')
       }
 
-      const overtimeResult = getOvertimeAmount(overtimeMinutes)
-      const shouldWaiveOvertime = waiveOvertime && overtimeResult.overtimeAmount > 0
+      const meteredRule = isMeteredOrder ? getMeteredRule(order) : null
+
+      if (isMeteredOrder && !meteredRule) {
+        throw new Error('订单缺少现场计费规则，无法结算')
+      }
+
+      const overtimeResult = isMeteredOrder
+        ? { chargedOvertimeMinutes: 0, overtimeAmount: 0 }
+        : getOvertimeAmount(overtimeMinutes)
+      const meteredResult = isMeteredOrder
+        ? getMeteredAmount(actualDurationMinutes, meteredRule)
+        : { chargedMinutes: 0, amount: 0 }
+      const shouldWaiveOvertime = !isMeteredOrder && waiveOvertime && overtimeResult.overtimeAmount > 0
       const chargedOvertimeMinutes = shouldWaiveOvertime ? 0 : overtimeResult.chargedOvertimeMinutes
       const overtimeAmount = shouldWaiveOvertime ? 0 : overtimeResult.overtimeAmount
       const waivedOvertimeAmount = shouldWaiveOvertime ? overtimeResult.overtimeAmount : 0
-      const nextStatus = overtimeAmount > 0 ? 'pending_checkout' : 'completed'
-      const checkoutAmount = overtimeAmount
-      const finalAmount = getFinalAmount(order, overtimeAmount)
+      const checkoutAmount = isMeteredOrder ? meteredResult.amount : overtimeAmount
+      const nextStatus = checkoutAmount > 0 ? 'pending_checkout' : 'completed'
+      const finalAmount = isMeteredOrder ? meteredResult.amount : getFinalAmount(order, overtimeAmount)
       const updateData = {
         status: nextStatus,
         endedAt: now,
@@ -175,6 +227,7 @@ exports.main = async (event = {}) => {
         actualDurationMinutes,
         overtimeMinutes,
         chargedOvertimeMinutes,
+        chargedMeteredMinutes: meteredResult.chargedMinutes,
         overtimeAmount,
         checkoutAmount,
         waivedOvertimeAmount,
@@ -201,12 +254,14 @@ exports.main = async (event = {}) => {
           operatorId: user._id,
           operatorRole: user.role,
           startedAt: order.startedAt || order.checkedInAt,
-          expectedEndedAt: new Date(expectedEndedAt),
+          expectedEndedAt: expectedEndedAt ? new Date(expectedEndedAt) : null,
           endedAt: now,
           actualDurationMinutes,
           overtimeMinutes,
           chargedOvertimeMinutes,
+          chargedMeteredMinutes: meteredResult.chargedMinutes,
           overtimeAmount,
+          meteredAmount: meteredResult.amount,
           waivedOvertimeAmount,
           waiverReason: updateData.waiverReason,
           earlyFinishedMinutes,

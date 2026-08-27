@@ -86,8 +86,12 @@ function handleViewDetail(order: Order) {
   })
 }
 
-function getStatusText(status: OrderStatus) {
-  return statusTextMap[status] || status
+function getStatusText(order: Order) {
+  if (order.orderType === 'metered' && order.status === 'paid') {
+    return '待开始'
+  }
+
+  return statusTextMap[order.status] || order.status
 }
 
 function formatPrice(price?: number) {
@@ -95,7 +99,15 @@ function formatPrice(price?: number) {
 }
 
 function getOrderTitle(order: Order) {
+  if (order.orderType === 'metered') {
+    return order.pricingRuleSnapshot?.name || '现场计时'
+  }
+
   return order.packageSnapshot?.name || '套餐预约'
+}
+
+function getOrderTypeLabel(order: Order) {
+  return order.orderType === 'metered' ? '到店计时' : '套餐'
 }
 
 function getOrderTimes(order: Order) {
@@ -154,7 +166,9 @@ onPullDownRefresh(() => {
           :key="order._id"
           :title="getOrderTitle(order)"
           :status="order.status"
-          :status-text="getStatusText(order.status)"
+          :status-text="getStatusText(order)"
+          :type-label="getOrderTypeLabel(order)"
+          :type-variant="order.orderType"
           :time-items="getOrderTimes(order)"
           :meta-text="getOrderMeta(order)"
           :order-no="order.orderNo"

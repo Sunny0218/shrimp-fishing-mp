@@ -26,7 +26,7 @@ const { userInfo } = storeToRefs(userStore)
 const statusTextMap: Record<OrderStatus, string> = {
   pending_payment: '待支付',
   paid: '待到店',
-  checked_in: '已核销',
+  checked_in: '已确认到店',
   in_progress: '进行中',
   pending_checkout: '待结账',
   completed: '已完成',
@@ -37,7 +37,7 @@ const statusTextMap: Record<OrderStatus, string> = {
 const orderTitleMap: Record<OrderStatus, string> = {
   pending_payment: '等待支付',
   paid: '预约成功',
-  checked_in: '已完成核销',
+  checked_in: '已确认到店',
   in_progress: '',
   pending_checkout: '等待结账',
   completed: '订单已完成',
@@ -46,19 +46,20 @@ const orderTitleMap: Record<OrderStatus, string> = {
   refunded: '订单已退款',
 }
 const checkinTipMap: Record<OrderStatus, string> = {
-  pending_payment: '支付完成后会生成可用核销码。',
-  paid: '到店后向服务员出示核销码，核销后开始计时。',
-  checked_in: '订单已核销，服务员将为你开始计时。',
+  pending_payment: '支付完成后会生成开始计时码。',
+  paid: '到店后向服务员出示开始计时码，确认后开始计时。',
+  checked_in: '门店已确认到店，服务员将为你开始计时。',
   in_progress: '当前正在计时，结束后由门店完成结账。',
   pending_checkout: '本次钓虾已结束，请按门店指引完成补款。',
   completed: '订单已完成，感谢到店体验。',
-  cancelled: '该预约已取消，核销码不可用。',
-  refund_pending: '订单退款处理中，核销码暂不可用。',
-  refunded: '订单已退款，核销码不可用。',
+  cancelled: '该预约已取消，开始计时码不可用。',
+  refund_pending: '订单退款处理中，开始计时码暂不可用。',
+  refunded: '订单已退款，开始计时码不可用。',
 }
 
 const order = computed(() => orderDetail.value?.order)
 const packageSnapshot = computed(() => order.value?.packageSnapshot)
+const pricingRuleSnapshot = computed(() => order.value?.pricingRuleSnapshot)
 const slotSnapshot = computed(() => order.value?.slotSnapshot)
 const canCancel = computed(() => order.value ? ['pending_payment', 'paid'].includes(order.value.status) : false)
 const canPayCheckout = computed(() => order.value?.status === 'pending_checkout' && Number(order.value.checkoutAmount || 0) > 0)
@@ -82,6 +83,10 @@ const checkinQrCodeUrl = computed(() => {
 const orderTitle = computed(() => {
   if (!order.value) {
     return ''
+  }
+
+  if (order.value.orderType === 'metered') {
+    return order.value.status === 'in_progress' ? '现场开单计时中' : '现场开单'
   }
 
   return orderTitleMap[order.value.status] || '订单详情'
@@ -135,7 +140,20 @@ const actualDurationText = computed(() => {
 
   return formatDuration(duration)
 })
+const actualElapsedMinutes = computed(() => {
+  if (!startedAtTime.value) {
+    return 0
+  }
+
+  const endedAt = endedAtTime.value || currentTime.value
+
+  return Math.max(Math.ceil((endedAt - startedAtTime.value) / 60 / 1000), 0)
+})
 const countdownText = computed(() => {
+  if (order.value?.orderType === 'metered') {
+    return formatDuration(actualElapsedMinutes.value)
+  }
+
   if (!expectedEndedAtTime.value) {
     return '-'
   }
@@ -173,6 +191,10 @@ async function fetchOrderDetail() {
 }
 
 function getStatusText(status?: OrderStatus) {
+  if (order.value?.orderType === 'metered' && status === 'paid') {
+    return '待开始'
+  }
+
   return status ? statusTextMap[status] || status : ''
 }
 
@@ -191,7 +213,7 @@ function getPaidAmount(orderData = order.value) {
     return paidAmount
   }
 
-  if (['paid', 'in_progress', 'pending_checkout', 'completed'].includes(orderData.status)) {
+  if (orderData.orderType !== 'metered' && ['paid', 'in_progress', 'pending_checkout', 'completed'].includes(orderData.status)) {
     return Math.max(Number(orderData.baseAmount || 0) - Number(orderData.discountAmount || 0), 0)
   }
 
@@ -280,7 +302,7 @@ function handleCopyCheckinCode() {
     data: order.value.checkinCode,
     success: () => {
       uni.showToast({
-        title: '核销码已复制',
+        title: '开始计时码已复制',
         icon: 'success',
       })
     },
@@ -304,7 +326,7 @@ function handleCancelOrder() {
 
   uni.showModal({
     title: '取消预约',
-    content: '核销前可以取消预约，取消后会释放该场次名额。',
+    content: '开始计时前可以取消预约，取消后会释放该场次名额。',
     confirmText: '确认取消',
     confirmColor: '#c9472b',
     success: async (res) => {
@@ -431,7 +453,7 @@ onUnload(() => {
         </view>
         <view v-if="order.status === 'in_progress'" class="timing-card__countdown">
           <view class="timing-card__label">
-            剩余时间
+            {{ order.orderType === 'metered' ? '已计时' : '剩余时间' }}
           </view>
           <view class="timing-card__value">
             {{ countdownText }}
@@ -445,7 +467,7 @@ onUnload(() => {
             {{ formatDateTime(startedAtTime) }}
           </text>
         </view>
-        <view class="info-row">
+        <view v-if="order.orderType !== 'metered'" class="info-row">
           <text class="info-row__label">
             预计结束
           </text>
@@ -538,22 +560,30 @@ onUnload(() => {
 
       <view class="order-card">
         <view class="order-card__title">
-          预约信息
+          {{ order.orderType === 'metered' ? '现场开单信息' : '预约信息' }}
         </view>
         <view class="info-row">
           <text class="info-row__label">
-            套餐
+            {{ order.orderType === 'metered' ? '计费规则' : '套餐' }}
           </text>
           <text class="info-row__value">
-            {{ packageSnapshot?.name || '套餐预约' }}
+            {{ order.orderType === 'metered' ? pricingRuleSnapshot?.name || '现场计时' : packageSnapshot?.name || '套餐预约' }}
           </text>
         </view>
         <view class="info-row">
           <text class="info-row__label">
-            预约方式
+            {{ order.orderType === 'metered' ? '开单方式' : '预约方式' }}
           </text>
           <text class="info-row__value">
-            {{ slotSnapshot?.date ? '预约场次' : '到店安排' }}
+            {{ order.orderType === 'metered' ? '现场开单' : slotSnapshot?.date ? '预约场次' : '到店安排' }}
+          </text>
+        </view>
+        <view v-if="order.customerPhone" class="info-row">
+          <text class="info-row__label">
+            顾客手机号
+          </text>
+          <text class="info-row__value">
+            {{ order.customerPhone }}
           </text>
         </view>
         <view v-if="slotSnapshot?.date" class="info-row">
@@ -572,7 +602,7 @@ onUnload(() => {
             {{ slotSnapshot?.startTime || '-' }}-{{ slotSnapshot?.endTime || '-' }}
           </text>
         </view>
-        <view class="info-row">
+        <view v-if="order.orderType !== 'metered'" class="info-row">
           <text class="info-row__label">
             时长
           </text>
@@ -580,7 +610,7 @@ onUnload(() => {
             {{ formatDuration(packageSnapshot?.durationMinutes) }}
           </text>
         </view>
-        <view class="info-row">
+        <view v-if="order.orderType !== 'metered'" class="info-row">
           <text class="info-row__label">
             建议人数/杆数
           </text>
@@ -588,15 +618,57 @@ onUnload(() => {
             {{ order.peopleCount }} 人 / {{ order.rodCount }} 根杆
           </text>
         </view>
+        <template v-if="order.orderType === 'metered'">
+          <view class="info-row">
+            <text class="info-row__label">
+              首小时价格
+            </text>
+            <text class="info-row__value">
+              {{ formatPrice(pricingRuleSnapshot?.firstHourAmount || pricingRuleSnapshot?.pricePerHour) }}
+            </text>
+          </view>
+          <view v-if="order.orderType === 'metered'" class="info-row">
+            <text class="info-row__label">
+              续钟单价
+            </text>
+            <text class="info-row__value">
+              {{ formatPrice(pricingRuleSnapshot?.extraPricePerHour || pricingRuleSnapshot?.pricePerHour) }}/小时
+            </text>
+          </view>
+          <view class="info-row">
+            <text class="info-row__label">
+              最低计费
+            </text>
+            <text class="info-row__value">
+              {{ formatDuration(pricingRuleSnapshot?.minimumMinutes) }}
+            </text>
+          </view>
+          <view class="info-row">
+            <text class="info-row__label">
+              计费粒度
+            </text>
+            <text class="info-row__value">
+              {{ formatDuration(pricingRuleSnapshot?.unitMinutes) }}
+            </text>
+          </view>
+          <view v-if="order.chargedMeteredMinutes" class="info-row">
+            <text class="info-row__label">
+              结算时长
+            </text>
+            <text class="info-row__value">
+              {{ formatDuration(order.chargedMeteredMinutes) }}
+            </text>
+          </view>
+        </template>
       </view>
 
       <view class="order-card">
         <view class="order-card__header">
           <view class="order-card__title">
-            到店核销
+            到店开始计时
           </view>
           <view class="order-card__tag" :class="{ 'order-card__tag--disabled': !canShowCheckinCode }">
-            {{ canShowCheckinCode ? '可核销' : '不可核销' }}
+            {{ canShowCheckinCode ? '可开始' : '不可开始' }}
           </view>
         </view>
         <view v-if="canShowCheckinCode" class="checkin-code">

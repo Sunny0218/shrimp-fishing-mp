@@ -1,5 +1,5 @@
 import type { CloudFunctionResponse } from './types/home'
-import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, FinishTimingOrderParams, FinishTimingOrderResult, GetMyOrdersParams, GetOrdersParams, MyOrdersData, OrderDetailData, OrdersData, PayCheckoutOrderParams, PayCheckoutOrderResult } from './types/order'
+import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, CreateWalkInOrderParams, CreateWalkInOrderResult, FinishTimingOrderParams, FinishTimingOrderResult, GetMyOrdersParams, GetOrdersParams, MyOrdersData, OrderDetailData, OrdersData, PayCheckoutOrderParams, PayCheckoutOrderResult } from './types/order'
 import { callCloudFunction } from '@/cloud'
 
 export async function createOrder(params: CreateOrderParams) {
@@ -34,6 +34,28 @@ export async function createOrder(params: CreateOrderParams) {
   // #endif
 
   throw new Error('当前平台暂不支持创建预约')
+}
+
+export async function createWalkInOrder(params: CreateWalkInOrderParams) {
+  const requestParams: CreateWalkInOrderParams = {
+    customerPhone: params.customerPhone?.trim() || '',
+    remark: params.remark?.trim() || '',
+  }
+
+  // #ifdef MP-WEIXIN
+  const res = await callCloudFunction<CloudFunctionResponse<CreateWalkInOrderResult>, Record<string, unknown>>(
+    'createWalkInOrder',
+    { ...requestParams },
+  )
+
+  if (res.code !== 0) {
+    throw new Error(res.message || '现场开单失败')
+  }
+
+  return res.data
+  // #endif
+
+  throw new Error('当前平台暂不支持现场开单')
 }
 
 export async function getOrderDetail(orderId: string) {

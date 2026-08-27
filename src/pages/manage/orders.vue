@@ -271,12 +271,26 @@ function getTimingLevel(order: Order): 'warning' | 'overtime' | '' {
   return ''
 }
 
-function getStatusText(status: OrderStatus) {
-  return statusTextMap[status] || status
+function getStatusText(order: Order) {
+  if (order.orderType === 'metered' && order.status === 'paid') {
+    return '待开始'
+  }
+
+  return statusTextMap[order.status] || order.status
 }
 
 function getOrderTitle(order: Order) {
-  return order.packageSnapshot?.name || '套餐订单'
+  if (order.orderType === 'metered') {
+    return order.pricingRuleSnapshot?.name || '现场计时'
+  }
+
+  const title = order.packageSnapshot?.name || '套餐订单'
+
+  return order.orderSource === 'walk_in' ? `现场开单 · ${title}` : title
+}
+
+function getOrderTypeLabel(order: Order) {
+  return order.orderType === 'metered' ? '到店计时' : '套餐'
 }
 
 function getOrderTimes(order: Order) {
@@ -456,7 +470,9 @@ onUnload(() => {
           :key="order._id"
           :title="getOrderTitle(order)"
           :status="order.status"
-          :status-text="getStatusText(order.status)"
+          :status-text="getStatusText(order)"
+          :type-label="getOrderTypeLabel(order)"
+          :type-variant="order.orderType"
           :time-items="getOrderTimes(order)"
           :timer-text="getTimingText(order)"
           :timer-level="getTimingLevel(order)"

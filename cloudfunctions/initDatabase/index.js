@@ -312,8 +312,10 @@ async function upsertDemoTimeSlots() {
 async function upsertDemoPricingRules() {
   return upsertBySeedKey('pricing_rules', 'demo-pricing-hourly', {
     name: '现场计时标准价',
-    description: '现场开单按小时计费，第一版用于管理端测试。',
+    description: '现场开单首小时固定价，超过一小时后按续钟价计费。',
     pricePerHour: 6800,
+    firstHourAmount: 6800,
+    extraPricePerHour: 5800,
     minimumMinutes: 60,
     unitMinutes: 30,
     status: 'active',

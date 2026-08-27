@@ -34,7 +34,7 @@ function getTodayText(date) {
 exports.main = async () => {
   try {
     const today = getTodayText(new Date())
-    const [settingsRes, packagesRes, timeSlotsRes] = await Promise.all([
+    const [settingsRes, packagesRes, timeSlotsRes, pricingRuleRes] = await Promise.all([
       db.collection('settings').limit(1).get(),
       db.collection('packages').where({ status: 'active' }).orderBy('sort', 'asc').limit(10).get(),
       db
@@ -47,6 +47,7 @@ exports.main = async () => {
         .orderBy('startTime', 'asc')
         .limit(8)
         .get(),
+      db.collection('pricing_rules').where({ status: 'active' }).orderBy('sort', 'asc').limit(1).get().catch(() => ({ data: [] })),
     ])
 
     return {
@@ -56,6 +57,7 @@ exports.main = async () => {
         settings: settingsRes.data[0] || defaultSettings,
         packages: packagesRes.data,
         timeSlots: timeSlotsRes.data,
+        pricingRule: pricingRuleRes.data[0],
         serverTime: new Date().toISOString(),
       },
     }

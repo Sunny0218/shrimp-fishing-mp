@@ -11,6 +11,8 @@ withDefaults(defineProps<{
   metaText: string
   orderNo: string
   priceText: string
+  typeLabel?: string
+  typeVariant?: 'package' | 'metered' | ''
   timerText?: string
   timerLevel?: 'normal' | 'warning' | 'overtime' | ''
   actionLabel?: string
@@ -19,6 +21,8 @@ withDefaults(defineProps<{
 }>(), {
   timeText: '',
   timeItems: () => [],
+  typeLabel: '',
+  typeVariant: '',
   timerText: '',
   timerLevel: '',
   actionLabel: '',
@@ -35,8 +39,17 @@ const emit = defineEmits<{
 <template>
   <view class="order-card" @click="emit('click')">
     <view class="order-card__header">
-      <view class="order-card__title">
-        {{ title }}
+      <view class="order-card__main">
+        <view class="order-card__title">
+          {{ title }}
+        </view>
+        <view
+          v-if="typeLabel"
+          class="order-card__type"
+          :class="typeVariant ? `order-card__type--${typeVariant}` : ''"
+        >
+          {{ typeLabel }}
+        </view>
       </view>
       <view class="order-card__aside">
         <view class="order-card__status" :class="`order-card__status--${status}`">
@@ -108,9 +121,18 @@ const emit = defineEmits<{
   &__header,
   &__footer {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 20rpx;
+  }
+
+  &__main {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10rpx 12rpx;
   }
 
   &__title {
@@ -119,6 +141,27 @@ const emit = defineEmits<{
     font-size: 31rpx;
     font-weight: 700;
     line-height: 1.3;
+  }
+
+  &__type {
+    flex-shrink: 0;
+    border-radius: 8rpx;
+    background: #f8f2df;
+    padding: 6rpx 12rpx;
+    color: #8a6a19;
+    font-size: 21rpx;
+    font-weight: 600;
+    line-height: 1.2;
+
+    &--metered {
+      background: #e8f3ed;
+      color: #1f6b56;
+    }
+
+    &--package {
+      background: #f8f2df;
+      color: #8a6a19;
+    }
   }
 
   &__aside {

@@ -1,4 +1,4 @@
-import type { ShrimpPackage, TimeSlot } from './home'
+import type { PricingRule, ShrimpPackage, TimeSlot } from './home'
 
 export type OrderType = 'package' | 'metered'
 export type OrderStatus
@@ -28,12 +28,23 @@ export interface TimeSlotSnapshot {
   endTime: string
 }
 
+export interface PricingRuleSnapshot {
+  pricingRuleId: string
+  name: string
+  pricePerHour: number
+  firstHourAmount?: number
+  extraPricePerHour?: number
+  minimumMinutes: number
+  unitMinutes: number
+}
+
 export interface Order {
   _id: string
   orderNo: string
   userId: string
   openid: string
   orderType: OrderType
+  orderSource?: 'booking' | 'walk_in'
   status: OrderStatus
   bookingMode?: 'walk_in' | 'slot'
   businessDate?: string
@@ -42,7 +53,9 @@ export interface Order {
   pricingRuleId?: string
   rodCount: number
   peopleCount: number
-  packageSnapshot: PackageSnapshot
+  customerPhone?: string
+  packageSnapshot?: PackageSnapshot
+  pricingRuleSnapshot?: PricingRuleSnapshot
   slotSnapshot?: TimeSlotSnapshot
   baseAmount: number
   goodsAmount: number
@@ -65,6 +78,7 @@ export interface Order {
   actualDurationMinutes?: number
   overtimeMinutes?: number
   chargedOvertimeMinutes?: number
+  chargedMeteredMinutes?: number
   waiverReason?: string
   earlyFinishedMinutes?: number
   earlyFinishReason?: string
@@ -94,6 +108,19 @@ export interface CreateOrderResult {
   status: OrderStatus
   bookedCount?: number
   slotStatus?: string
+}
+
+export interface CreateWalkInOrderParams {
+  customerPhone?: string
+  remark?: string
+}
+
+export interface CreateWalkInOrderResult {
+  orderId: string
+  orderNo: string
+  status: Extract<OrderStatus, 'paid'>
+  checkinCode: string
+  pricingRule: PricingRule
 }
 
 export interface OrderDetailData {

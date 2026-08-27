@@ -61,6 +61,57 @@ export function useFinishTimingOrder(options: FinishTimingOptions) {
     return Math.ceil(overtimeMinutes / 30) * 3000
   }
 
+  function formatDuration(minutes?: number) {
+    const duration = minutes || 0
+
+    if (duration < 60) {
+      return `${duration}分钟`
+    }
+
+    const hours = Math.floor(duration / 60)
+    const restMinutes = duration % 60
+
+    return restMinutes ? `${hours}小时${restMinutes}分钟` : `${hours}小时`
+  }
+
+  function getActualDurationMinutes(order: Order) {
+    const startedAt = getDateTimeValue(order.startedAt || order.checkedInAt)
+
+    if (!startedAt) {
+      return 0
+    }
+
+    return Math.max(Math.ceil((options.currentTime.value - startedAt) / 60 / 1000), 0)
+  }
+
+  function getMeteredCheckout(order: Order) {
+    const rule = order.pricingRuleSnapshot
+    const pricePerHour = Number(rule?.pricePerHour || 0)
+    const firstHourAmount = Number(rule?.firstHourAmount || pricePerHour)
+    const extraPricePerHour = Number(rule?.extraPricePerHour || pricePerHour)
+    const minimumMinutes = Number(rule?.minimumMinutes || 0)
+    const unitMinutes = Number(rule?.unitMinutes || 60)
+
+    if (firstHourAmount <= 0 || extraPricePerHour <= 0 || unitMinutes <= 0) {
+      return null
+    }
+
+    const actualDurationMinutes = getActualDurationMinutes(order)
+    const billableMinutes = Math.max(actualDurationMinutes, minimumMinutes)
+    const extraMinutes = Math.max(billableMinutes - 60, 0)
+    const chargedExtraMinutes = extraMinutes > 0
+      ? Math.ceil(extraMinutes / unitMinutes) * unitMinutes
+      : 0
+    const chargedMinutes = Math.max(60, Math.min(billableMinutes, 60) + chargedExtraMinutes)
+    const amount = firstHourAmount + Math.ceil((chargedExtraMinutes / 60) * extraPricePerHour)
+
+    return {
+      actualDurationMinutes,
+      chargedMinutes,
+      amount,
+    }
+  }
+
   function formatPrice(price?: number) {
     return `¥${((price || 0) / 100).toFixed(0)}`
   }
@@ -70,12 +121,6 @@ export function useFinishTimingOrder(options: FinishTimingOptions) {
     payload: { waiveOvertime?: boolean, waiverReason?: string, earlyFinishReason?: string } = {},
   ) {
     finishingOrderId.value = order._id
-    console.info('[finishTimingOrder] submit:', {
-      orderId: order._id,
-      waiveOvertime: !!payload.waiveOvertime,
-      waiverReason: payload.waiverReason || '',
-      earlyFinishReason: payload.earlyFinishReason || '',
-    })
 
     try {
       const res = await finishTimingOrder({
@@ -178,8 +223,37 @@ export function useFinishTimingOrder(options: FinishTimingOptions) {
     })
   }
 
+  function handleFinishMeteredOrder(order: Order) {
+    const checkout = getMeteredCheckout(order)
+
+    if (!checkout) {
+      uni.showToast({
+        title: '订单缺少计费规则',
+        icon: 'none',
+      })
+      return
+    }
+
+    uni.showModal({
+      title: '结束并结算',
+      content: `已计时 ${formatDuration(checkout.actualDurationMinutes)}，按 ${formatDuration(checkout.chargedMinutes)} 计费，需支付 ${formatPrice(checkout.amount)}。`,
+      confirmText: '生成账单',
+      confirmColor: '#1f6b56',
+      success: (res) => {
+        if (res.confirm) {
+          submitFinishTiming(order)
+        }
+      },
+    })
+  }
+
   function handleFinishTiming(order: Order) {
     if (finishingOrderId.value || order.status !== 'in_progress') {
+      return
+    }
+
+    if (order.orderType === 'metered') {
+      handleFinishMeteredOrder(order)
       return
     }
 

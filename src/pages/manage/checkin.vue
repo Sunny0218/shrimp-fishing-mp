@@ -4,7 +4,7 @@ import { checkInOrder } from '@/api/order'
 
 definePage({
   style: {
-    navigationBarTitleText: '订单核销',
+    navigationBarTitleText: '开始计时',
   },
 })
 
@@ -61,7 +61,7 @@ function parseCheckinPayload(text: string): ParsedCheckinPayload {
   const rawText = text.trim()
 
   if (!rawText) {
-    throw new Error('未识别到核销信息')
+    throw new Error('未识别到开始计时信息')
   }
 
   try {
@@ -76,7 +76,7 @@ function parseCheckinPayload(text: string): ParsedCheckinPayload {
     }
   }
   catch {
-    // 继续按 URL query 或纯数字核销码解析。
+    // 继续按 URL query 或纯数字开始计时码解析。
   }
 
   if (rawText.includes('checkinCode=')) {
@@ -141,13 +141,13 @@ async function submitCheckin(payload: ParsedCheckinPayload) {
       checkinCode: payload.checkinCode,
     })
     uni.showToast({
-      title: '核销成功',
+      title: '已开始计时',
       icon: 'success',
     })
   }
   catch (error) {
     uni.showToast({
-      title: error instanceof Error ? error.message : '订单核销失败',
+      title: error instanceof Error ? error.message : '开始计时失败',
       icon: 'none',
     })
   }
@@ -164,11 +164,11 @@ function handleSubmit() {
   }
 
   uni.showModal({
-    title: '确认核销',
+    title: '确认开始计时',
     content: payload.orderNo
-      ? `订单 ${payload.orderNo} 核销后将开始计时。`
-      : `核销码 ${payload.checkinCode} 核销后将开始计时。`,
-    confirmText: '确认核销',
+      ? `订单 ${payload.orderNo} 确认后将开始计时。`
+      : `开始计时码 ${payload.checkinCode} 确认后将开始计时。`,
+    confirmText: '开始计时',
     confirmColor: '#1f6b56',
     success: (res) => {
       if (res.confirm) {
@@ -180,6 +180,30 @@ function handleSubmit() {
 
 function formatPrice(value?: number) {
   return `¥${((value || 0) / 100).toFixed(0)}`
+}
+
+function getOrderName(order: CheckInOrderResult['order']) {
+  if (order.orderType === 'metered') {
+    return order.pricingRuleSnapshot?.name || '现场计时'
+  }
+
+  return order.packageSnapshot?.name || '套餐订单'
+}
+
+function getAmountText(order: CheckInOrderResult['order']) {
+  if (order.orderType === 'metered') {
+    return '结束后结算'
+  }
+
+  return formatPrice(order.finalAmount)
+}
+
+function getExpectedEndedAtText(order: CheckInOrderResult['order']) {
+  if (order.orderType === 'metered') {
+    return '按实际结束时间计算'
+  }
+
+  return formatDateTime(order.expectedEndedAt)
 }
 
 function formatDateTime(value?: string | Date) {
@@ -212,21 +236,21 @@ function handleNextCheckin() {
         门店工作台
       </view>
       <view class="checkin-hero__title">
-        {{ hasCheckedIn ? '已开始计时' : '订单核销' }}
+        {{ hasCheckedIn ? '已开始计时' : '确认开始计时' }}
       </view>
       <view class="checkin-hero__desc">
-        {{ hasCheckedIn ? '订单已核销，后续在门店订单处理结束计时' : '核销成功后订单进入计时中' }}
+        {{ hasCheckedIn ? '订单已开始计时，后续在门店订单处理结束计时' : '扫码或输入顾客出示的开始计时码' }}
       </view>
     </view>
 
     <view v-if="!hasCheckedIn" class="checkin-card">
       <button class="checkin-page__scan-btn" :disabled="submitting" @click="handleScan">
-        扫码核销
+        扫码开始计时
       </button>
 
       <view class="manual-field">
         <view class="manual-field__label">
-          手输核销码
+          手输开始计时码
         </view>
         <input
           class="manual-field__input"
@@ -240,7 +264,7 @@ function handleNextCheckin() {
 
       <view v-if="displayPayload" class="pending-order">
         <view class="pending-order__title">
-          待核销信息
+          待开始计时信息
         </view>
         <view v-if="displayPayload.orderNo" class="info-row">
           <text class="info-row__label">
@@ -252,7 +276,7 @@ function handleNextCheckin() {
         </view>
         <view class="info-row">
           <text class="info-row__label">
-            核销码
+            开始计时码
           </text>
           <text class="info-row__value info-row__value--code">
             {{ displayPayload.checkinCode }}
@@ -261,7 +285,7 @@ function handleNextCheckin() {
       </view>
 
       <button class="checkin-page__submit-btn" :disabled="!canSubmit" @click="handleSubmit">
-        {{ submitting ? '核销中...' : '确认核销' }}
+        {{ submitting ? '确认中...' : '确认开始计时' }}
       </button>
     </view>
 
@@ -279,18 +303,18 @@ function handleNextCheckin() {
       </view>
       <view class="info-row">
         <text class="info-row__label">
-          套餐
+          {{ result.order.orderType === 'metered' ? '计费规则' : '套餐' }}
         </text>
         <text class="info-row__value">
-          {{ result.order.packageSnapshot?.name || '套餐订单' }}
+          {{ getOrderName(result.order) }}
         </text>
       </view>
       <view class="info-row">
         <text class="info-row__label">
-          金额
+          {{ result.order.orderType === 'metered' ? '结算方式' : '金额' }}
         </text>
-        <text class="info-row__price">
-          {{ formatPrice(result.order.finalAmount) }}
+        <text class="info-row__price" :class="{ 'info-row__price--muted': result.order.orderType === 'metered' }">
+          {{ getAmountText(result.order) }}
         </text>
       </view>
       <view class="info-row">
@@ -303,15 +327,15 @@ function handleNextCheckin() {
       </view>
       <view class="info-row">
         <text class="info-row__label">
-          预计结束
+          {{ result.order.orderType === 'metered' ? '计费说明' : '预计结束' }}
         </text>
         <text class="info-row__value">
-          {{ formatDateTime(result.order.expectedEndedAt) }}
+          {{ getExpectedEndedAtText(result.order) }}
         </text>
       </view>
 
       <button class="result-card__next-btn" @click="handleNextCheckin">
-        继续核销下一单
+        继续处理下一单
       </button>
     </view>
   </view>
@@ -484,6 +508,11 @@ function handleNextCheckin() {
     color: #c9472b;
     font-size: 30rpx;
     font-weight: 700;
+
+    &--muted {
+      color: #52615b;
+      font-size: 26rpx;
+    }
   }
 }
 

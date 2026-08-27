@@ -192,6 +192,12 @@ function handleBooking(packageItem: ShrimpPackage) {
   })
 }
 
+function handleWalkInOrder() {
+  uni.navigateTo({
+    url: '/pages/walk-in/index',
+  })
+}
+
 function handleCallShop() {
   if (!shopInfo.value.phone) {
     uni.showToast({
@@ -256,6 +262,13 @@ onPullDownRefresh(() => {
             @click="handleCallShop"
           >
             联系门店
+          </button>
+          <button
+            class="home-page__primary-btn"
+            :disabled="loading"
+            @click="handleWalkInOrder"
+          >
+            现场开单
           </button>
         </view>
       </view>
@@ -322,7 +335,7 @@ onPullDownRefresh(() => {
             近期场次
           </view>
           <view class="home-section__subtitle">
-            选择日期和时间，到店后核销开始
+            到店后由服务员确认开始计时
           </view>
         </view>
       </view>
@@ -422,12 +435,19 @@ onPullDownRefresh(() => {
     margin-top: 36rpx;
   }
 
+  &__primary-btn,
   &__ghost-btn,
   &__retry-btn {
     min-height: 76rpx;
     border-radius: 8rpx;
     font-size: 28rpx;
     line-height: 76rpx;
+  }
+
+  &__primary-btn {
+    width: 220rpx;
+    background: #f6c453;
+    color: #20312b;
   }
 
   &__ghost-btn {

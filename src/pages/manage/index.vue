@@ -40,6 +40,12 @@ function handleOpenPackages() {
   })
 }
 
+function handleOpenPricing() {
+  uni.navigateTo({
+    url: '/pages/manage/pricing',
+  })
+}
+
 function handleOpenSettings() {
   if (!canEditShop.value) {
     uni.showToast({
@@ -84,10 +90,10 @@ onLoad(() => {
     <view class="grid grid-cols-2 mt-4 gap-3">
       <view class="manage-card manage-card--primary" @click="handleOpenCheckin">
         <view class="manage-card__title">
-          核销订单
+          开始计时
         </view>
         <view class="manage-card__desc">
-          扫二维码或输入核销码开始计时
+          扫码或输入顾客出示的开始计时码
         </view>
       </view>
       <view class="manage-card" @click="handleOpenTodayOrders">
@@ -98,12 +104,12 @@ onLoad(() => {
           按日期查看预约与进行中订单
         </view>
       </view>
-      <view class="manage-card">
+      <view class="manage-card" @click="handleOpenCheckin">
         <view class="manage-card__title">
-          现场开单
+          开始计时
         </view>
         <view class="manage-card__desc">
-          按杆数创建实时计费订单
+          现场确认顾客订单并开始计时
         </view>
       </view>
       <view class="manage-card" @click="handleOpenPackages">
@@ -120,6 +126,14 @@ onLoad(() => {
         </view>
         <view class="manage-card__desc">
           {{ canEditShop ? '维护首页展示和联系方式' : '仅管理员可维护' }}
+        </view>
+      </view>
+      <view class="manage-card" @click="handleOpenPricing">
+        <view class="manage-card__title">
+          计费规则
+        </view>
+        <view class="manage-card__desc">
+          配置首小时和续钟价格
         </view>
       </view>
     </view>

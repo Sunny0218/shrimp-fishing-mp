@@ -63,10 +63,24 @@ export interface TimeSlot {
   remark: string
 }
 
+export interface PricingRule {
+  _id: string
+  name: string
+  description: string
+  pricePerHour: number
+  firstHourAmount?: number
+  extraPricePerHour?: number
+  minimumMinutes: number
+  unitMinutes: number
+  status: 'active' | 'disabled'
+  sort: number
+}
+
 export interface HomeData {
   settings: ShopSettings
   packages: ShrimpPackage[]
   timeSlots: TimeSlot[]
+  pricingRule?: PricingRule
   serverTime: string
 }
 

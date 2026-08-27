@@ -1,4 +1,4 @@
-import type { BusinessHour, CloudFunctionResponse, HomeData, SaveShopSettingsParams, SaveShopSettingsResult, ShopSettings, ShrimpPackage, TimeSlot } from './types/home'
+import type { BusinessHour, CloudFunctionResponse, HomeData, PricingRule, SaveShopSettingsParams, SaveShopSettingsResult, ShopSettings, ShrimpPackage, TimeSlot } from './types/home'
 import { callCloudFunction } from '@/cloud'
 
 export const defaultHomeData: HomeData = {
@@ -19,6 +19,7 @@ export const defaultHomeData: HomeData = {
   },
   packages: [],
   timeSlots: [],
+  pricingRule: undefined,
   serverTime: new Date().toISOString(),
 }
 
@@ -73,6 +74,7 @@ function normalizeHomeData(data: HomeData): HomeData {
     settings: normalizeSettings(data.settings),
     packages: (data.packages || []).map(normalizePackage),
     timeSlots: (data.timeSlots || []).map(normalizeTimeSlot),
+    pricingRule: data.pricingRule ? normalizePricingRule(data.pricingRule) : undefined,
     serverTime: data.serverTime || new Date().toISOString(),
   }
 }
@@ -125,5 +127,22 @@ function normalizeTimeSlot(slot: Partial<TimeSlot>): TimeSlot {
     bookedCount: slot.bookedCount || 0,
     status: slot.status || 'available',
     remark: slot.remark || '',
+  }
+}
+
+function normalizePricingRule(rule: Partial<PricingRule>): PricingRule {
+  const fallbackHourlyPrice = rule.pricePerHour || 0
+
+  return {
+    _id: rule._id || '',
+    name: rule.name || '现场计时标准价',
+    description: rule.description || '',
+    pricePerHour: fallbackHourlyPrice,
+    firstHourAmount: rule.firstHourAmount || fallbackHourlyPrice,
+    extraPricePerHour: rule.extraPricePerHour || fallbackHourlyPrice,
+    minimumMinutes: rule.minimumMinutes || 0,
+    unitMinutes: rule.unitMinutes || 60,
+    status: rule.status || 'active',
+    sort: rule.sort || 0,
   }
 }
