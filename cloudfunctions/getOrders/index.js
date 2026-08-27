@@ -272,6 +272,12 @@ exports.main = async (event = {}) => {
       return fail(403, '无权限查看门店订单')
     }
 
+    const pricingRuleTask = db.collection('pricing_rules')
+      .where({ status: 'active' })
+      .orderBy('sort', 'asc')
+      .limit(1)
+      .get()
+      .catch(() => ({ data: [] }))
     const queryTasks = [
       { createdAt: dateRangeCommand },
       { startedAt: dateRangeCommand },
@@ -284,7 +290,10 @@ exports.main = async (event = {}) => {
       { updatedAt: dateRangeCommand },
       { 'slotSnapshot.date': dateTextRangeCommand },
     ].map(where => db.collection('orders').where(where).limit(100).get().catch(() => ({ data: [] })))
-    const orderResList = await Promise.all(queryTasks)
+    const [pricingRuleRes, orderResList] = await Promise.all([
+      pricingRuleTask,
+      Promise.all(queryTasks),
+    ])
     const orderMap = new Map()
 
     orderResList.flatMap(res => res.data).forEach((order) => {
@@ -312,6 +321,7 @@ exports.main = async (event = {}) => {
         date: dateText,
         startDate,
         endDate,
+        activePricingRule: pricingRuleRes.data[0] || null,
         serverTime: new Date().toISOString(),
       },
     }

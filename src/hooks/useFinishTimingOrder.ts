@@ -53,12 +53,36 @@ export function useFinishTimingOrder(options: FinishTimingOptions) {
     return Math.max(Math.ceil((options.currentTime.value - expectedEndedAt) / 60 / 1000), 0)
   }
 
-  function getOvertimeAmount(overtimeMinutes: number) {
+  function getPackageOvertimeRule(order: Order) {
+    const rule = order.pricingRuleSnapshot
+    const pricePerHour = Number(rule?.pricePerHour || 0)
+    const extraPricePerHour = Number(rule?.extraPricePerHour || pricePerHour)
+    const unitMinutes = Number(rule?.unitMinutes || 60)
+
+    if (extraPricePerHour <= 0 || unitMinutes <= 0) {
+      return null
+    }
+
+    return {
+      extraPricePerHour,
+      unitMinutes,
+    }
+  }
+
+  function getOvertimeAmount(order: Order, overtimeMinutes: number) {
     if (overtimeMinutes <= 0) {
       return 0
     }
 
-    return Math.ceil(overtimeMinutes / 30) * 3000
+    const rule = getPackageOvertimeRule(order)
+
+    if (!rule) {
+      return 0
+    }
+
+    const chargedMinutes = Math.ceil(overtimeMinutes / rule.unitMinutes) * rule.unitMinutes
+
+    return Math.ceil((chargedMinutes / 60) * rule.extraPricePerHour)
   }
 
   function formatDuration(minutes?: number) {
@@ -258,7 +282,7 @@ export function useFinishTimingOrder(options: FinishTimingOptions) {
     }
 
     const overtimeMinutes = getOvertimeMinutes(order)
-    const overtimeAmount = getOvertimeAmount(overtimeMinutes)
+    const overtimeAmount = getOvertimeAmount(order, overtimeMinutes)
     const expectedEndedAt = getExpectedEndedAtTime(order)
     const earlyMinutes = expectedEndedAt > options.currentTime.value
       ? Math.ceil((expectedEndedAt - options.currentTime.value) / 60 / 1000)
@@ -266,6 +290,14 @@ export function useFinishTimingOrder(options: FinishTimingOptions) {
 
     if (earlyMinutes > 10) {
       handleEarlyFinish(order, earlyMinutes)
+      return
+    }
+
+    if (overtimeMinutes > 0 && !getPackageOvertimeRule(order)) {
+      uni.showToast({
+        title: '订单缺少计费规则',
+        icon: 'none',
+      })
       return
     }
 

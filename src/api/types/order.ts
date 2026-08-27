@@ -127,6 +127,7 @@ export interface OrderDetailData {
   order: Order
   package?: ShrimpPackage
   timeSlot?: TimeSlot
+  activePricingRule?: PricingRule | null
   serverTime: string
 }
 
@@ -166,6 +167,7 @@ export interface OrdersData {
   date: string
   startDate?: string
   endDate?: string
+  activePricingRule?: PricingRule | null
   serverTime: string
 }
 

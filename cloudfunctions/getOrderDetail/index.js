@@ -51,9 +51,12 @@ exports.main = async (event = {}) => {
       return fail(403, '无权限查看该订单')
     }
 
-    const [packageRes, timeSlotRes] = await Promise.all([
+    const [packageRes, timeSlotRes, pricingRuleRes] = await Promise.all([
       order.packageId ? db.collection('packages').doc(order.packageId).get().catch(() => ({ data: null })) : Promise.resolve({ data: null }),
       order.slotId ? db.collection('time_slots').doc(order.slotId).get().catch(() => ({ data: null })) : Promise.resolve({ data: null }),
+      order.orderType !== 'metered' && !order.pricingRuleSnapshot
+        ? db.collection('pricing_rules').where({ status: 'active' }).orderBy('sort', 'asc').limit(1).get().catch(() => ({ data: [] }))
+        : Promise.resolve({ data: [] }),
     ])
 
     return {
@@ -63,6 +66,7 @@ exports.main = async (event = {}) => {
         order,
         package: packageRes.data,
         timeSlot: timeSlotRes.data,
+        activePricingRule: pricingRuleRes.data[0] || null,
         serverTime: new Date().toISOString(),
       },
     }

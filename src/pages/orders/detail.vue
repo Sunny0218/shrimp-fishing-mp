@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { OrderDetailData, OrderStatus } from '@/api/types/order'
+import type { Order, OrderDetailData, OrderStatus, PricingRuleSnapshot } from '@/api/types/order'
 import qrcode from 'qrcode-generator'
 import { storeToRefs } from 'pinia'
 import { cancelOrder, getOrderDetail, payCheckoutOrder } from '@/api/order'
@@ -60,6 +60,47 @@ const checkinTipMap: Record<OrderStatus, string> = {
 const order = computed(() => orderDetail.value?.order)
 const packageSnapshot = computed(() => order.value?.packageSnapshot)
 const pricingRuleSnapshot = computed(() => order.value?.pricingRuleSnapshot)
+const activePricingRule = computed(() => orderDetail.value?.activePricingRule)
+const activePricingRuleSnapshot = computed<PricingRuleSnapshot | undefined>(() => {
+  if (!activePricingRule.value) {
+    return undefined
+  }
+
+  const rule = activePricingRule.value
+  const pricePerHour = Number(rule.pricePerHour || 0)
+  const firstHourAmount = Number(rule.firstHourAmount || pricePerHour)
+  const extraPricePerHour = Number(rule.extraPricePerHour || pricePerHour)
+
+  return {
+    pricingRuleId: rule._id,
+    name: rule.name || '现场计时标准价',
+    pricePerHour: pricePerHour > 0 ? pricePerHour : firstHourAmount,
+    firstHourAmount,
+    extraPricePerHour,
+    minimumMinutes: rule.minimumMinutes || 0,
+    unitMinutes: rule.unitMinutes || 60,
+  }
+})
+const overtimePricingRule = computed(() => {
+  const rule = pricingRuleSnapshot.value || activePricingRuleSnapshot.value
+
+  if (!rule) {
+    return null
+  }
+
+  const pricePerHour = Number(rule.pricePerHour || 0)
+  const extraPricePerHour = Number(rule.extraPricePerHour || pricePerHour)
+  const unitMinutes = Number(rule.unitMinutes || 60)
+
+  if (extraPricePerHour <= 0 || unitMinutes <= 0) {
+    return null
+  }
+
+  return {
+    extraPricePerHour,
+    unitMinutes,
+  }
+})
 const slotSnapshot = computed(() => order.value?.slotSnapshot)
 const canCancel = computed(() => order.value ? ['pending_payment', 'paid'].includes(order.value.status) : false)
 const canPayCheckout = computed(() => order.value?.status === 'pending_checkout' && Number(order.value.checkoutAmount || 0) > 0)
@@ -148,6 +189,55 @@ const actualElapsedMinutes = computed(() => {
   const endedAt = endedAtTime.value || currentTime.value
 
   return Math.max(Math.ceil((endedAt - startedAtTime.value) / 60 / 1000), 0)
+})
+const overtimeElapsedMinutes = computed(() => {
+  if (order.value?.orderType === 'metered' || !expectedEndedAtTime.value) {
+    return 0
+  }
+
+  if (order.value?.overtimeMinutes) {
+    return order.value.overtimeMinutes
+  }
+
+  const compareTime = endedAtTime.value || currentTime.value
+
+  if (compareTime <= expectedEndedAtTime.value) {
+    return 0
+  }
+
+  return Math.max(Math.ceil((compareTime - expectedEndedAtTime.value) / 60 / 1000), 0)
+})
+const overtimeAmountForDisplay = computed(() => {
+  if (!overtimeElapsedMinutes.value) {
+    return 0
+  }
+
+  const savedCheckoutAmount = Number(order.value?.checkoutAmount || 0)
+  const savedOvertimeAmount = Number(order.value?.overtimeAmount || 0)
+
+  if (savedCheckoutAmount > 0) {
+    return savedCheckoutAmount
+  }
+
+  if (savedOvertimeAmount > 0) {
+    return savedOvertimeAmount
+  }
+
+  if (!overtimePricingRule.value) {
+    return 0
+  }
+
+  const chargedUnits = Math.ceil(overtimeElapsedMinutes.value / overtimePricingRule.value.unitMinutes)
+  const chargedMinutes = chargedUnits * overtimePricingRule.value.unitMinutes
+
+  return Math.ceil((chargedMinutes / 60) * overtimePricingRule.value.extraPricePerHour)
+})
+const overtimeAmountLabel = computed(() => {
+  if (order.value?.status === 'in_progress') {
+    return '预计补交费用'
+  }
+
+  return '应补交费用'
 })
 const countdownText = computed(() => {
   if (order.value?.orderType === 'metered') {
@@ -375,7 +465,15 @@ function handleFinishCurrentOrder() {
     return
   }
 
-  handleFinishTiming(order.value)
+  const orderForFinish: Order = order.value.pricingRuleSnapshot || !activePricingRuleSnapshot.value
+    ? order.value
+    : {
+        ...order.value,
+        pricingRuleId: activePricingRuleSnapshot.value.pricingRuleId,
+        pricingRuleSnapshot: activePricingRuleSnapshot.value,
+      }
+
+  handleFinishTiming(orderForFinish)
 }
 
 function handlePayCheckout() {
@@ -502,12 +600,20 @@ onUnload(() => {
             {{ actualDurationText }}
           </text>
         </view>
-        <view v-if="order.overtimeMinutes" class="info-row">
+        <view v-if="overtimeElapsedMinutes" class="info-row">
           <text class="info-row__label">
-            超时时长
+            超出用时
           </text>
           <text class="info-row__value">
-            {{ formatDuration(order.overtimeMinutes) }}
+            {{ formatDuration(overtimeElapsedMinutes) }}
+          </text>
+        </view>
+        <view v-if="overtimeAmountForDisplay" class="info-row">
+          <text class="info-row__label">
+            {{ overtimeAmountLabel }}
+          </text>
+          <text class="info-row__price">
+            {{ formatPrice(overtimeAmountForDisplay) }}
           </text>
         </view>
         <view v-if="order.earlyFinishedMinutes" class="info-row">

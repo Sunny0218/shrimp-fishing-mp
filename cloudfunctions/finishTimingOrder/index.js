@@ -7,8 +7,6 @@ cloud.init({
 const db = cloud.database()
 const manageRoles = ['staff', 'admin', 'super_admin']
 const waiverRoles = ['admin', 'super_admin']
-const overtimeUnitMinutes = 30
-const overtimeUnitAmount = 3000
 const staffEarlyFinishLimitMinutes = 10
 
 function fail(code, message) {
@@ -62,7 +60,47 @@ function getOvertimeMinutes(expectedEndedAt, endedAt) {
   return Math.ceil((endedAt - expectedEndedAt) / 60 / 1000)
 }
 
-function getOvertimeAmount(overtimeMinutes) {
+function normalizePricingRuleSnapshot(pricingRule) {
+  if (!pricingRule) {
+    return null
+  }
+
+  const pricePerHour = Number(pricingRule.pricePerHour || 0)
+  const firstHourAmount = Number(pricingRule.firstHourAmount || pricePerHour)
+  const extraPricePerHour = Number(pricingRule.extraPricePerHour || pricePerHour)
+  const minimumMinutes = Number(pricingRule.minimumMinutes || 0)
+  const unitMinutes = Number(pricingRule.unitMinutes || 60)
+
+  if (extraPricePerHour <= 0 || unitMinutes <= 0) {
+    return null
+  }
+
+  return {
+    pricingRuleId: pricingRule._id || pricingRule.pricingRuleId || '',
+    name: pricingRule.name || '现场计时标准价',
+    pricePerHour: pricePerHour > 0 ? pricePerHour : firstHourAmount,
+    firstHourAmount,
+    extraPricePerHour,
+    minimumMinutes,
+    unitMinutes,
+  }
+}
+
+async function getActivePricingRuleSnapshot() {
+  const pricingRuleRes = await db.collection('pricing_rules')
+    .where({ status: 'active' })
+    .orderBy('sort', 'asc')
+    .limit(1)
+    .get()
+
+  return normalizePricingRuleSnapshot(pricingRuleRes.data[0])
+}
+
+function getPackageOvertimeRule(order, activePricingRuleSnapshot) {
+  return normalizePricingRuleSnapshot(order.pricingRuleSnapshot) || activePricingRuleSnapshot
+}
+
+function getOvertimeAmount(overtimeMinutes, rule) {
   if (overtimeMinutes <= 0) {
     return {
       chargedOvertimeMinutes: 0,
@@ -70,11 +108,16 @@ function getOvertimeAmount(overtimeMinutes) {
     }
   }
 
-  const units = Math.ceil(overtimeMinutes / overtimeUnitMinutes)
+  if (!rule) {
+    throw new Error('订单缺少计费规则，无法计算超时补款')
+  }
+
+  const units = Math.ceil(overtimeMinutes / rule.unitMinutes)
+  const chargedOvertimeMinutes = units * rule.unitMinutes
 
   return {
-    chargedOvertimeMinutes: units * overtimeUnitMinutes,
-    overtimeAmount: units * overtimeUnitAmount,
+    chargedOvertimeMinutes,
+    overtimeAmount: Math.ceil((chargedOvertimeMinutes / 60) * rule.extraPricePerHour),
   }
 }
 
@@ -159,6 +202,7 @@ exports.main = async (event = {}) => {
       return fail(400, '请填写免收原因')
     }
 
+    const activePricingRuleSnapshot = await getActivePricingRuleSnapshot()
     const result = await db.runTransaction(async (transaction) => {
       const orderRef = transaction.collection('orders').doc(orderId)
       const orderRes = await orderRef.get()
@@ -206,9 +250,10 @@ exports.main = async (event = {}) => {
         throw new Error('订单缺少现场计费规则，无法结算')
       }
 
+      const packageOvertimeRule = isMeteredOrder ? null : getPackageOvertimeRule(order, activePricingRuleSnapshot)
       const overtimeResult = isMeteredOrder
         ? { chargedOvertimeMinutes: 0, overtimeAmount: 0 }
-        : getOvertimeAmount(overtimeMinutes)
+        : getOvertimeAmount(overtimeMinutes, packageOvertimeRule)
       const meteredResult = isMeteredOrder
         ? getMeteredAmount(actualDurationMinutes, meteredRule)
         : { chargedMinutes: 0, amount: 0 }
@@ -227,6 +272,8 @@ exports.main = async (event = {}) => {
         actualDurationMinutes,
         overtimeMinutes,
         chargedOvertimeMinutes,
+        pricingRuleId: order.pricingRuleId || packageOvertimeRule?.pricingRuleId || '',
+        pricingRuleSnapshot: order.pricingRuleSnapshot || packageOvertimeRule || null,
         chargedMeteredMinutes: meteredResult.chargedMinutes,
         overtimeAmount,
         checkoutAmount,
@@ -259,6 +306,7 @@ exports.main = async (event = {}) => {
           actualDurationMinutes,
           overtimeMinutes,
           chargedOvertimeMinutes,
+          pricingRuleSnapshot: updateData.pricingRuleSnapshot,
           chargedMeteredMinutes: meteredResult.chargedMinutes,
           overtimeAmount,
           meteredAmount: meteredResult.amount,

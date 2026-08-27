@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import OrderCard from '@/components/OrderCard.vue'
 import OrderStatusTabs from '@/components/OrderStatusTabs.vue'
-import type { ManageOrderStatusFilter, Order, OrdersData, OrderStatus } from '@/api/types/order'
+import type { ManageOrderStatusFilter, Order, OrdersData, OrderStatus, PricingRuleSnapshot } from '@/api/types/order'
 import { storeToRefs } from 'pinia'
 import { getOrders } from '@/api/order'
 import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
@@ -75,6 +75,27 @@ const { loading: requestLoading, runLatest } = useLatestRequest()
 
 const orderList = computed(() => ordersData.value?.rows || [])
 const summary = computed(() => ordersData.value?.summary)
+const activePricingRuleSnapshot = computed<PricingRuleSnapshot | undefined>(() => {
+  const rule = ordersData.value?.activePricingRule
+
+  if (!rule) {
+    return undefined
+  }
+
+  const pricePerHour = Number(rule.pricePerHour || 0)
+  const firstHourAmount = Number(rule.firstHourAmount || pricePerHour)
+  const extraPricePerHour = Number(rule.extraPricePerHour || pricePerHour)
+
+  return {
+    pricingRuleId: rule._id,
+    name: rule.name || '现场计时标准价',
+    pricePerHour: pricePerHour > 0 ? pricePerHour : firstHourAmount,
+    firstHourAmount,
+    extraPricePerHour,
+    minimumMinutes: rule.minimumMinutes || 0,
+    unitMinutes: rule.unitMinutes || 60,
+  }
+})
 const currentDateLabel = computed(() => {
   if (selectedStartDate.value === selectedEndDate.value) {
     return selectedStartDate.value
@@ -186,6 +207,18 @@ function handleViewDetail(order: Order) {
   uni.navigateTo({
     url: `/pages/orders/detail?id=${order._id}`,
   })
+}
+
+function getOrderForFinish(order: Order): Order {
+  if (order.pricingRuleSnapshot || !activePricingRuleSnapshot.value) {
+    return order
+  }
+
+  return {
+    ...order,
+    pricingRuleId: activePricingRuleSnapshot.value.pricingRuleId,
+    pricingRuleSnapshot: activePricingRuleSnapshot.value,
+  }
 }
 
 function getLocalDateText() {
@@ -487,7 +520,7 @@ onUnload(() => {
           :action-loading="finishingOrderId === order._id"
           :action-disabled="!!finishingOrderId"
           @click="handleViewDetail(order)"
-          @action="handleFinishTiming(order)"
+          @action="handleFinishTiming(getOrderForFinish(order))"
         />
       </view>
     </view>

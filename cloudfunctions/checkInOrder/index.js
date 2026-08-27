@@ -23,6 +23,47 @@ function normalizeCheckinCode(value) {
   return `${value}`.trim()
 }
 
+function normalizePricingRuleSnapshot(pricingRule) {
+  if (!pricingRule) {
+    return null
+  }
+
+  const pricePerHour = Number(pricingRule.pricePerHour || 0)
+  const firstHourAmount = Number(pricingRule.firstHourAmount || pricePerHour)
+  const extraPricePerHour = Number(pricingRule.extraPricePerHour || pricePerHour)
+  const minimumMinutes = Number(pricingRule.minimumMinutes || 0)
+  const unitMinutes = Number(pricingRule.unitMinutes || 60)
+
+  if (extraPricePerHour <= 0 || unitMinutes <= 0) {
+    return null
+  }
+
+  return {
+    pricingRuleId: pricingRule._id,
+    name: pricingRule.name || '现场计时标准价',
+    pricePerHour: pricePerHour > 0 ? pricePerHour : firstHourAmount,
+    firstHourAmount,
+    extraPricePerHour,
+    minimumMinutes,
+    unitMinutes,
+  }
+}
+
+async function getActivePricingRuleSnapshot() {
+  const pricingRuleRes = await db.collection('pricing_rules')
+    .where({ status: 'active' })
+    .orderBy('sort', 'asc')
+    .limit(1)
+    .get()
+  const pricingRuleSnapshot = normalizePricingRuleSnapshot(pricingRuleRes.data[0])
+
+  if (!pricingRuleSnapshot) {
+    throw new Error('门店暂未配置启用计费规则，无法开始计时')
+  }
+
+  return pricingRuleSnapshot
+}
+
 async function findOrderByCheckinCode(checkinCode) {
   const orderRes = await db.collection('orders')
     .where({
@@ -85,6 +126,9 @@ exports.main = async (event = {}) => {
       return fail(409, '当前订单不可核销')
     }
 
+    const pricingRuleSnapshot = targetOrder.orderType === 'metered'
+      ? null
+      : await getActivePricingRuleSnapshot()
     const now = new Date()
     const targetOrderId = orderId || targetOrder._id
     const result = await db.runTransaction(async (transaction) => {
@@ -113,6 +157,8 @@ exports.main = async (event = {}) => {
         checkedInAt: now,
         startedAt: now,
         expectedEndedAt,
+        pricingRuleId: pricingRuleSnapshot?.pricingRuleId || latestOrder.pricingRuleId || '',
+        pricingRuleSnapshot: pricingRuleSnapshot || latestOrder.pricingRuleSnapshot || null,
         checkedInBy: user._id,
         updatedAt: now,
       }
@@ -132,6 +178,7 @@ exports.main = async (event = {}) => {
           status: 'checked_in',
           source: orderId ? 'scan' : 'manual',
           packageSnapshot: latestOrder.packageSnapshot || null,
+          pricingRuleSnapshot: pricingRuleSnapshot || latestOrder.pricingRuleSnapshot || null,
           startedAt: now,
           expectedEndedAt,
           createdAt: now,
