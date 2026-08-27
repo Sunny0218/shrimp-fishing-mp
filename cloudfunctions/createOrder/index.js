@@ -32,8 +32,29 @@ function createOrderNo() {
   return `SF${dateText}${timeText}${randomText}`
 }
 
-function createCheckinCode() {
-  return `${Math.floor(100000 + Math.random() * 900000)}`
+function createRandomCheckinCode() {
+  return `${Math.floor(10000000 + Math.random() * 90000000)}`
+}
+
+async function createUniqueCheckinCode() {
+  const maxRetryCount = 10
+
+  for (let index = 0; index < maxRetryCount; index += 1) {
+    const checkinCode = createRandomCheckinCode()
+    const existingRes = await db.collection('orders')
+      .where({
+        checkinCode,
+        status: 'paid',
+      })
+      .limit(1)
+      .get()
+
+    if (!existingRes.data.length) {
+      return checkinCode
+    }
+  }
+
+  throw new Error('核销码生成失败，请重试')
 }
 
 function normalizeCount(value, defaultValue) {
@@ -83,6 +104,7 @@ exports.main = async (event = {}) => {
     const packageMaxPeople = Number(packageItem.maxPeople || packageRodCount || 1)
     const rodCount = normalizeCount(event.rodCount, packageRodCount)
     const peopleCount = normalizeCount(event.peopleCount, packageMaxPeople)
+    const checkinCode = await createUniqueCheckinCode()
     const orderData = {
       orderNo,
       userId: user._id,
@@ -112,7 +134,7 @@ exports.main = async (event = {}) => {
       finalAmount: Number(packageItem.price || 0),
       remark,
       adminRemark: '',
-      checkinCode: createCheckinCode(),
+      checkinCode,
       createdBy: user._id,
       createdAt: now,
       updatedAt: now,

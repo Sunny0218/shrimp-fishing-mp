@@ -35,8 +35,29 @@ function createOrderNo() {
   return `XC${dateText}${timeText}${randomText}`
 }
 
-function createCheckinCode() {
-  return `${Math.floor(100000 + Math.random() * 900000)}`
+function createRandomCheckinCode() {
+  return `${Math.floor(10000000 + Math.random() * 90000000)}`
+}
+
+async function createUniqueCheckinCode() {
+  const maxRetryCount = 10
+
+  for (let index = 0; index < maxRetryCount; index += 1) {
+    const checkinCode = createRandomCheckinCode()
+    const existingRes = await db.collection('orders')
+      .where({
+        checkinCode,
+        status: 'paid',
+      })
+      .limit(1)
+      .get()
+
+    if (!existingRes.data.length) {
+      return checkinCode
+    }
+  }
+
+  throw new Error('开始计时码生成失败，请重试')
 }
 
 exports.main = async (event = {}) => {
@@ -81,7 +102,7 @@ exports.main = async (event = {}) => {
 
     const now = new Date()
     const orderNo = createOrderNo()
-    const checkinCode = createCheckinCode()
+    const checkinCode = await createUniqueCheckinCode()
     const orderData = {
       orderNo,
       userId: user._id,

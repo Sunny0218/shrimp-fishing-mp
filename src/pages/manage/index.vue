@@ -22,9 +22,9 @@ const roleTextMap = {
 }
 const roleText = computed(() => roleTextMap[userInfo.value.role || 'customer'])
 
-function handleOpenCheckin() {
+function handleOpenCheckin(scene: 'package' | 'metered') {
   uni.navigateTo({
-    url: '/pages/manage/checkin',
+    url: `/pages/manage/checkin?scene=${scene}`,
   })
 }
 
@@ -88,7 +88,7 @@ onLoad(() => {
     </view>
 
     <view class="grid grid-cols-2 mt-4 gap-3">
-      <view class="manage-card" @click="handleOpenCheckin">
+      <view class="manage-card" @click="handleOpenCheckin('package')">
         <view class="manage-card__title">
           套餐核销
         </view>
@@ -104,7 +104,7 @@ onLoad(() => {
           按日期查看预约与进行中订单
         </view>
       </view>
-      <view class="manage-card" @click="handleOpenCheckin">
+      <view class="manage-card" @click="handleOpenCheckin('metered')">
         <view class="manage-card__title">
           到店计时
         </view>
