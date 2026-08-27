@@ -17,6 +17,7 @@ export const defaultHomeData: HomeData = {
     notice: '欢迎预约到店钓虾，营业信息以门店现场为准。',
     bookingMode: 'walk_in',
     paymentMode: 'mock_auto_paid',
+    pendingPaymentExpireMinutes: 1,
   },
   packages: [],
   timeSlots: [],
@@ -51,6 +52,7 @@ export async function saveShopSettings(params: SaveShopSettingsParams) {
     notice: params.notice.trim(),
     bookingMode: params.bookingMode,
     paymentMode: params.paymentMode,
+    pendingPaymentExpireMinutes: params.pendingPaymentExpireMinutes,
   }
 
   // #ifdef MP-WEIXIN
@@ -83,6 +85,7 @@ function normalizeHomeData(data: HomeData): HomeData {
 
 function normalizeSettings(settings?: Partial<ShopSettings>): ShopSettings {
   const paymentMode = settings?.paymentMode === 'mock_pending_payment' ? 'mock_pending_payment' : 'mock_auto_paid'
+  const pendingPaymentExpireMinutes = Number(settings?.pendingPaymentExpireMinutes || defaultHomeData.settings.pendingPaymentExpireMinutes || 1)
 
   return {
     ...defaultHomeData.settings,
@@ -91,6 +94,7 @@ function normalizeSettings(settings?: Partial<ShopSettings>): ShopSettings {
     coverImages: Array.isArray(settings?.coverImages) ? settings.coverImages : [],
     notice: settings?.notice || defaultHomeData.settings.notice,
     paymentMode,
+    pendingPaymentExpireMinutes: Math.max(Math.floor(pendingPaymentExpireMinutes), 1),
   }
 }
 

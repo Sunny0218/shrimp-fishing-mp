@@ -50,6 +50,7 @@ function normalizeSettings(event) {
   const notice = normalizeString(event.notice)
   const bookingMode = validBookingModes.includes(event.bookingMode) ? event.bookingMode : 'walk_in'
   const paymentMode = validPaymentModes.includes(event.paymentMode) ? event.paymentMode : 'mock_auto_paid'
+  const pendingPaymentExpireMinutes = Math.max(Math.floor(Number(event.pendingPaymentExpireMinutes || 1)), 0)
   const businessHours = normalizeBusinessHours(event.businessHours)
 
   if (!shopName) {
@@ -68,6 +69,10 @@ function normalizeSettings(event) {
     return { error: '请至少填写一条营业时间' }
   }
 
+  if (!Number.isFinite(pendingPaymentExpireMinutes) || pendingPaymentExpireMinutes <= 0) {
+    return { error: '请填写有效待支付保留时间' }
+  }
+
   const invalidHour = businessHours.find(item => !isValidTime(item.startTime) || !isValidTime(item.endTime))
 
   if (invalidHour) {
@@ -83,6 +88,7 @@ function normalizeSettings(event) {
       notice,
       bookingMode,
       paymentMode,
+      pendingPaymentExpireMinutes,
     },
   }
 }

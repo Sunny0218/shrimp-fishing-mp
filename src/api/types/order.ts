@@ -1,5 +1,12 @@
 import type { PricingRule, ShrimpPackage, TimeSlot } from './home'
 
+export interface CloudDateValue {
+  $date?: string | number
+  toDate?: () => Date
+}
+
+export type OrderDateValue = Date | string | number | CloudDateValue
+
 export type OrderType = 'package' | 'metered'
 export type OrderStatus
   = | 'pending_payment'
@@ -64,7 +71,7 @@ export interface Order {
   overtimeAmount?: number
   checkoutAmount?: number
   checkoutPaidAmount?: number
-  checkoutPaidAt?: Date | string
+  checkoutPaidAt?: OrderDateValue
   waivedOvertimeAmount?: number
   refundAmount?: number
   refundNo?: string
@@ -75,10 +82,11 @@ export interface Order {
   remark: string
   adminRemark: string
   checkinCode: string
-  checkedInAt?: Date | string
-  startedAt?: Date | string
-  expectedEndedAt?: Date | string
-  endedAt?: Date | string
+  checkedInAt?: OrderDateValue
+  paymentExpiredAt?: OrderDateValue
+  startedAt?: OrderDateValue
+  expectedEndedAt?: OrderDateValue
+  endedAt?: OrderDateValue
   actualDurationMinutes?: number
   overtimeMinutes?: number
   chargedOvertimeMinutes?: number
@@ -87,15 +95,15 @@ export interface Order {
   earlyFinishedMinutes?: number
   earlyFinishReason?: string
   finishedBy?: string
-  finishedAt?: Date | string
-  completedAt?: Date | string
-  cancelledAt?: Date | string
-  refundedAt?: Date | string
-  refundAt?: Date | string
+  finishedAt?: OrderDateValue
+  completedAt?: OrderDateValue
+  cancelledAt?: OrderDateValue
+  refundedAt?: OrderDateValue
+  refundAt?: OrderDateValue
   checkedInBy?: string
   createdBy: string
-  createdAt: Date | string
-  updatedAt: Date | string
+  createdAt: OrderDateValue
+  updatedAt: OrderDateValue
 }
 
 export interface CreateOrderParams {

@@ -25,6 +25,7 @@ export interface ShopSettings {
   notice: string
   bookingMode?: BookingMode
   paymentMode?: PaymentMode
+  pendingPaymentExpireMinutes?: number
   location?: ShopLocation
   updatedAt?: Date | string
 }
@@ -37,6 +38,7 @@ export interface SaveShopSettingsParams {
   notice: string
   bookingMode: BookingMode
   paymentMode: PaymentMode
+  pendingPaymentExpireMinutes: number
 }
 
 export interface SaveShopSettingsResult {

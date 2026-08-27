@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Order, OrderDetailData, OrderStatus, PricingRuleSnapshot } from '@/api/types/order'
+import type { Order, OrderDateValue, OrderDetailData, OrderStatus, PricingRuleSnapshot } from '@/api/types/order'
 import qrcode from 'qrcode-generator'
 import { storeToRefs } from 'pinia'
 import { cancelOrder, getOrderDetail, payCheckoutOrder, payOrder } from '@/api/order'
@@ -9,6 +9,7 @@ import { useUserStore } from '@/store'
 definePage({
   style: {
     navigationBarTitleText: '订单详情',
+    enablePullDownRefresh: true,
   },
 })
 
@@ -20,6 +21,8 @@ const errorText = ref('')
 const orderDetail = ref<OrderDetailData>()
 const orderId = ref('')
 const currentTime = ref(Date.now())
+const paymentTimeoutRefreshing = ref(false)
+const refreshedPaymentTimeoutOrderId = ref('')
 let countdownTimer: ReturnType<typeof setInterval> | undefined
 const userStore = useUserStore()
 const { userInfo } = storeToRefs(userStore)
@@ -116,6 +119,25 @@ const cancelModalContent = computed(() => {
 })
 const cancelSuccessText = computed(() => isRefundCancel.value ? '退款成功' : '已取消预约')
 const canPayOrder = computed(() => order.value?.status === 'pending_payment')
+const paymentExpiredAtTime = computed(() => getDateTimeValue(order.value?.paymentExpiredAt))
+const paymentRemainingMilliseconds = computed(() => {
+  if (!paymentExpiredAtTime.value) {
+    return 0
+  }
+
+  return Math.max(paymentExpiredAtTime.value - currentTime.value, 0)
+})
+const paymentCountdownText = computed(() => {
+  if (!paymentExpiredAtTime.value) {
+    return '-'
+  }
+
+  if (paymentRemainingMilliseconds.value <= 0) {
+    return '已超过支付时间'
+  }
+
+  return formatCountdown(paymentRemainingMilliseconds.value)
+})
 const canPayCheckout = computed(() => order.value?.status === 'pending_checkout' && Number(order.value.checkoutAmount || 0) > 0)
 const canShowCheckinCode = computed(() => order.value?.status === 'paid' && !!order.value.checkinCode)
 const checkinQrCodeUrl = computed(() => {
@@ -283,23 +305,55 @@ const { finishingOrderId, handleFinishTiming } = useFinishTimingOrder({
   onSuccess: () => fetchOrderDetail(),
 })
 
-async function fetchOrderDetail() {
+async function fetchOrderDetail(showLoading = true) {
   if (!orderId.value) {
     errorText.value = '缺少订单 ID'
-    return
+    return false
   }
 
-  loading.value = true
-  errorText.value = ''
+  if (showLoading) {
+    loading.value = true
+    errorText.value = ''
+  }
 
   try {
     orderDetail.value = await getOrderDetail(orderId.value)
+    return true
   }
   catch (error) {
-    errorText.value = error instanceof Error ? error.message : '订单详情获取失败'
+    if (showLoading) {
+      errorText.value = error instanceof Error ? error.message : '订单详情获取失败'
+    }
+
+    return false
   }
   finally {
-    loading.value = false
+    if (showLoading) {
+      loading.value = false
+    }
+  }
+}
+
+async function refreshExpiredPaymentOrder() {
+  if (!order.value || !canPayOrder.value || !paymentExpiredAtTime.value || paymentRemainingMilliseconds.value > 0) {
+    return
+  }
+
+  if (paymentTimeoutRefreshing.value || refreshedPaymentTimeoutOrderId.value === order.value._id) {
+    return
+  }
+
+  paymentTimeoutRefreshing.value = true
+
+  try {
+    const refreshed = await fetchOrderDetail(false)
+
+    if (refreshed) {
+      refreshedPaymentTimeoutOrderId.value = order.value?._id || ''
+    }
+  }
+  finally {
+    paymentTimeoutRefreshing.value = false
   }
 }
 
@@ -358,7 +412,7 @@ function formatDuration(minutes?: number) {
   return restMinutes ? `${hours}小时${restMinutes}分钟` : `${hours}小时`
 }
 
-function getDateTimeValue(value?: string | Date) {
+function getDateTimeValue(value?: OrderDateValue) {
   if (!value) {
     return 0
   }
@@ -367,17 +421,37 @@ function getDateTimeValue(value?: string | Date) {
     return Number.isNaN(value.getTime()) ? 0 : value.getTime()
   }
 
+  if (typeof value === 'object') {
+    if (typeof value.toDate === 'function') {
+      const date = value.toDate()
+
+      return Number.isNaN(date.getTime()) ? 0 : date.getTime()
+    }
+
+    if (value.$date) {
+      const time = new Date(value.$date).getTime()
+
+      return Number.isNaN(time) ? 0 : time
+    }
+  }
+
   const time = new Date(value).getTime()
 
   return Number.isNaN(time) ? 0 : time
 }
 
-function formatDateTime(value?: string | Date | number) {
+function formatDateTime(value?: OrderDateValue) {
   if (!value) {
     return '-'
   }
 
-  const date = new Date(value)
+  const time = getDateTimeValue(value)
+
+  if (!time) {
+    return '-'
+  }
+
+  const date = new Date(time)
 
   if (Number.isNaN(date.getTime())) {
     return `${value}`
@@ -406,6 +480,7 @@ function startCountdownTimer() {
   currentTime.value = Date.now()
   countdownTimer = setInterval(() => {
     currentTime.value = Date.now()
+    void refreshExpiredPaymentOrder()
   }, 1000)
 }
 
@@ -592,6 +667,19 @@ onLoad((query) => {
   fetchOrderDetail()
 })
 
+onPullDownRefresh(async () => {
+  const refreshed = await fetchOrderDetail(false)
+
+  uni.stopPullDownRefresh()
+
+  if (!refreshed) {
+    uni.showToast({
+      title: '订单刷新失败',
+      icon: 'none',
+    })
+  }
+})
+
 onUnload(() => {
   stopCountdownTimer()
 })
@@ -620,6 +708,31 @@ onUnload(() => {
         </view>
         <view class="order-detail__order-no" :class="{ 'order-detail__order-no--primary': !orderTitle }">
           订单号：{{ order.orderNo }}
+        </view>
+      </view>
+
+      <view v-if="canPayOrder" class="order-card payment-card">
+        <view class="order-card__title">
+          支付信息
+        </view>
+        <view class="payment-card__countdown">
+          <view class="payment-card__label">
+            剩余支付时间
+          </view>
+          <view class="payment-card__value" :class="{ 'payment-card__value--expired': paymentRemainingMilliseconds <= 0 }">
+            {{ paymentCountdownText }}
+          </view>
+        </view>
+        <view class="info-row">
+          <text class="info-row__label">
+            支付截止
+          </text>
+          <text class="info-row__value">
+            {{ formatDateTime(paymentExpiredAtTime) }}
+          </text>
+        </view>
+        <view class="order-card__tip">
+          超时未支付会自动关闭订单，需要重新预约。
         </view>
       </view>
 
@@ -1282,6 +1395,34 @@ onUnload(() => {
     font-size: 28rpx;
     font-weight: 600;
     line-height: 78rpx;
+  }
+}
+
+.payment-card {
+  &__countdown {
+    border-radius: 8rpx;
+    background: #f8f2df;
+    padding: 24rpx 20rpx;
+    margin-bottom: 12rpx;
+    text-align: center;
+  }
+
+  &__label {
+    color: #718079;
+    font-size: 24rpx;
+    line-height: 1.3;
+  }
+
+  &__value {
+    margin-top: 10rpx;
+    color: #c9472b;
+    font-size: 50rpx;
+    font-weight: 700;
+    line-height: 1.15;
+
+    &--expired {
+      font-size: 38rpx;
+    }
   }
 }
 

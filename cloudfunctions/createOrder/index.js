@@ -68,11 +68,16 @@ function normalizeCount(value, defaultValue) {
   return Math.max(Math.floor(count), defaultValue)
 }
 
-async function getPaymentMode() {
+async function getPaymentSettings() {
   const settingsRes = await db.collection('settings').limit(1).get().catch(() => ({ data: [] }))
-  const paymentMode = settingsRes.data[0]?.paymentMode
+  const settings = settingsRes.data[0] || {}
+  const paymentMode = settings.paymentMode === 'mock_pending_payment' ? 'mock_pending_payment' : 'mock_auto_paid'
+  const pendingPaymentExpireMinutes = Math.max(Math.floor(Number(settings.pendingPaymentExpireMinutes || 1)), 1)
 
-  return paymentMode === 'mock_pending_payment' ? 'mock_pending_payment' : 'mock_auto_paid'
+  return {
+    paymentMode,
+    pendingPaymentExpireMinutes,
+  }
 }
 
 exports.main = async (event = {}) => {
@@ -106,9 +111,13 @@ exports.main = async (event = {}) => {
       return fail(404, '套餐不存在或已下架')
     }
 
-    const paymentMode = await getPaymentMode()
+    const paymentSettings = await getPaymentSettings()
+    const paymentMode = paymentSettings.paymentMode
     const isPendingPaymentMode = paymentMode === 'mock_pending_payment'
     const now = new Date()
+    const paymentExpiredAt = isPendingPaymentMode
+      ? new Date(now.getTime() + paymentSettings.pendingPaymentExpireMinutes * 60 * 1000)
+      : null
     const orderNo = createOrderNo()
     const packageRodCount = Number(packageItem.rodCount || 1)
     const packageMaxPeople = Number(packageItem.maxPeople || packageRodCount || 1)
@@ -145,6 +154,7 @@ exports.main = async (event = {}) => {
       remark,
       adminRemark: '',
       checkinCode,
+      paymentExpiredAt,
       createdBy: user._id,
       createdAt: now,
       updatedAt: now,

@@ -18,6 +18,7 @@ interface SettingsForm {
   notice: string
   bookingMode: BookingMode
   paymentMode: PaymentMode
+  pendingPaymentExpireMinutes: string
   businessHours: BusinessHour[]
 }
 
@@ -41,6 +42,7 @@ const form = reactive<SettingsForm>({
   notice: '',
   bookingMode: 'walk_in',
   paymentMode: 'mock_auto_paid',
+  pendingPaymentExpireMinutes: '1',
   businessHours: [{ ...defaultHour }],
 })
 const loading = ref(false)
@@ -59,6 +61,7 @@ function fillForm(settings: ShopSettings) {
   form.notice = settings.notice || ''
   form.bookingMode = settings.bookingMode || 'walk_in'
   form.paymentMode = settings.paymentMode || 'mock_auto_paid'
+  form.pendingPaymentExpireMinutes = `${settings.pendingPaymentExpireMinutes || 1}`
   form.businessHours = normalizeBusinessHours(settings.businessHours)
 }
 
@@ -140,6 +143,7 @@ async function handleSave() {
   const address = form.address.trim()
   const phone = form.phone.trim()
   const notice = form.notice.trim()
+  const pendingPaymentExpireMinutes = Math.max(Math.floor(Number(form.pendingPaymentExpireMinutes)), 0)
   const businessHours = form.businessHours.map(item => ({
     label: item.label.trim() || '营业',
     startTime: item.startTime,
@@ -161,6 +165,11 @@ async function handleSave() {
     return
   }
 
+  if (!Number.isFinite(pendingPaymentExpireMinutes) || pendingPaymentExpireMinutes <= 0) {
+    showToast('请填写有效待支付保留时间')
+    return
+  }
+
   saving.value = true
 
   try {
@@ -172,6 +181,7 @@ async function handleSave() {
       businessHours,
       bookingMode: form.bookingMode,
       paymentMode: form.paymentMode,
+      pendingPaymentExpireMinutes,
     })
     fillForm(res.settings)
     markHomeDataDirty()
@@ -273,6 +283,16 @@ onPullDownRefresh(() => {
         </picker>
         <view class="form-field__help">
           {{ paymentModeOptions[paymentModeIndex]?.desc }}
+        </view>
+      </view>
+
+      <view class="form-field">
+        <view class="form-field__label">
+          待支付保留时间
+        </view>
+        <input v-model.trim="form.pendingPaymentExpireMinutes" class="form-field__input" type="number" placeholder="1">
+        <view class="form-field__help">
+          测试阶段默认 1 分钟，超时后订单自动关闭
         </view>
       </view>
 
