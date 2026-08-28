@@ -45,6 +45,16 @@ export interface PricingRuleSnapshot {
   unitMinutes: number
 }
 
+export interface OrderReminderState {
+  customerNearEndSentAt?: OrderDateValue
+  customerEndedSentAt?: OrderDateValue
+  staffNearEndSentAt?: OrderDateValue
+  staffEndedSentAt?: OrderDateValue
+  customerPendingCheckoutSentAt?: OrderDateValue
+  staffPendingCheckoutSentAt?: OrderDateValue
+  customerCompletedSentAt?: OrderDateValue
+}
+
 export interface Order {
   _id: string
   orderNo: string
@@ -94,6 +104,7 @@ export interface Order {
   waiverReason?: string
   earlyFinishedMinutes?: number
   earlyFinishReason?: string
+  reminders?: OrderReminderState
   finishedBy?: string
   finishedAt?: OrderDateValue
   completedAt?: OrderDateValue
@@ -141,6 +152,12 @@ export interface OrderDetailData {
   package?: ShrimpPackage
   timeSlot?: TimeSlot
   activePricingRule?: PricingRule | null
+  notificationStatus?: {
+    customer?: {
+      hasAvailable: boolean
+      templateKeys: string[]
+    }
+  }
   serverTime: string
 }
 

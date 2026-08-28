@@ -36,6 +36,15 @@ function getDateTimeValue(value) {
   return Number.isNaN(time) ? 0 : time
 }
 
+function isRetryableNotificationFailure(message) {
+  const text = typeof message === 'string' ? message : ''
+
+  return text.includes('-501001')
+    || text.includes('INVALID_WX_ACCESS_TOKEN')
+    || text.includes('invalid wx openapi access_token')
+    || text.includes('resource system error')
+}
+
 async function getPendingPaymentExpireMinutes() {
   const settingsRes = await db.collection('settings').limit(1).get().catch(() => ({ data: [] }))
   const settings = settingsRes.data[0] || {}
@@ -138,6 +147,52 @@ async function closeExpiredPendingOrder(orderId, order) {
   }
 }
 
+async function getCustomerNotificationStatus(orderId, openid) {
+  const baseWhere = {
+    openid,
+    target: 'customer',
+    status: 'accepted',
+    used: false,
+  }
+  const [orderRes, legacyRes, retryableFailedRes] = await Promise.all([
+    db.collection('notification_subscriptions')
+      .where({
+        ...baseWhere,
+        orderId,
+      })
+      .limit(10)
+      .get()
+      .catch(() => ({ data: [] })),
+    db.collection('notification_subscriptions')
+      .where({
+        ...baseWhere,
+        orderId: '',
+      })
+      .limit(10)
+      .get()
+      .catch(() => ({ data: [] })),
+    db.collection('notification_subscriptions')
+      .where({
+        openid,
+        target: 'customer',
+        orderId,
+        status: 'failed',
+        used: true,
+      })
+      .limit(10)
+      .get()
+      .catch(() => ({ data: [] })),
+  ])
+  const retryableFailedItems = retryableFailedRes.data.filter(item => isRetryableNotificationFailure(item.failMessage || item.lastFailMessage))
+  const availableItems = [...orderRes.data, ...legacyRes.data, ...retryableFailedItems]
+  const templateKeys = Array.from(new Set(availableItems.map(item => item.templateKey).filter(Boolean)))
+
+  return {
+    hasAvailable: templateKeys.length > 0,
+    templateKeys,
+  }
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -175,12 +230,13 @@ exports.main = async (event = {}) => {
     }
 
     const displayOrder = await closeExpiredPendingOrder(orderId, order)
-    const [packageRes, timeSlotRes, pricingRuleRes] = await Promise.all([
+    const [packageRes, timeSlotRes, pricingRuleRes, customerNotificationStatus] = await Promise.all([
       displayOrder.packageId ? db.collection('packages').doc(displayOrder.packageId).get().catch(() => ({ data: null })) : Promise.resolve({ data: null }),
       displayOrder.slotId ? db.collection('time_slots').doc(displayOrder.slotId).get().catch(() => ({ data: null })) : Promise.resolve({ data: null }),
       displayOrder.orderType !== 'metered' && !displayOrder.pricingRuleSnapshot
         ? db.collection('pricing_rules').where({ status: 'active' }).orderBy('sort', 'asc').limit(1).get().catch(() => ({ data: [] }))
         : Promise.resolve({ data: [] }),
+      isOwner ? getCustomerNotificationStatus(orderId, openid) : Promise.resolve({ hasAvailable: false, templateKeys: [] }),
     ])
 
     return {
@@ -191,6 +247,9 @@ exports.main = async (event = {}) => {
         package: packageRes.data,
         timeSlot: timeSlotRes.data,
         activePricingRule: pricingRuleRes.data[0] || null,
+        notificationStatus: {
+          customer: customerNotificationStatus,
+        },
         serverTime: new Date().toISOString(),
       },
     }

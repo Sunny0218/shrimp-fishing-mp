@@ -2,7 +2,10 @@
 import type { Order, OrderDateValue, OrderDetailData, OrderStatus, PricingRuleSnapshot } from '@/api/types/order'
 import qrcode from 'qrcode-generator'
 import { storeToRefs } from 'pinia'
+import { requestNotificationSubscription } from '@/api/notification'
 import { cancelOrder, getOrderDetail, payCheckoutOrder, payOrder } from '@/api/order'
+import type { NotificationTemplateKey } from '@/config/notificationTemplates'
+import { activeOrderNotificationTemplateIds, activeOrderNotificationTemplateKeys, notificationTemplateKeys } from '@/config/notificationTemplates'
 import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
 import { useUserStore } from '@/store'
 
@@ -17,6 +20,9 @@ const loading = ref(false)
 const cancelling = ref(false)
 const payingOrder = ref(false)
 const payingCheckout = ref(false)
+const subscribingNotification = ref(false)
+const notificationAuthorizationBlocked = ref(false)
+const optimisticNotificationTemplateKeys = ref<NotificationTemplateKey[]>([])
 const errorText = ref('')
 const orderDetail = ref<OrderDetailData>()
 const orderId = ref('')
@@ -139,6 +145,39 @@ const paymentCountdownText = computed(() => {
   return formatCountdown(paymentRemainingMilliseconds.value)
 })
 const canPayCheckout = computed(() => order.value?.status === 'pending_checkout' && Number(order.value.checkoutAmount || 0) > 0)
+const canSubscribeOrderNotification = computed(() => !!order.value && !['completed', 'cancelled', 'refunded'].includes(order.value.status))
+const requiredNotificationTemplateKeys = computed<NotificationTemplateKey[]>(() => activeOrderNotificationTemplateKeys)
+const availableNotificationTemplateKeys = computed<NotificationTemplateKey[]>(() => {
+  const customerStatus = orderDetail.value?.notificationStatus?.customer
+  const sourceKeys = customerStatus?.hasAvailable
+    ? customerStatus.templateKeys
+    : optimisticNotificationTemplateKeys.value
+
+  return sourceKeys.filter((templateKey): templateKey is NotificationTemplateKey => {
+    return notificationTemplateKeys.includes(templateKey as NotificationTemplateKey)
+  })
+})
+const missingNotificationTemplateKeys = computed(() => {
+  return requiredNotificationTemplateKeys.value.filter(templateKey => !availableNotificationTemplateKeys.value.includes(templateKey))
+})
+const hasSubscribedOrderNotification = computed(() => {
+  return canSubscribeOrderNotification.value && missingNotificationTemplateKeys.value.length === 0
+})
+const subscribeOrderNotificationText = computed(() => {
+  if (subscribingNotification.value) {
+    return '订阅中...'
+  }
+
+  if (hasSubscribedOrderNotification.value) {
+    return '已订阅'
+  }
+
+  if (notificationAuthorizationBlocked.value) {
+    return '去设置开启'
+  }
+
+  return '订阅订单提醒'
+})
 const canShowCheckinCode = computed(() => order.value?.status === 'paid' && !!order.value.checkinCode)
 const checkinQrCodeUrl = computed(() => {
   if (!order.value?.checkinCode) {
@@ -317,7 +356,9 @@ async function fetchOrderDetail(showLoading = true) {
   }
 
   try {
-    orderDetail.value = await getOrderDetail(orderId.value)
+    const detail = await getOrderDetail(orderId.value)
+    orderDetail.value = detail
+    syncOptimisticNotificationSubscription(detail)
     return true
   }
   catch (error) {
@@ -331,6 +372,38 @@ async function fetchOrderDetail(showLoading = true) {
     if (showLoading) {
       loading.value = false
     }
+  }
+}
+
+function isNotificationTemplateKey(value: string): value is NotificationTemplateKey {
+  return notificationTemplateKeys.includes(value as NotificationTemplateKey)
+}
+
+function normalizeNotificationTemplateKeys(values: unknown) {
+  return Array.isArray(values)
+    ? values.filter((value): value is NotificationTemplateKey => typeof value === 'string' && isNotificationTemplateKey(value))
+    : []
+}
+
+function markOptimisticNotificationSubscribed(templateKeys: NotificationTemplateKey[]) {
+  optimisticNotificationTemplateKeys.value = Array.from(new Set([
+    ...optimisticNotificationTemplateKeys.value,
+    ...templateKeys,
+  ]))
+}
+
+function syncOptimisticNotificationSubscription(detail: OrderDetailData) {
+  const customerStatus = detail.notificationStatus?.customer
+
+  if (!customerStatus) {
+    return
+  }
+
+  if (customerStatus.hasAvailable) {
+    optimisticNotificationTemplateKeys.value = normalizeNotificationTemplateKeys(customerStatus.templateKeys)
+  }
+  else {
+    optimisticNotificationTemplateKeys.value = []
   }
 }
 
@@ -665,10 +738,90 @@ function handlePayCheckout() {
   })
 }
 
+async function refreshNotificationAuthorizationStatus() {
+  // #ifdef MP-WEIXIN
+  try {
+    const res = await wx.getSetting({
+      withSubscriptions: true,
+    })
+    const subscriptionsSetting = res.subscriptionsSetting
+    const itemSettings = subscriptionsSetting?.itemSettings || {}
+    const hasBlockedTemplate = activeOrderNotificationTemplateIds.some((templateId) => {
+      const status = itemSettings[templateId]
+
+      return status === 'reject' || status === 'ban'
+    })
+
+    notificationAuthorizationBlocked.value = subscriptionsSetting?.mainSwitch === false || hasBlockedTemplate
+  }
+  catch {
+    notificationAuthorizationBlocked.value = false
+  }
+  // #endif
+}
+
+async function openNotificationSetting() {
+  // #ifdef MP-WEIXIN
+  await wx.openSetting().catch(() => undefined)
+  await refreshNotificationAuthorizationStatus()
+  await fetchOrderDetail(false)
+  // #endif
+}
+
+async function handleSubscribeOrderNotification() {
+  if (subscribingNotification.value) {
+    return
+  }
+
+  if (notificationAuthorizationBlocked.value) {
+    await openNotificationSetting()
+    return
+  }
+
+  subscribingNotification.value = true
+
+  try {
+    const res = await requestNotificationSubscription('customer', {
+      orderId: orderId.value,
+      templateKeys: missingNotificationTemplateKeys.value,
+    })
+    const acceptedTemplateKeys = normalizeNotificationTemplateKeys(res.acceptedTemplateKeys)
+    const allMissingTemplatesAccepted = missingNotificationTemplateKeys.value.every(templateKey => acceptedTemplateKeys.includes(templateKey))
+
+    uni.showToast({
+      title: res.acceptedCount > 0 && allMissingTemplatesAccepted
+        ? '订阅成功'
+        : '仍有模板未订阅',
+      icon: res.acceptedCount > 0 ? 'success' : 'none',
+    })
+    if (acceptedTemplateKeys.length && orderId.value) {
+      markOptimisticNotificationSubscribed(acceptedTemplateKeys)
+    }
+    await fetchOrderDetail(false)
+    await refreshNotificationAuthorizationStatus()
+  }
+  catch (error) {
+    await refreshNotificationAuthorizationStatus()
+    uni.showToast({
+      title: error instanceof Error ? error.message : '订阅失败',
+      icon: 'none',
+    })
+  }
+  finally {
+    subscribingNotification.value = false
+  }
+}
+
 onLoad((query) => {
   orderId.value = typeof query?.id === 'string' ? query.id : ''
+  optimisticNotificationTemplateKeys.value = []
   startCountdownTimer()
+  refreshNotificationAuthorizationStatus()
   fetchOrderDetail()
+})
+
+onShow(() => {
+  refreshNotificationAuthorizationStatus()
 })
 
 onPullDownRefresh(async () => {
@@ -713,6 +866,25 @@ onUnload(() => {
         <view class="order-detail__order-no" :class="{ 'order-detail__order-no--primary': !orderTitle }">
           订单号：{{ order.orderNo }}
         </view>
+      </view>
+
+      <view v-if="canSubscribeOrderNotification" class="order-card notify-card">
+        <view>
+          <view class="notify-card__title">
+            消息提醒
+          </view>
+          <view class="notify-card__desc">
+            授权后可接收快到点、到点和订单状态提醒
+          </view>
+        </view>
+        <button
+          class="notify-card__btn"
+          :class="{ 'notify-card__btn--disabled': hasSubscribedOrderNotification }"
+          :disabled="subscribingNotification || hasSubscribedOrderNotification"
+          @click="handleSubscribeOrderNotification"
+        >
+          {{ subscribeOrderNotificationText }}
+        </button>
       </view>
 
       <view v-if="canPayOrder" class="order-card payment-card">
@@ -1399,6 +1571,48 @@ onUnload(() => {
     font-size: 28rpx;
     font-weight: 600;
     line-height: 78rpx;
+  }
+}
+
+.notify-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+
+  &__title {
+    color: #17352f;
+    font-size: 29rpx;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  &__desc {
+    margin-top: 8rpx;
+    color: #718079;
+    font-size: 23rpx;
+    line-height: 1.4;
+  }
+
+  &__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 220rpx;
+    min-height: 62rpx;
+    margin: 0;
+    border-radius: 8rpx;
+    background: #1f6b56;
+    color: #ffffff;
+    font-size: 24rpx;
+    line-height: 62rpx;
+    white-space: nowrap;
+
+    &--disabled {
+      background: #dfe8e3;
+      color: #718079;
+    }
   }
 }
 

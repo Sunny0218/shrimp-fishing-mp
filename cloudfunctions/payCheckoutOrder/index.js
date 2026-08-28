@@ -15,6 +15,21 @@ function fail(code, message) {
   }
 }
 
+async function sendOrderNotification(orderId, eventType) {
+  try {
+    await cloud.callFunction({
+      name: 'sendOrderNotification',
+      data: {
+        orderId,
+        eventType,
+      },
+    })
+  }
+  catch (error) {
+    console.warn('[payCheckoutOrder] send notification failed', eventType, error)
+  }
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -122,6 +137,8 @@ exports.main = async (event = {}) => {
         },
       }
     })
+
+    await sendOrderNotification(orderId, 'customer_completed')
 
     return {
       code: 0,

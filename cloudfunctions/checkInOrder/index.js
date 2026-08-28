@@ -84,6 +84,18 @@ async function findOrderByCheckinCode(checkinCode) {
   return orderRes.data[0]
 }
 
+async function sendOrderNotification(orderId, eventType) {
+  await cloud.callFunction({
+    name: 'sendOrderNotification',
+    data: {
+      orderId,
+      eventType,
+    },
+  }).catch((error) => {
+    console.warn('[checkInOrder] send notification failed', error)
+  })
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -190,6 +202,8 @@ exports.main = async (event = {}) => {
         ...updateData,
       }
     })
+
+    await sendOrderNotification(targetOrderId, 'customer_started')
 
     return {
       code: 0,

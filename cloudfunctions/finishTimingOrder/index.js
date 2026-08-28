@@ -17,6 +17,21 @@ function fail(code, message) {
   }
 }
 
+async function sendOrderNotification(orderId, eventType) {
+  try {
+    await cloud.callFunction({
+      name: 'sendOrderNotification',
+      data: {
+        orderId,
+        eventType,
+      },
+    })
+  }
+  catch (error) {
+    console.warn('[finishTimingOrder] send notification failed', eventType, error)
+  }
+}
+
 function getDateTimeValue(value) {
   if (!value) {
     return 0
@@ -329,6 +344,16 @@ exports.main = async (event = {}) => {
     }
     catch {
       logSaved = false
+    }
+
+    if (result.order.status === 'pending_checkout') {
+      await Promise.all([
+        sendOrderNotification(orderId, 'customer_pending_checkout'),
+        sendOrderNotification(orderId, 'staff_pending_checkout'),
+      ])
+    }
+    else if (result.order.status === 'completed') {
+      await sendOrderNotification(orderId, 'customer_completed')
     }
 
     return {

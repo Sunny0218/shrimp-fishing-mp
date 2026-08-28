@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
+import { requestNotificationSubscription } from '@/api/notification'
 import { useUserStore } from '@/store'
 
 definePage({
@@ -12,6 +13,7 @@ const userStore = useUserStore()
 const { userInfo } = storeToRefs(userStore)
 const manageRoles = ['staff', 'admin', 'super_admin']
 const editRoles = ['admin', 'super_admin']
+const subscribingNotification = ref(false)
 const canManage = computed(() => !!userInfo.value.role && manageRoles.includes(userInfo.value.role))
 const canEditShop = computed(() => !!userInfo.value.role && editRoles.includes(userInfo.value.role))
 const roleTextMap = {
@@ -60,6 +62,31 @@ function handleOpenSettings() {
   })
 }
 
+async function handleSubscribeStaffNotification() {
+  if (subscribingNotification.value) {
+    return
+  }
+
+  subscribingNotification.value = true
+
+  try {
+    const res = await requestNotificationSubscription('staff')
+    uni.showToast({
+      title: res.acceptedCount > 0 ? '已开启提醒' : '未开启订阅',
+      icon: res.acceptedCount > 0 ? 'success' : 'none',
+    })
+  }
+  catch (error) {
+    uni.showToast({
+      title: error instanceof Error ? error.message : '订阅失败',
+      icon: 'none',
+    })
+  }
+  finally {
+    subscribingNotification.value = false
+  }
+}
+
 onLoad(() => {
   if (canManage.value) {
     return
@@ -85,6 +112,9 @@ onLoad(() => {
       <view class="mt-2 text-3.5 text-[#6b7d78]">
         当前角色：{{ roleText }}
       </view>
+      <button class="notify-btn" :disabled="subscribingNotification" @click="handleSubscribeStaffNotification">
+        {{ subscribingNotification ? '订阅中...' : '开启门店提醒' }}
+      </button>
     </view>
 
     <view class="grid grid-cols-2 mt-4 gap-3">
@@ -186,5 +216,15 @@ onLoad(() => {
     font-size: 24rpx;
     line-height: 1.45;
   }
+}
+
+.notify-btn {
+  min-height: 64rpx;
+  margin: 24rpx 0 0;
+  border-radius: 8rpx;
+  background: #1f6b56;
+  color: #ffffff;
+  font-size: 25rpx;
+  line-height: 64rpx;
 }
 </style>
