@@ -164,6 +164,20 @@ exports.main = async (event = {}) => {
       const expectedEndedAt = durationMinutes > 0
         ? new Date(now.getTime() + durationMinutes * 60 * 1000)
         : null
+      const rodSessions = Array.isArray(latestOrder.rodSessions)
+        ? latestOrder.rodSessions.map(item => ({
+            ...item,
+            status: 'in_progress',
+            startedAt: now,
+            stoppedAt: null,
+            segments: [
+              {
+                startedAt: now,
+                stoppedAt: null,
+              },
+            ],
+          }))
+        : latestOrder.rodSessions
       const updateData = {
         status: 'in_progress',
         checkedInAt: now,
@@ -171,6 +185,7 @@ exports.main = async (event = {}) => {
         expectedEndedAt,
         pricingRuleId: pricingRuleSnapshot?.pricingRuleId || latestOrder.pricingRuleId || '',
         pricingRuleSnapshot: pricingRuleSnapshot || latestOrder.pricingRuleSnapshot || null,
+        ...(Array.isArray(rodSessions) ? { rodSessions } : {}),
         checkedInBy: user._id,
         updatedAt: now,
       }

@@ -156,7 +156,7 @@ function getMeteredRule(order) {
   }
 }
 
-function getMeteredAmount(actualDurationMinutes, rule) {
+function calculateMeteredRodAmount(actualDurationMinutes, rule) {
   const billableMinutes = Math.max(actualDurationMinutes, rule.minimumMinutes)
   const extraMinutes = Math.max(billableMinutes - 60, 0)
   const chargedExtraMinutes = extraMinutes > 0
@@ -169,6 +169,87 @@ function getMeteredAmount(actualDurationMinutes, rule) {
     chargedMinutes,
     chargedExtraMinutes,
     amount,
+  }
+}
+
+function getSegmentDurationMinutes(segment, endedAt) {
+  const startedAt = getDateTimeValue(segment.startedAt)
+  const stoppedAt = getDateTimeValue(segment.stoppedAt) || endedAt
+
+  if (!startedAt || stoppedAt <= startedAt) {
+    return 0
+  }
+
+  return Math.ceil((stoppedAt - startedAt) / 60 / 1000)
+}
+
+function normalizeRodSegments(item, order, endedAt) {
+  if (Array.isArray(item.segments) && item.segments.length) {
+    return item.segments.map(segment => ({
+      ...segment,
+      stoppedAt: segment.stoppedAt || new Date(endedAt),
+      actualDurationMinutes: getSegmentDurationMinutes(segment, endedAt),
+    }))
+  }
+
+  const startedAt = item.startedAt || order.startedAt || order.checkedInAt
+  const stoppedAt = item.stoppedAt || item.endedAt || new Date(endedAt)
+
+  return [
+    {
+      startedAt,
+      stoppedAt,
+      actualDurationMinutes: getSegmentDurationMinutes({ startedAt, stoppedAt }, endedAt),
+    },
+  ]
+}
+
+function getMeteredAmount(order, fallbackActualDurationMinutes, endedAt, rule) {
+  const rodCount = Math.max(Math.floor(Number(order.rodCount || 1)), 1)
+  const existingRodSessions = Array.isArray(order.rodSessions) && order.rodSessions.length
+    ? order.rodSessions
+    : Array.from({ length: rodCount }, (_, index) => ({
+        id: `rod_${index + 1}`,
+        label: `${index + 1}号杆`,
+        paidAmount: rule.firstHourAmount,
+      }))
+  const rodSessions = existingRodSessions.map((item, index) => {
+    const segments = normalizeRodSegments(item, order, endedAt)
+    const actualDurationMinutes = segments.reduce((total, segment) => total + Number(segment.actualDurationMinutes || 0), 0) || fallbackActualDurationMinutes
+    const rodResult = calculateMeteredRodAmount(actualDurationMinutes, rule)
+    const paidAmount = Number(item.paidAmount || rule.firstHourAmount)
+    const checkoutAmount = Math.max(rodResult.amount - paidAmount, 0)
+
+    return {
+      ...item,
+      id: item.id || `rod_${index + 1}`,
+      label: item.label || `${index + 1}号杆`,
+      status: 'completed',
+      endedAt: new Date(endedAt),
+      stoppedAt: item.stoppedAt || new Date(endedAt),
+      segments,
+      actualDurationMinutes,
+      chargedMinutes: rodResult.chargedMinutes,
+      amount: rodResult.amount,
+      paidAmount,
+      checkoutAmount,
+    }
+  })
+  const amount = rodSessions.reduce((total, item) => total + Number(item.amount || 0), 0)
+  const paidAmount = Math.max(Number(order.paidAmount || 0), rodSessions.reduce((total, item) => total + Number(item.paidAmount || 0), 0))
+  const checkoutAmount = Math.max(amount - paidAmount, 0)
+  const chargedMinutes = Math.max(...rodSessions.map(item => Number(item.chargedMinutes || 0)), 0)
+  const chargedExtraMinutes = Math.max(chargedMinutes - 60, 0)
+  const actualDurationMinutes = Math.max(...rodSessions.map(item => Number(item.actualDurationMinutes || 0)), 0)
+
+  return {
+    chargedMinutes,
+    chargedExtraMinutes,
+    actualDurationMinutes,
+    amount,
+    paidAmount,
+    checkoutAmount,
+    rodSessions,
   }
 }
 
@@ -270,13 +351,13 @@ exports.main = async (event = {}) => {
         ? { chargedOvertimeMinutes: 0, overtimeAmount: 0 }
         : getOvertimeAmount(overtimeMinutes, packageOvertimeRule)
       const meteredResult = isMeteredOrder
-        ? getMeteredAmount(actualDurationMinutes, meteredRule)
+        ? getMeteredAmount(order, actualDurationMinutes, endedAt, meteredRule)
         : { chargedMinutes: 0, amount: 0 }
       const shouldWaiveOvertime = !isMeteredOrder && waiveOvertime && overtimeResult.overtimeAmount > 0
       const chargedOvertimeMinutes = shouldWaiveOvertime ? 0 : overtimeResult.chargedOvertimeMinutes
       const overtimeAmount = shouldWaiveOvertime ? 0 : overtimeResult.overtimeAmount
       const waivedOvertimeAmount = shouldWaiveOvertime ? overtimeResult.overtimeAmount : 0
-      const checkoutAmount = isMeteredOrder ? meteredResult.amount : overtimeAmount
+      const checkoutAmount = isMeteredOrder ? meteredResult.checkoutAmount : overtimeAmount
       const nextStatus = checkoutAmount > 0 ? 'pending_checkout' : 'completed'
       const finalAmount = isMeteredOrder ? meteredResult.amount : getFinalAmount(order, overtimeAmount)
       const updateData = {
@@ -284,12 +365,13 @@ exports.main = async (event = {}) => {
         endedAt: now,
         finishedAt: now,
         finishedBy: user._id,
-        actualDurationMinutes,
+        actualDurationMinutes: isMeteredOrder ? meteredResult.actualDurationMinutes : actualDurationMinutes,
         overtimeMinutes,
         chargedOvertimeMinutes,
         pricingRuleId: order.pricingRuleId || packageOvertimeRule?.pricingRuleId || '',
         pricingRuleSnapshot: order.pricingRuleSnapshot || packageOvertimeRule || null,
         chargedMeteredMinutes: meteredResult.chargedMinutes,
+        ...(isMeteredOrder ? { rodSessions: meteredResult.rodSessions } : {}),
         overtimeAmount,
         checkoutAmount,
         waivedOvertimeAmount,
@@ -318,13 +400,16 @@ exports.main = async (event = {}) => {
           startedAt: order.startedAt || order.checkedInAt,
           expectedEndedAt: expectedEndedAt ? new Date(expectedEndedAt) : null,
           endedAt: now,
-          actualDurationMinutes,
+          actualDurationMinutes: updateData.actualDurationMinutes,
           overtimeMinutes,
           chargedOvertimeMinutes,
           pricingRuleSnapshot: updateData.pricingRuleSnapshot,
           chargedMeteredMinutes: meteredResult.chargedMinutes,
           overtimeAmount,
           meteredAmount: meteredResult.amount,
+          meteredPaidAmount: meteredResult.paidAmount,
+          meteredCheckoutAmount: meteredResult.checkoutAmount,
+          rodSessions: meteredResult.rodSessions || [],
           waivedOvertimeAmount,
           waiverReason: updateData.waiverReason,
           earlyFinishedMinutes,

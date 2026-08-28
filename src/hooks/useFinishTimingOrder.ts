@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import { ref } from 'vue'
-import type { Order, OrderDateValue } from '@/api/types/order'
+import type { Order, OrderDateValue, RodSession } from '@/api/types/order'
 import { finishTimingOrder } from '@/api/order'
 
 interface FinishTimingOptions {
@@ -35,7 +35,7 @@ export function useFinishTimingOrder(options: FinishTimingOptions) {
       }
     }
 
-    if (typeof value === 'string') {
+    if (typeof value === 'string' || typeof value === 'number') {
       const time = new Date(value).getTime()
 
       return Number.isNaN(time) ? 0 : time
@@ -126,6 +126,30 @@ export function useFinishTimingOrder(options: FinishTimingOptions) {
     return Math.max(Math.ceil((options.currentTime.value - startedAt) / 60 / 1000), 0)
   }
 
+  function getRodDurationMinutes(order: Order, session: RodSession) {
+    if (Array.isArray(session.segments) && session.segments.length) {
+      return session.segments.reduce((total, segment) => {
+        const startedAt = getDateTimeValue(segment.startedAt)
+        const stoppedAt = getDateTimeValue(segment.stoppedAt) || options.currentTime.value
+
+        if (!startedAt || stoppedAt <= startedAt) {
+          return total
+        }
+
+        return total + Math.ceil((stoppedAt - startedAt) / 60 / 1000)
+      }, 0)
+    }
+
+    const startedAt = getDateTimeValue(session.startedAt || order.startedAt || order.checkedInAt)
+    const endedAt = getDateTimeValue(session.stoppedAt || session.endedAt) || options.currentTime.value
+
+    if (!startedAt || endedAt <= startedAt) {
+      return 0
+    }
+
+    return Math.ceil((endedAt - startedAt) / 60 / 1000)
+  }
+
   function getMeteredCheckout(order: Order) {
     const rule = order.pricingRuleSnapshot
     const pricePerHour = Number(rule?.pricePerHour || 0)
@@ -138,19 +162,41 @@ export function useFinishTimingOrder(options: FinishTimingOptions) {
       return null
     }
 
-    const actualDurationMinutes = getActualDurationMinutes(order)
-    const billableMinutes = Math.max(actualDurationMinutes, minimumMinutes)
-    const extraMinutes = Math.max(billableMinutes - 60, 0)
-    const chargedExtraMinutes = extraMinutes > 0
-      ? Math.ceil(extraMinutes / unitMinutes) * unitMinutes
-      : 0
-    const chargedMinutes = Math.max(60, Math.min(billableMinutes, 60) + chargedExtraMinutes)
-    const amount = firstHourAmount + Math.ceil((chargedExtraMinutes / 60) * extraPricePerHour)
+    const rodCount = Math.max(Math.floor(Number(order.rodCount || 1)), 1)
+    const rodSessions = Array.isArray(order.rodSessions) && order.rodSessions.length
+      ? order.rodSessions
+      : Array.from({ length: rodCount }, (_, index) => ({
+          id: `rod_${index + 1}`,
+          label: `${index + 1}号杆`,
+          status: 'in_progress' as const,
+          startedAt: order.startedAt || order.checkedInAt,
+          paidAmount: firstHourAmount,
+        }))
+    const results = rodSessions.map((session) => {
+      const actualDurationMinutes = getRodDurationMinutes(order, session)
+      const billableMinutes = Math.max(actualDurationMinutes, minimumMinutes)
+      const extraMinutes = Math.max(billableMinutes - 60, 0)
+      const chargedExtraMinutes = extraMinutes > 0
+        ? Math.ceil(extraMinutes / unitMinutes) * unitMinutes
+        : 0
+      const chargedMinutes = Math.max(60, Math.min(billableMinutes, 60) + chargedExtraMinutes)
+      const amount = firstHourAmount + Math.ceil((chargedExtraMinutes / 60) * extraPricePerHour)
+
+      return {
+        actualDurationMinutes,
+        chargedMinutes,
+        amount,
+      }
+    })
+    const actualDurationMinutes = Math.max(...results.map(item => item.actualDurationMinutes), getActualDurationMinutes(order))
+    const chargedMinutes = Math.max(...results.map(item => item.chargedMinutes), 0)
+    const amount = results.reduce((total, item) => total + item.amount, 0)
+    const checkoutAmount = Math.max(amount - Number(order.paidAmount || 0), 0)
 
     return {
       actualDurationMinutes,
       chargedMinutes,
-      amount,
+      amount: checkoutAmount,
     }
   }
 

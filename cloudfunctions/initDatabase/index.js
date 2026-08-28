@@ -259,7 +259,7 @@ async function upsertDemoPackages() {
       seedKey: 'demo-package-2h',
       data: {
         name: '双人畅钓 2 小时',
-        description: '适合新手体验，含 2 根虾竿和基础饵料。',
+        description: '适合新手体验，含 2 支虾竿和基础饵料。',
         durationMinutes: 120,
         price: 12800,
         rodCount: 2,
@@ -272,7 +272,7 @@ async function upsertDemoPackages() {
       seedKey: 'demo-package-3h',
       data: {
         name: '好友局 3 小时',
-        description: '适合 3-4 人同行，含 3 根虾竿。',
+        description: '适合 3-4 人同行，含 3 支虾竿。',
         durationMinutes: 180,
         price: 18800,
         rodCount: 3,
@@ -285,7 +285,7 @@ async function upsertDemoPackages() {
       seedKey: 'demo-package-night',
       data: {
         name: '夜钓放松套餐',
-        description: '晚间人气场次，含 2 根虾竿和夜场座位。',
+        description: '晚间人气场次，含 2 支虾竿和夜场座位。',
         durationMinutes: 150,
         price: 16800,
         rodCount: 2,

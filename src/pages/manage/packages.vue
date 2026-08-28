@@ -461,7 +461,7 @@ onPullDownRefresh(() => {
           </view>
           <view class="package-card__meta">
             <text>{{ formatDuration(packageItem.durationMinutes) }}</text>
-            <text>{{ packageItem.rodCount }} 根杆</text>
+            <text>{{ packageItem.rodCount }} 支杆</text>
             <text>建议 {{ packageItem.maxPeople }} 人</text>
             <text>排序 {{ packageItem.sort || 0 }}</text>
           </view>

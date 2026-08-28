@@ -186,10 +186,19 @@ exports.main = async (event = {}) => {
         type: 'order',
         now,
       })
+      const rodSessions = Array.isArray(order.rodSessions)
+        ? order.rodSessions.map(item => ({
+            ...item,
+            paidAmount: order.orderType === 'metered'
+              ? Math.max(Number(item.paidAmount || 0), Number(item.amount || 0))
+              : item.paidAmount,
+          }))
+        : order.rodSessions
       const updateData = {
         status: 'paid',
         checkinCode,
         paidAmount: orderAmount,
+        ...(Array.isArray(rodSessions) ? { rodSessions } : {}),
         updatedAt: now,
       }
 

@@ -13,6 +13,7 @@ definePage({
 
 const homeData = ref<HomeData>({ ...defaultHomeData })
 const customerPhone = ref('')
+const rodCount = ref(1)
 const remark = ref('')
 const loading = ref(false)
 const submitting = ref(false)
@@ -20,6 +21,7 @@ const errorText = ref('')
 const tokenStore = useTokenStore()
 const pricingRule = computed(() => homeData.value.pricingRule)
 const isLoggedIn = computed(() => tokenStore.hasLogin)
+const prepaidAmount = computed(() => getFirstHourAmount() * rodCount.value)
 const submitText = computed(() => {
   if (!isLoggedIn.value) {
     return '去登录'
@@ -59,14 +61,26 @@ async function handleSubmit() {
     return
   }
 
+  if (rodCount.value <= 0) {
+    showToast('请选择杆数')
+    return
+  }
+
+  const confirmed = await confirmCreateOrder()
+
+  if (!confirmed) {
+    return
+  }
+
   submitting.value = true
 
   try {
     const res = await createWalkInOrder({
       customerPhone: customerPhone.value,
+      rodCount: rodCount.value,
       remark: remark.value,
     })
-    showToast('开单成功', 'success')
+    showToast(res.status === 'pending_payment' ? '请先支付首小时费用' : '开单成功', 'success')
 
     setTimeout(() => {
       uni.redirectTo({
@@ -111,6 +125,29 @@ function getFirstHourAmount() {
 
 function getExtraPricePerHour() {
   return pricingRule.value?.extraPricePerHour || pricingRule.value?.pricePerHour || 0
+}
+
+function handleChangeRodCount(delta: number) {
+  rodCount.value = Math.min(Math.max(rodCount.value + delta, 1), 20)
+}
+
+function confirmCreateOrder() {
+  const firstHourAmount = getFirstHourAmount()
+
+  return new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: '确认现场开单',
+      content: `本次 ${rodCount.value} 支杆，首小时 ${formatPrice(firstHourAmount)}/支，需预付 ${formatPrice(prepaidAmount.value)}。确认后将创建订单。`,
+      confirmText: '确认开单',
+      cancelText: '再看看',
+      success: (res) => {
+        resolve(res.confirm)
+      },
+      fail: () => {
+        resolve(false)
+      },
+    })
+  })
 }
 
 function showToast(title: string, icon: UniApp.ShowToastOptions['icon'] = 'none') {
@@ -182,6 +219,9 @@ onPullDownRefresh(() => {
           <view class="pricing-card__meta">
             最低 {{ formatDuration(pricingRule.minimumMinutes) }} · 按 {{ formatDuration(pricingRule.unitMinutes) }} 计费
           </view>
+          <view class="pricing-card__prepaid">
+            首小时预付 {{ formatPrice(prepaidAmount) }}
+          </view>
         </view>
         <view v-else class="walk-in-placeholder walk-in-placeholder--inner">
           门店暂未配置现场计费规则
@@ -191,6 +231,25 @@ onPullDownRefresh(() => {
       <view class="walk-in-section">
         <view class="walk-in-section__title">
           开单信息
+        </view>
+        <view class="form-field">
+          <view class="form-field__label">
+            杆数
+          </view>
+          <view class="rod-stepper">
+            <button class="rod-stepper__btn" :disabled="rodCount <= 1" @click="handleChangeRodCount(-1)">
+              -
+            </button>
+            <view class="rod-stepper__value">
+              {{ rodCount }} 支
+            </view>
+            <button class="rod-stepper__btn" :disabled="rodCount >= 20" @click="handleChangeRodCount(1)">
+              +
+            </button>
+          </view>
+          <view class="form-field__hint">
+            后续可在同一订单内支持单支杆独立停杆和续钟。
+          </view>
         </view>
         <view class="form-field">
           <view class="form-field__label">
@@ -352,6 +411,17 @@ onPullDownRefresh(() => {
     font-size: 24rpx;
     line-height: 1.4;
   }
+
+  &__prepaid {
+    margin-top: 18rpx;
+    border-radius: 8rpx;
+    background: #fff7df;
+    padding: 16rpx 18rpx;
+    color: #c9472b;
+    font-size: 25rpx;
+    font-weight: 700;
+    line-height: 1.35;
+  }
 }
 
 .form-field {
@@ -385,6 +455,48 @@ onPullDownRefresh(() => {
     height: 128rpx;
     padding: 18rpx 20rpx;
     line-height: 1.45;
+  }
+
+  &__hint {
+    margin-top: 12rpx;
+    color: #84918c;
+    font-size: 22rpx;
+    line-height: 1.4;
+  }
+}
+
+.rod-stepper {
+  display: grid;
+  grid-template-columns: 76rpx 1fr 76rpx;
+  align-items: center;
+  overflow: hidden;
+  border: 2rpx solid #dfe8e3;
+  border-radius: 8rpx;
+  background: #ffffff;
+
+  &__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 76rpx;
+    margin: 0;
+    border-radius: 0;
+    background: #f4f7f2;
+    color: #1f6b56;
+    font-size: 34rpx;
+    line-height: 76rpx;
+
+    &[disabled] {
+      color: #b7c2bd;
+    }
+  }
+
+  &__value {
+    color: #17211d;
+    text-align: center;
+    font-size: 28rpx;
+    font-weight: 700;
+    line-height: 1.3;
   }
 }
 

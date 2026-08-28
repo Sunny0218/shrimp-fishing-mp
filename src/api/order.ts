@@ -1,5 +1,5 @@
 import type { CloudFunctionResponse } from './types/home'
-import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, CreateWalkInOrderParams, CreateWalkInOrderResult, FinishTimingOrderParams, FinishTimingOrderResult, GetMyOrdersParams, GetOrdersParams, MyOrdersData, OrderDetailData, OrdersData, PayCheckoutOrderParams, PayCheckoutOrderResult, PayOrderParams, PayOrderResult } from './types/order'
+import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, CreateWalkInOrderParams, CreateWalkInOrderResult, FinishTimingOrderParams, FinishTimingOrderResult, GetMyOrdersParams, GetOrdersParams, MyOrdersData, OrderDetailData, OrdersData, PayCheckoutOrderParams, PayCheckoutOrderResult, PayOrderParams, PayOrderResult, UpdateRodSessionParams, UpdateRodSessionResult } from './types/order'
 import { assertLogin, resolveCloudResponse } from './authGuard'
 import { callCloudFunction } from '@/cloud'
 
@@ -40,6 +40,7 @@ export async function createWalkInOrder(params: CreateWalkInOrderParams) {
 
   const requestParams: CreateWalkInOrderParams = {
     customerPhone: params.customerPhone?.trim() || '',
+    rodCount: params.rodCount,
     remark: params.remark?.trim() || '',
   }
 
@@ -258,4 +259,34 @@ export async function payCheckoutOrder(params: PayCheckoutOrderParams) {
   // #endif
 
   throw new Error('当前平台暂不支持支付结算金额')
+}
+
+export async function updateRodSession(params: UpdateRodSessionParams) {
+  assertLogin('请先登录后操作杆位')
+
+  const orderId = params.orderId.trim()
+  const rodSessionId = params.rodSessionId.trim()
+
+  if (!orderId) {
+    throw new Error('缺少订单 ID')
+  }
+
+  if (!rodSessionId) {
+    throw new Error('缺少杆位 ID')
+  }
+
+  // #ifdef MP-WEIXIN
+  const res = await callCloudFunction<CloudFunctionResponse<UpdateRodSessionResult>, Record<string, unknown>>(
+    'updateRodSession',
+    {
+      orderId,
+      rodSessionId,
+      action: params.action,
+    },
+  )
+
+  return resolveCloudResponse(res, '杆位操作失败')
+  // #endif
+
+  throw new Error('当前平台暂不支持杆位操作')
 }

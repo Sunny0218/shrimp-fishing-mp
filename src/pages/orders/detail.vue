@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { Order, OrderDateValue, OrderDetailData, OrderStatus, PricingRuleSnapshot } from '@/api/types/order'
+import type { Order, OrderDateValue, OrderDetailData, OrderStatus, PricingRuleSnapshot, RodSession } from '@/api/types/order'
 import qrcode from 'qrcode-generator'
 import { storeToRefs } from 'pinia'
 import { requestNotificationSubscription } from '@/api/notification'
-import { cancelOrder, getOrderDetail, payCheckoutOrder, payOrder } from '@/api/order'
+import { cancelOrder, getOrderDetail, payCheckoutOrder, payOrder, updateRodSession } from '@/api/order'
 import type { NotificationTemplateKey } from '@/config/notificationTemplates'
 import { activeOrderNotificationTemplateIds, activeOrderNotificationTemplateKeys, notificationTemplateKeys } from '@/config/notificationTemplates'
 import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
@@ -21,6 +21,7 @@ const cancelling = ref(false)
 const payingOrder = ref(false)
 const payingCheckout = ref(false)
 const subscribingNotification = ref(false)
+const operatingRodSessionId = ref('')
 const notificationAuthorizationBlocked = ref(false)
 const optimisticNotificationTemplateKeys = ref<NotificationTemplateKey[]>([])
 const errorText = ref('')
@@ -234,6 +235,24 @@ const canShowTimingCard = computed(() => !!startedAtTime.value && ['in_progress'
 const canManageTiming = computed(() => ['staff', 'admin', 'super_admin'].includes(userInfo.value.role || ''))
 const canFinishTiming = computed(() => canManageTiming.value && order.value?.status === 'in_progress')
 const canWaiveOvertime = computed(() => ['admin', 'super_admin'].includes(userInfo.value.role || ''))
+const meteredRodSessions = computed<RodSession[]>(() => {
+  if (order.value?.orderType !== 'metered') {
+    return []
+  }
+
+  if (Array.isArray(order.value.rodSessions) && order.value.rodSessions.length) {
+    return order.value.rodSessions
+  }
+
+  return Array.from({ length: Math.max(Math.floor(Number(order.value.rodCount || 1)), 1) }, (_, index) => ({
+    id: `rod_${index + 1}`,
+    label: `${index + 1}号杆`,
+    status: order.value?.status === 'in_progress' ? 'in_progress' : 'pending',
+    startedAt: order.value?.startedAt || order.value?.checkedInAt,
+    paidAmount: getFirstHourAmount(),
+  }))
+})
+const canShowRodSessions = computed(() => order.value?.orderType === 'metered' && meteredRodSessions.value.length > 0)
 const remainingMilliseconds = computed(() => {
   if (!expectedEndedAtTime.value) {
     return 0
@@ -472,6 +491,10 @@ function getRefundableAmount(orderData = order.value) {
   )
 }
 
+function getFirstHourAmount() {
+  return pricingRuleSnapshot.value?.firstHourAmount || pricingRuleSnapshot.value?.pricePerHour || 0
+}
+
 function formatDuration(minutes?: number) {
   const duration = minutes || 0
 
@@ -547,6 +570,130 @@ function formatCountdown(milliseconds: number) {
   const pad = (num: number) => `${num}`.padStart(2, '0')
 
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
+}
+
+function getRodStatusText(session: RodSession) {
+  const statusTextMap: Record<string, string> = {
+    pending: '待开始',
+    in_progress: '计时中',
+    stopped: '已停杆',
+    completed: '已完成',
+  }
+
+  return statusTextMap[session.status] || session.status
+}
+
+function getRodStatusClass(session: RodSession) {
+  return {
+    'rod-session__status--running': session.status === 'in_progress',
+    'rod-session__status--stopped': session.status === 'stopped',
+    'rod-session__status--completed': session.status === 'completed',
+  }
+}
+
+function getRodDurationMinutes(session: RodSession) {
+  if (session.actualDurationMinutes) {
+    return session.actualDurationMinutes
+  }
+
+  if (Array.isArray(session.segments) && session.segments.length) {
+    return session.segments.reduce((total, segment) => {
+      const startedAt = getDateTimeValue(segment.startedAt)
+      const stoppedAt = getDateTimeValue(segment.stoppedAt) || currentTime.value
+
+      if (!startedAt || stoppedAt <= startedAt) {
+        return total
+      }
+
+      return total + Math.ceil((stoppedAt - startedAt) / 60 / 1000)
+    }, 0)
+  }
+
+  const startedAt = getDateTimeValue(session.startedAt || order.value?.startedAt || order.value?.checkedInAt)
+  const endedAt = getDateTimeValue(session.stoppedAt || session.endedAt) || currentTime.value
+
+  if (!startedAt || endedAt <= startedAt) {
+    return 0
+  }
+
+  return Math.ceil((endedAt - startedAt) / 60 / 1000)
+}
+
+function getRodAmount(session: RodSession) {
+  const rule = pricingRuleSnapshot.value
+  const firstHourAmount = rule?.firstHourAmount || rule?.pricePerHour || 0
+  const extraPricePerHour = rule?.extraPricePerHour || rule?.pricePerHour || 0
+  const unitMinutes = rule?.unitMinutes || 60
+
+  if (!firstHourAmount || !extraPricePerHour || unitMinutes <= 0) {
+    return Math.max(Number(session.amount || 0), Number(session.paidAmount || 0), getFirstHourAmount())
+  }
+
+  const billableMinutes = Math.max(getRodDurationMinutes(session), rule?.minimumMinutes || 0)
+  const extraMinutes = Math.max(billableMinutes - 60, 0)
+  const chargedExtraMinutes = extraMinutes > 0
+    ? Math.ceil(extraMinutes / unitMinutes) * unitMinutes
+    : 0
+
+  return firstHourAmount + Math.ceil((chargedExtraMinutes / 60) * extraPricePerHour)
+}
+
+function getRodCheckoutAmount(session: RodSession) {
+  return Math.max(getRodAmount(session) - Number(session.paidAmount || getFirstHourAmount()), 0)
+}
+
+function canStopRodSession(session: RodSession) {
+  return canManageTiming.value && order.value?.status === 'in_progress' && session.status === 'in_progress'
+}
+
+function canResumeRodSession(session: RodSession) {
+  return canManageTiming.value && order.value?.status === 'in_progress' && ['stopped', 'completed'].includes(session.status)
+}
+
+function handleUpdateRodSession(session: RodSession, action: 'stop' | 'resume') {
+  if (!order.value || operatingRodSessionId.value) {
+    return
+  }
+
+  const actionText = action === 'stop' ? '停杆' : '续钟'
+
+  uni.showModal({
+    title: `${actionText}${session.label}`,
+    content: action === 'stop'
+      ? `确认停止 ${session.label} 计时吗？其他支杆不受影响。`
+      : `确认让 ${session.label} 继续计时吗？系统会新增一段计时时间。`,
+    confirmText: actionText,
+    confirmColor: '#1f6b56',
+    success: async (res) => {
+      if (!res.confirm || !order.value) {
+        return
+      }
+
+      operatingRodSessionId.value = session.id
+
+      try {
+        await updateRodSession({
+          orderId: order.value._id,
+          rodSessionId: session.id,
+          action,
+        })
+        uni.showToast({
+          title: `${actionText}成功`,
+          icon: 'success',
+        })
+        await fetchOrderDetail(false)
+      }
+      catch (error) {
+        uni.showToast({
+          title: error instanceof Error ? error.message : `${actionText}失败`,
+          icon: 'none',
+        })
+      }
+      finally {
+        operatingRodSessionId.value = ''
+      }
+    },
+  })
 }
 
 function startCountdownTimer() {
@@ -1007,6 +1154,74 @@ onUnload(() => {
         </view>
       </view>
 
+      <view v-if="canShowRodSessions" class="order-card rod-session-card">
+        <view class="order-card__title">
+          杆位明细
+        </view>
+        <view class="rod-session-list">
+          <view v-for="session in meteredRodSessions" :key="session.id" class="rod-session">
+            <view class="rod-session__header">
+              <view class="rod-session__name">
+                {{ session.label }}
+              </view>
+              <view class="rod-session__status" :class="getRodStatusClass(session)">
+                {{ getRodStatusText(session) }}
+              </view>
+            </view>
+            <view class="rod-session__grid">
+              <view>
+                <view class="rod-session__label">
+                  已用时
+                </view>
+                <view class="rod-session__value">
+                  {{ formatDuration(getRodDurationMinutes(session)) }}
+                </view>
+              </view>
+              <view>
+                <view class="rod-session__label">
+                  当前金额
+                </view>
+                <view class="rod-session__value rod-session__value--price">
+                  {{ formatPrice(getRodAmount(session)) }}
+                </view>
+              </view>
+              <view>
+                <view class="rod-session__label">
+                  待补
+                </view>
+                <view class="rod-session__value">
+                  {{ formatPrice(getRodCheckoutAmount(session)) }}
+                </view>
+              </view>
+            </view>
+            <view v-if="session.startedAt" class="rod-session__time">
+              开始 {{ formatDateTime(session.startedAt) }}
+            </view>
+            <view v-if="session.stoppedAt" class="rod-session__time">
+              停杆 {{ formatDateTime(session.stoppedAt) }}
+            </view>
+            <view v-if="canStopRodSession(session) || canResumeRodSession(session)" class="rod-session__actions">
+              <button
+                v-if="canStopRodSession(session)"
+                class="rod-session__btn"
+                :disabled="operatingRodSessionId === session.id"
+                @click="handleUpdateRodSession(session, 'stop')"
+              >
+                {{ operatingRodSessionId === session.id ? '处理中...' : '停杆' }}
+              </button>
+              <button
+                v-if="canResumeRodSession(session)"
+                class="rod-session__btn rod-session__btn--secondary"
+                :disabled="operatingRodSessionId === session.id"
+                @click="handleUpdateRodSession(session, 'resume')"
+              >
+                {{ operatingRodSessionId === session.id ? '处理中...' : '续钟' }}
+              </button>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <view v-if="canPayCheckout" class="order-card checkout-card">
         <view class="order-card__header">
           <view class="order-card__title">
@@ -1085,13 +1300,29 @@ onUnload(() => {
         </view>
         <view v-if="order.orderType !== 'metered'" class="info-row">
           <text class="info-row__label">
-            建议人数/杆数
+            杆数
           </text>
           <text class="info-row__value">
-            {{ order.peopleCount }} 人 / {{ order.rodCount }} 根杆
+            {{ order.rodCount }} 支杆
           </text>
         </view>
         <template v-if="order.orderType === 'metered'">
+          <view class="info-row">
+            <text class="info-row__label">
+              杆数
+            </text>
+            <text class="info-row__value">
+              {{ order.rodCount }} 支杆
+            </text>
+          </view>
+          <view v-if="order.paidAmount" class="info-row">
+            <text class="info-row__label">
+              已预付首小时
+            </text>
+            <text class="info-row__value">
+              {{ formatPrice(order.paidAmount) }}
+            </text>
+          </view>
           <view class="info-row">
             <text class="info-row__label">
               首小时价格
@@ -1688,6 +1919,120 @@ onUnload(() => {
     font-size: 26rpx;
     font-weight: 600;
     line-height: 68rpx;
+  }
+}
+
+.rod-session-card {
+  .order-card__title {
+    margin-bottom: 20rpx;
+  }
+}
+
+.rod-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.rod-session {
+  border: 2rpx solid #e5eee9;
+  border-radius: 8rpx;
+  background: #fbfcfb;
+  padding: 22rpx;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18rpx;
+  }
+
+  &__name {
+    color: #17211d;
+    font-size: 30rpx;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  &__status {
+    flex-shrink: 0;
+    border-radius: 8rpx;
+    background: #f0f2ef;
+    padding: 7rpx 13rpx;
+    color: #718079;
+    font-size: 22rpx;
+    line-height: 1.2;
+
+    &--running {
+      background: #fff7df;
+      color: #c9472b;
+    }
+
+    &--stopped {
+      background: #e8f3ed;
+      color: #1f6b56;
+    }
+
+    &--completed {
+      background: #f0f2ef;
+      color: #718079;
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14rpx;
+    margin-top: 20rpx;
+  }
+
+  &__label {
+    color: #718079;
+    font-size: 22rpx;
+    line-height: 1.3;
+  }
+
+  &__value {
+    margin-top: 8rpx;
+    color: #17211d;
+    font-size: 25rpx;
+    font-weight: 700;
+    line-height: 1.3;
+
+    &--price {
+      color: #c9472b;
+    }
+  }
+
+  &__time {
+    margin-top: 14rpx;
+    color: #718079;
+    font-size: 23rpx;
+    line-height: 1.4;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 16rpx;
+    margin-top: 20rpx;
+  }
+
+  &__btn {
+    width: 160rpx;
+    min-height: 62rpx;
+    margin: 0;
+    border-radius: 8rpx;
+    background: #1f6b56;
+    color: #ffffff;
+    font-size: 25rpx;
+    font-weight: 600;
+    line-height: 62rpx;
+
+    &--secondary {
+      background: #f6c453;
+      color: #20312b;
+    }
   }
 }
 

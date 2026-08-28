@@ -359,7 +359,7 @@ onPullDownRefresh(() => {
               {{ packageItem.description || '门店精选套餐' }}
             </view>
             <view class="package-card__meta">
-              {{ formatDuration(packageItem.durationMinutes) }} · {{ packageItem.rodCount }} 根杆 · 建议 {{ packageItem.maxPeople }} 人
+              {{ formatDuration(packageItem.durationMinutes) }} · {{ packageItem.rodCount }} 支杆 · 建议 {{ packageItem.maxPeople }} 人
             </view>
           </view>
           <view class="package-card__side">

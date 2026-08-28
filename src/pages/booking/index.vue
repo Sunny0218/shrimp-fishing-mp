@@ -183,7 +183,7 @@ onShow(() => {
               {{ packageItem.name }}
             </view>
             <view class="package-card__meta">
-              {{ formatDuration(packageItem.durationMinutes) }} · {{ packageItem.rodCount }} 根杆
+              {{ formatDuration(packageItem.durationMinutes) }} · {{ packageItem.rodCount }} 支杆
             </view>
           </view>
           <view class="package-card__price">
@@ -251,7 +251,7 @@ onShow(() => {
           </view>
         </view>
         <text class="package-summary__value">
-          {{ selectedPackage.rodCount }} 根
+          {{ selectedPackage.rodCount }} 支
         </text>
       </view>
       <view class="package-summary">

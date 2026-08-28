@@ -5,6 +5,7 @@ cloud.init({
 })
 
 const db = cloud.database()
+const { createMockPaidPayment } = require('./paymentService')
 
 function fail(code, message) {
   return {
@@ -39,6 +40,28 @@ function createRandomCheckinCode() {
   return `${Math.floor(10000000 + Math.random() * 90000000)}`
 }
 
+function normalizeCount(value, defaultValue = 1) {
+  const count = Number(value)
+
+  if (!Number.isFinite(count)) {
+    return defaultValue
+  }
+
+  return Math.min(Math.max(Math.floor(count), defaultValue), 20)
+}
+
+async function getPaymentSettings() {
+  const settingsRes = await db.collection('settings').limit(1).get().catch(() => ({ data: [] }))
+  const settings = settingsRes.data[0] || {}
+  const paymentMode = settings.paymentMode === 'mock_pending_payment' ? 'mock_pending_payment' : 'mock_auto_paid'
+  const pendingPaymentExpireMinutes = Math.max(Math.floor(Number(settings.pendingPaymentExpireMinutes || 1)), 1)
+
+  return {
+    paymentMode,
+    pendingPaymentExpireMinutes,
+  }
+}
+
 async function createUniqueCheckinCode() {
   const maxRetryCount = 10
 
@@ -64,6 +87,7 @@ exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
   const customerPhone = normalizeString(event.customerPhone)
+  const rodCount = normalizeCount(event.rodCount)
   const remark = normalizeString(event.remark)
 
   if (!openid) {
@@ -101,8 +125,28 @@ exports.main = async (event = {}) => {
     }
 
     const now = new Date()
+    const paymentSettings = await getPaymentSettings()
+    const isPendingPaymentMode = paymentSettings.paymentMode === 'mock_pending_payment'
+    const orderStatus = isPendingPaymentMode ? 'pending_payment' : 'paid'
+    const paymentExpiredAt = isPendingPaymentMode
+      ? new Date(now.getTime() + paymentSettings.pendingPaymentExpireMinutes * 60 * 1000)
+      : null
     const orderNo = createOrderNo()
-    const checkinCode = await createUniqueCheckinCode()
+    const checkinCode = isPendingPaymentMode ? '' : await createUniqueCheckinCode()
+    const baseAmount = firstHourAmount * rodCount
+    const rodSessions = Array.from({ length: rodCount }, (_, index) => ({
+      id: `rod_${index + 1}`,
+      label: `${index + 1}号杆`,
+      status: 'pending',
+      startedAt: null,
+      stoppedAt: null,
+      endedAt: null,
+      actualDurationMinutes: 0,
+      chargedMinutes: 0,
+      amount: firstHourAmount,
+      paidAmount: isPendingPaymentMode ? 0 : firstHourAmount,
+      checkoutAmount: 0,
+    }))
     const orderData = {
       orderNo,
       userId: user._id,
@@ -111,10 +155,11 @@ exports.main = async (event = {}) => {
       orderType: 'metered',
       orderSource: 'walk_in',
       bookingMode: 'walk_in',
-      status: 'paid',
+      status: orderStatus,
       packageId: '',
       pricingRuleId: pricingRule._id,
-      rodCount: 1,
+      rodCount,
+      rodSessions,
       peopleCount: 1,
       pricingRuleSnapshot: {
         pricingRuleId: pricingRule._id,
@@ -125,47 +170,86 @@ exports.main = async (event = {}) => {
         minimumMinutes,
         unitMinutes,
       },
-      baseAmount: 0,
+      baseAmount,
       goodsAmount: 0,
       adjustAmount: 0,
       discountAmount: 0,
       overtimeAmount: 0,
       checkoutAmount: 0,
       waivedOvertimeAmount: 0,
-      paidAmount: 0,
-      finalAmount: 0,
+      paidAmount: isPendingPaymentMode ? 0 : baseAmount,
+      finalAmount: baseAmount,
       remark,
       adminRemark: '',
       checkinCode,
+      paymentExpiredAt,
       createdBy: user._id,
       createdAt: now,
       updatedAt: now,
     }
-    const result = await db.collection('orders').add({
-      data: orderData,
+
+    const result = await db.runTransaction(async (transaction) => {
+      const orderRes = await transaction.collection('orders').add({
+        data: orderData,
+      })
+
+      if (isPendingPaymentMode) {
+        return {
+          orderRes,
+          payment: null,
+        }
+      }
+
+      const payment = await createMockPaidPayment(transaction, {
+        order: orderData,
+        orderId: orderRes._id,
+        userId: user._id,
+        openid,
+        amount: baseAmount,
+        type: 'order',
+        now,
+      })
+
+      return {
+        orderRes,
+        payment,
+      }
     })
+
+    const responseData = {
+      orderId: result.orderRes._id,
+      orderNo,
+      status: orderData.status,
+      ...(checkinCode ? { checkinCode } : {}),
+      pricingRule: {
+        _id: pricingRule._id,
+        name: pricingRule.name || '现场计时标准价',
+        description: pricingRule.description || '',
+        pricePerHour: pricePerHour > 0 ? pricePerHour : firstHourAmount,
+        firstHourAmount,
+        extraPricePerHour,
+        minimumMinutes,
+        unitMinutes,
+        status: pricingRule.status || 'active',
+        sort: pricingRule.sort || 0,
+      },
+    }
+
+    if (result.payment) {
+      responseData.payment = {
+        _id: result.payment._id,
+        paymentNo: result.payment.paymentNo,
+        amount: result.payment.amount,
+        type: result.payment.type,
+        status: result.payment.status,
+        paidAt: result.payment.paidAt,
+      }
+    }
 
     return {
       code: 0,
       message: 'ok',
-      data: {
-        orderId: result._id,
-        orderNo,
-        status: orderData.status,
-        checkinCode,
-        pricingRule: {
-          _id: pricingRule._id,
-          name: pricingRule.name || '现场计时标准价',
-          description: pricingRule.description || '',
-          pricePerHour: pricePerHour > 0 ? pricePerHour : firstHourAmount,
-          firstHourAmount,
-          extraPricePerHour,
-          minimumMinutes,
-          unitMinutes,
-          status: pricingRule.status || 'active',
-          sort: pricingRule.sort || 0,
-        },
-      },
+      data: responseData,
     }
   }
   catch (error) {

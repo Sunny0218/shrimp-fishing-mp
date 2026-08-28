@@ -335,7 +335,7 @@ function getOrderTimes(order: Order) {
 }
 
 function getOrderMeta(order: Order) {
-  return `${order.peopleCount} 人 / ${order.rodCount} 根杆`
+  return `${order.rodCount} 支杆`
 }
 
 function formatPrice(price?: number) {

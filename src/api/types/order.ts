@@ -55,6 +55,29 @@ export interface OrderReminderState {
   customerCompletedSentAt?: OrderDateValue
 }
 
+export type RodSessionStatus = 'pending' | 'in_progress' | 'stopped' | 'completed'
+
+export interface RodSessionSegment {
+  startedAt: OrderDateValue
+  stoppedAt?: OrderDateValue | null
+  actualDurationMinutes?: number
+}
+
+export interface RodSession {
+  id: string
+  label: string
+  status: RodSessionStatus
+  startedAt?: OrderDateValue
+  stoppedAt?: OrderDateValue
+  endedAt?: OrderDateValue
+  segments?: RodSessionSegment[]
+  actualDurationMinutes?: number
+  chargedMinutes?: number
+  amount?: number
+  paidAmount?: number
+  checkoutAmount?: number
+}
+
 export interface Order {
   _id: string
   orderNo: string
@@ -69,6 +92,7 @@ export interface Order {
   packageId: string
   pricingRuleId?: string
   rodCount: number
+  rodSessions?: RodSession[]
   peopleCount: number
   customerPhone?: string
   packageSnapshot?: PackageSnapshot
@@ -136,15 +160,17 @@ export interface CreateOrderResult {
 
 export interface CreateWalkInOrderParams {
   customerPhone?: string
+  rodCount: number
   remark?: string
 }
 
 export interface CreateWalkInOrderResult {
   orderId: string
   orderNo: string
-  status: Extract<OrderStatus, 'paid'>
-  checkinCode: string
+  status: Extract<OrderStatus, 'pending_payment' | 'paid'>
+  checkinCode?: string
   pricingRule: PricingRule
+  payment?: PaymentRecord | null
 }
 
 export interface OrderDetailData {
@@ -242,6 +268,18 @@ export interface FinishTimingOrderParams {
 export interface FinishTimingOrderResult {
   order: Order
   logSaved?: boolean
+}
+
+export type UpdateRodSessionAction = 'stop' | 'resume'
+
+export interface UpdateRodSessionParams {
+  orderId: string
+  rodSessionId: string
+  action: UpdateRodSessionAction
+}
+
+export interface UpdateRodSessionResult {
+  order: Order
 }
 
 export interface PayCheckoutOrderParams {
