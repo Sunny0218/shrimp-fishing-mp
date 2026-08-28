@@ -9,6 +9,38 @@ const editRoles = ['admin', 'super_admin']
 const validBookingModes = ['walk_in', 'slot']
 const validPaymentModes = ['mock_auto_paid', 'mock_pending_payment']
 const shopSettingsSeedKey = 'default-shop-settings'
+const notificationTemplateConfig = {
+  reservationNotice: {
+    templateId: '8O7iDjllM5Yi1TBFTaxwwubW9kuNbr77rtbOQnjeaSc',
+    title: '预约通知',
+    scene: 'reservation_notice',
+    fields: {
+      customerName: 'name1',
+      appointmentTime: 'date3',
+      appointmentItem: 'thing13',
+      appointmentStatus: 'phrase14',
+      remark: 'thing8',
+    },
+  },
+  orderStatus: {
+    templateId: 'swMnYem-qmhfPYmL94qIfrFb2Kfws1xT2hjgsN37Pso',
+    title: '订单状态提醒',
+    scene: 'order_status',
+    fields: {
+      orderNo: 'character_string6',
+      orderStatus: 'phrase2',
+      orderAmount: 'amount40',
+      updatedAt: 'time20',
+      remark: 'thing5',
+    },
+  },
+}
+const defaultNotificationSettings = {
+  customerEnabled: true,
+  staffEnabled: true,
+  reminderBeforeMinutes: 10,
+  templates: notificationTemplateConfig,
+}
 
 function fail(code, message) {
   return {
@@ -80,12 +112,24 @@ async function deleteRemovedCoverImages(fileList) {
   }
 }
 
+function normalizeNotificationSettings(settings) {
+  const reminderBeforeMinutes = Math.max(Math.floor(Number(settings?.reminderBeforeMinutes || defaultNotificationSettings.reminderBeforeMinutes)), 1)
+
+  return {
+    customerEnabled: settings?.customerEnabled !== false,
+    staffEnabled: settings?.staffEnabled !== false,
+    reminderBeforeMinutes,
+    templates: notificationTemplateConfig,
+  }
+}
+
 function normalizeSettings(event) {
   const shopName = normalizeString(event.shopName)
   const address = normalizeString(event.address)
   const phone = normalizeString(event.phone)
   const notice = normalizeString(event.notice)
   const coverImages = normalizeCoverImages(event.coverImages)
+  const notificationSettings = normalizeNotificationSettings(event.notificationSettings)
   const bookingMode = validBookingModes.includes(event.bookingMode) ? event.bookingMode : 'walk_in'
   const paymentMode = validPaymentModes.includes(event.paymentMode) ? event.paymentMode : 'mock_auto_paid'
   const pendingPaymentExpireMinutes = Math.max(Math.floor(Number(event.pendingPaymentExpireMinutes || 1)), 0)
@@ -128,6 +172,7 @@ function normalizeSettings(event) {
       bookingMode,
       paymentMode,
       pendingPaymentExpireMinutes,
+      notificationSettings,
     },
   }
 }

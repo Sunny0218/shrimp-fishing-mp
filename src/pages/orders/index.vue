@@ -5,6 +5,7 @@ import type { Order, OrderStatus } from '@/api/types/order'
 import { getMyOrders } from '@/api/order'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
+import { useTokenStore } from '@/store'
 import { getOrderTimeItems } from '@/utils/orderDisplay'
 
 definePage({
@@ -43,13 +44,22 @@ const errorText = ref('')
 const activeStatus = ref<OrderStatus | 'all'>('all')
 const orderList = ref<Order[]>([])
 const hasFetchedOrders = ref(false)
+const tokenStore = useTokenStore()
 const { loading: requestLoading, runLatest } = useLatestRequest()
+const isLoggedIn = computed(() => tokenStore.hasLogin)
 const showInitialLoading = computed(() => requestLoading.value && !hasFetchedOrders.value)
 const showLoadingOverlay = computed(() => requestLoading.value && hasFetchedOrders.value)
 useNativeLoading(showLoadingOverlay, '切换中')
 
 async function fetchOrders(status: OrderStatus | 'all' = activeStatus.value) {
   errorText.value = ''
+
+  if (!isLoggedIn.value) {
+    orderList.value = []
+    hasFetchedOrders.value = true
+    uni.stopPullDownRefresh()
+    return
+  }
 
   await runLatest(
     () => getMyOrders({ status }),
@@ -78,6 +88,12 @@ function handleChangeStatus(statusValue: string) {
 
   activeStatus.value = status
   fetchOrders(status)
+}
+
+function handleGoLogin() {
+  uni.navigateTo({
+    url: `/pages/auth/login?redirect=${encodeURIComponent('/pages/orders/index')}`,
+  })
 }
 
 function handleViewDetail(order: Order) {
@@ -129,10 +145,19 @@ function getCheckoutText(order: Order) {
 }
 
 onLoad(() => {
+  tokenStore.updateNowTime()
   fetchOrders()
 })
 
 onShow(() => {
+  tokenStore.updateNowTime()
+
+  if (!isLoggedIn.value) {
+    orderList.value = []
+    hasFetchedOrders.value = true
+    return
+  }
+
   if (hasFetchedOrders.value) {
     fetchOrders()
   }
@@ -157,6 +182,13 @@ onPullDownRefresh(() => {
     <view class="orders-page__content">
       <view v-if="showInitialLoading" class="orders-page__placeholder">
         正在加载订单...
+      </view>
+
+      <view v-else-if="!isLoggedIn" class="orders-page__error">
+        <text>登录后查看你的预约和订单</text>
+        <button class="orders-page__retry" @click="handleGoLogin">
+          去登录
+        </button>
       </view>
 
       <view v-else-if="errorText" class="orders-page__error">

@@ -1,5 +1,7 @@
 import type { BusinessHour, CloudFunctionResponse, HomeData, PricingRule, SaveShopSettingsParams, SaveShopSettingsResult, ShopSettings, ShrimpPackage, TimeSlot } from './types/home'
+import { assertLogin, resolveCloudResponse } from './authGuard'
 import { callCloudFunction } from '@/cloud'
+import { defaultNotificationSettings } from '@/config/notificationTemplates'
 
 export const defaultHomeData: HomeData = {
   settings: {
@@ -18,6 +20,7 @@ export const defaultHomeData: HomeData = {
     bookingMode: 'walk_in',
     paymentMode: 'mock_auto_paid',
     pendingPaymentExpireMinutes: 1,
+    notificationSettings: defaultNotificationSettings,
   },
   packages: [],
   timeSlots: [],
@@ -40,6 +43,8 @@ export async function getHomeData() {
 }
 
 export async function saveShopSettings(params: SaveShopSettingsParams) {
+  assertLogin('请先登录后保存门店信息')
+
   const requestParams: SaveShopSettingsParams = {
     shopName: params.shopName.trim(),
     address: params.address.trim(),
@@ -54,6 +59,7 @@ export async function saveShopSettings(params: SaveShopSettingsParams) {
     bookingMode: params.bookingMode,
     paymentMode: params.paymentMode,
     pendingPaymentExpireMinutes: params.pendingPaymentExpireMinutes,
+    notificationSettings: params.notificationSettings,
   }
 
   // #ifdef MP-WEIXIN
@@ -62,12 +68,9 @@ export async function saveShopSettings(params: SaveShopSettingsParams) {
     { ...requestParams },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '门店信息保存失败')
-  }
-
+  const data = resolveCloudResponse(res, '门店信息保存失败')
   return {
-    settings: normalizeSettings(res.data.settings),
+    settings: normalizeSettings(data.settings),
   }
   // #endif
 
@@ -96,6 +99,33 @@ function normalizeSettings(settings?: Partial<ShopSettings>): ShopSettings {
     notice: settings?.notice || defaultHomeData.settings.notice,
     paymentMode,
     pendingPaymentExpireMinutes: Math.max(Math.floor(pendingPaymentExpireMinutes), 1),
+    notificationSettings: normalizeNotificationSettings(settings?.notificationSettings),
+  }
+}
+
+function normalizeNotificationSettings(settings?: Partial<ShopSettings['notificationSettings']>) {
+  return {
+    ...defaultNotificationSettings,
+    ...settings,
+    reminderBeforeMinutes: Math.max(Math.floor(Number(settings?.reminderBeforeMinutes || defaultNotificationSettings.reminderBeforeMinutes)), 1),
+    templates: {
+      reservationNotice: {
+        ...defaultNotificationSettings.templates.reservationNotice,
+        ...settings?.templates?.reservationNotice,
+        fields: {
+          ...defaultNotificationSettings.templates.reservationNotice.fields,
+          ...settings?.templates?.reservationNotice?.fields,
+        },
+      },
+      orderStatus: {
+        ...defaultNotificationSettings.templates.orderStatus,
+        ...settings?.templates?.orderStatus,
+        fields: {
+          ...defaultNotificationSettings.templates.orderStatus.fields,
+          ...settings?.templates?.orderStatus?.fields,
+        },
+      },
+    },
   }
 }
 

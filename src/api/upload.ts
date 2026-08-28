@@ -1,3 +1,4 @@
+import { assertLogin } from './authGuard'
 import { initWechatCloud } from '@/cloud'
 
 export interface UploadCloudFileResult {
@@ -19,6 +20,8 @@ function createCloudPath(filePath: string) {
 }
 
 export async function uploadShopCoverImage(tempFilePath: string): Promise<UploadCloudFileResult> {
+  assertLogin('请先登录后上传封面图')
+
   const safeFilePath = tempFilePath.trim()
 
   if (!safeFilePath) {

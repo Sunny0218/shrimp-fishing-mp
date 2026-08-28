@@ -1,8 +1,11 @@
 import type { CloudFunctionResponse } from './types/home'
 import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, CreateWalkInOrderParams, CreateWalkInOrderResult, FinishTimingOrderParams, FinishTimingOrderResult, GetMyOrdersParams, GetOrdersParams, MyOrdersData, OrderDetailData, OrdersData, PayCheckoutOrderParams, PayCheckoutOrderResult, PayOrderParams, PayOrderResult } from './types/order'
+import { assertLogin, resolveCloudResponse } from './authGuard'
 import { callCloudFunction } from '@/cloud'
 
 export async function createOrder(params: CreateOrderParams) {
+  assertLogin('请先登录后再预约')
+
   const requestParams: CreateOrderParams = {
     packageId: params.packageId.trim(),
     remark: params.remark?.trim() || '',
@@ -26,17 +29,15 @@ export async function createOrder(params: CreateOrderParams) {
     { ...requestParams },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '预约创建失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '预约创建失败')
   // #endif
 
   throw new Error('当前平台暂不支持创建预约')
 }
 
 export async function createWalkInOrder(params: CreateWalkInOrderParams) {
+  assertLogin('请先登录后再现场开单')
+
   const requestParams: CreateWalkInOrderParams = {
     customerPhone: params.customerPhone?.trim() || '',
     remark: params.remark?.trim() || '',
@@ -48,17 +49,15 @@ export async function createWalkInOrder(params: CreateWalkInOrderParams) {
     { ...requestParams },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '现场开单失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '现场开单失败')
   // #endif
 
   throw new Error('当前平台暂不支持现场开单')
 }
 
 export async function getOrderDetail(orderId: string) {
+  assertLogin('请先登录后查看订单详情')
+
   const safeOrderId = orderId.trim()
 
   if (!safeOrderId) {
@@ -73,17 +72,15 @@ export async function getOrderDetail(orderId: string) {
     },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '订单详情获取失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '订单详情获取失败')
   // #endif
 
   throw new Error('当前平台暂不支持查询订单详情')
 }
 
 export async function getMyOrders(params: GetMyOrdersParams = {}) {
+  assertLogin('请先登录后查看我的订单')
+
   // #ifdef MP-WEIXIN
   const res = await callCloudFunction<CloudFunctionResponse<MyOrdersData>, Record<string, unknown>>(
     'getMyOrders',
@@ -92,11 +89,7 @@ export async function getMyOrders(params: GetMyOrdersParams = {}) {
     },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '我的订单获取失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '我的订单获取失败')
   // #endif
 
   return {
@@ -107,6 +100,8 @@ export async function getMyOrders(params: GetMyOrdersParams = {}) {
 }
 
 export async function getOrders(params: GetOrdersParams = {}) {
+  assertLogin('请先登录后查看门店订单')
+
   // #ifdef MP-WEIXIN
   const res = await callCloudFunction<CloudFunctionResponse<OrdersData>, Record<string, unknown>>(
     'getOrders',
@@ -118,11 +113,7 @@ export async function getOrders(params: GetOrdersParams = {}) {
     },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '门店订单获取失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '门店订单获取失败')
   // #endif
 
   return {
@@ -145,6 +136,8 @@ export async function getOrders(params: GetOrdersParams = {}) {
 }
 
 export async function cancelOrder(params: CancelOrderParams) {
+  assertLogin('请先登录后取消预约')
+
   const orderId = params.orderId.trim()
 
   if (!orderId) {
@@ -159,17 +152,15 @@ export async function cancelOrder(params: CancelOrderParams) {
     },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '取消预约失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '取消预约失败')
   // #endif
 
   throw new Error('当前平台暂不支持取消预约')
 }
 
 export async function payOrder(params: PayOrderParams) {
+  assertLogin('请先登录后支付订单')
+
   const orderId = params.orderId.trim()
 
   if (!orderId) {
@@ -184,17 +175,15 @@ export async function payOrder(params: PayOrderParams) {
     },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '订单支付失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '订单支付失败')
   // #endif
 
   throw new Error('当前平台暂不支持订单支付')
 }
 
 export async function checkInOrder(params: CheckInOrderParams) {
+  assertLogin('请先登录后开始计时')
+
   const checkinCode = params.checkinCode.trim()
   const orderId = params.orderId?.trim()
 
@@ -211,17 +200,15 @@ export async function checkInOrder(params: CheckInOrderParams) {
     },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '订单核销失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '订单核销失败')
   // #endif
 
   throw new Error('当前平台暂不支持核销订单')
 }
 
 export async function finishTimingOrder(params: FinishTimingOrderParams) {
+  assertLogin('请先登录后结束计时')
+
   const orderId = params.orderId.trim()
 
   if (!orderId) {
@@ -244,17 +231,15 @@ export async function finishTimingOrder(params: FinishTimingOrderParams) {
     },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '结束计时失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '结束计时失败')
   // #endif
 
   throw new Error('当前平台暂不支持结束计时')
 }
 
 export async function payCheckoutOrder(params: PayCheckoutOrderParams) {
+  assertLogin('请先登录后支付结算金额')
+
   const orderId = params.orderId.trim()
 
   if (!orderId) {
@@ -269,11 +254,7 @@ export async function payCheckoutOrder(params: PayCheckoutOrderParams) {
     },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '支付结算金额失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '支付结算金额失败')
   // #endif
 
   throw new Error('当前平台暂不支持支付结算金额')

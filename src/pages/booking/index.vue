@@ -2,6 +2,7 @@
 import type { HomeData, ShrimpPackage, TimeSlot } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
 import { createOrder } from '@/api/order'
+import { useTokenStore } from '@/store'
 
 definePage({
   style: {
@@ -14,6 +15,7 @@ const loading = ref(false)
 const submitting = ref(false)
 const selectedPackageId = ref('')
 const selectedSlotId = ref('')
+const tokenStore = useTokenStore()
 
 const packageList = computed(() => homeData.value.packages)
 const bookingMode = computed(() => homeData.value.settings.bookingMode || 'walk_in')
@@ -21,6 +23,14 @@ const isSlotBookingMode = computed(() => bookingMode.value === 'slot')
 const timeSlotList = computed(() => homeData.value.timeSlots.filter(slot => slot.status === 'available' && getSlotRemaining(slot) > 0))
 const selectedPackage = computed(() => packageList.value.find(item => item._id === selectedPackageId.value))
 const selectedSlot = computed(() => timeSlotList.value.find(item => item._id === selectedSlotId.value))
+const isLoggedIn = computed(() => tokenStore.hasLogin)
+const submitText = computed(() => {
+  if (!isLoggedIn.value) {
+    return '去登录'
+  }
+
+  return submitting.value ? '提交中...' : '提交预约'
+})
 
 async function fetchBookingData(packageId?: string) {
   loading.value = true
@@ -69,6 +79,11 @@ function handleSelectPackage(packageItem: ShrimpPackage) {
 }
 
 async function handleSubmit() {
+  if (!isLoggedIn.value) {
+    goLogin()
+    return
+  }
+
   if (!selectedPackage.value) {
     uni.showToast({
       title: '请选择套餐',
@@ -116,8 +131,21 @@ async function handleSubmit() {
   }
 }
 
+function goLogin() {
+  const query = selectedPackageId.value ? `?packageId=${selectedPackageId.value}` : ''
+
+  uni.navigateTo({
+    url: `/pages/auth/login?redirect=${encodeURIComponent(`/pages/booking/index${query}`)}`,
+  })
+}
+
 onLoad((query) => {
+  tokenStore.updateNowTime()
   fetchBookingData(typeof query?.packageId === 'string' ? query.packageId : '')
+})
+
+onShow(() => {
+  tokenStore.updateNowTime()
 })
 </script>
 
@@ -251,7 +279,7 @@ onLoad((query) => {
         </view>
       </view>
       <button class="booking-page__submit" :disabled="loading || submitting" @click="handleSubmit">
-        提交预约
+        {{ submitText }}
       </button>
     </view>
   </view>

@@ -2,6 +2,7 @@
 import type { HomeData } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
 import { createWalkInOrder } from '@/api/order'
+import { useTokenStore } from '@/store'
 
 definePage({
   style: {
@@ -16,7 +17,16 @@ const remark = ref('')
 const loading = ref(false)
 const submitting = ref(false)
 const errorText = ref('')
+const tokenStore = useTokenStore()
 const pricingRule = computed(() => homeData.value.pricingRule)
+const isLoggedIn = computed(() => tokenStore.hasLogin)
+const submitText = computed(() => {
+  if (!isLoggedIn.value) {
+    return '去登录'
+  }
+
+  return submitting.value ? '开单中...' : '确认开单'
+})
 
 async function fetchData() {
   loading.value = true
@@ -36,6 +46,11 @@ async function fetchData() {
 
 async function handleSubmit() {
   if (submitting.value) {
+    return
+  }
+
+  if (!isLoggedIn.value) {
+    goLogin()
     return
   }
 
@@ -65,6 +80,12 @@ async function handleSubmit() {
   finally {
     submitting.value = false
   }
+}
+
+function goLogin() {
+  uni.navigateTo({
+    url: `/pages/auth/login?redirect=${encodeURIComponent('/pages/walk-in/index')}`,
+  })
 }
 
 function formatPrice(price?: number) {
@@ -100,7 +121,12 @@ function showToast(title: string, icon: UniApp.ShowToastOptions['icon'] = 'none'
 }
 
 onLoad(() => {
+  tokenStore.updateNowTime()
   fetchData()
+})
+
+onShow(() => {
+  tokenStore.updateNowTime()
 })
 
 onPullDownRefresh(() => {
@@ -182,10 +208,10 @@ onPullDownRefresh(() => {
 
       <button
         class="walk-in-submit"
-        :disabled="submitting || !pricingRule"
+        :disabled="submitting || (isLoggedIn && !pricingRule)"
         @click="handleSubmit"
       >
-        {{ submitting ? '开单中...' : '确认开单' }}
+        {{ submitText }}
       </button>
     </view>
   </view>

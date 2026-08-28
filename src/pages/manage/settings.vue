@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { BookingMode, BusinessHour, PaymentMode, ShopSettings } from '@/api/types/home'
+import type { BookingMode, BusinessHour, NotificationSettings, PaymentMode, ShopSettings } from '@/api/types/home'
 import { defaultHomeData, getHomeData, saveShopSettings } from '@/api/home'
+import { defaultNotificationSettings, notificationTemplateConfig } from '@/config/notificationTemplates'
 import { uploadShopCoverImage } from '@/api/upload'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
 import { markHomeDataDirty } from '@/utils/homeDataRefresh'
@@ -21,6 +22,7 @@ interface SettingsForm {
   bookingMode: BookingMode
   paymentMode: PaymentMode
   pendingPaymentExpireMinutes: string
+  notificationSettings: NotificationSettings
   businessHours: BusinessHour[]
 }
 
@@ -37,6 +39,17 @@ const paymentModeOptions: Array<{ label: string, value: PaymentMode, desc: strin
   { label: '自动模拟支付', value: 'mock_auto_paid', desc: '提交预约后自动支付成功，订单直接进入待到店' },
   { label: '停留待支付', value: 'mock_pending_payment', desc: '提交预约后停留在待支付，用于测试支付和未支付取消' },
 ]
+const notificationFieldLabelMap: Record<string, string> = {
+  customerName: '预约人',
+  appointmentTime: '预约时间',
+  appointmentItem: '预约项目',
+  appointmentStatus: '预约状态',
+  orderNo: '订单编号',
+  orderStatus: '订单状态',
+  orderAmount: '订单金额',
+  updatedAt: '更新时间',
+  remark: '温馨提示/备注',
+}
 const form = reactive<SettingsForm>({
   shopName: '',
   address: '',
@@ -46,6 +59,7 @@ const form = reactive<SettingsForm>({
   bookingMode: 'walk_in',
   paymentMode: 'mock_auto_paid',
   pendingPaymentExpireMinutes: '1',
+  notificationSettings: getDefaultNotificationSettings(),
   businessHours: [{ ...defaultHour }],
 })
 const loading = ref(false)
@@ -56,6 +70,10 @@ const hasFetched = ref(false)
 const bookingModeIndex = computed(() => Math.max(bookingModeOptions.findIndex(item => item.value === form.bookingMode), 0))
 const paymentModeIndex = computed(() => Math.max(paymentModeOptions.findIndex(item => item.value === form.paymentMode), 0))
 const showLoadingOverlay = computed(() => loading.value && hasFetched.value)
+const notificationTemplateList = computed(() => [
+  notificationTemplateConfig.reservationNotice,
+  notificationTemplateConfig.orderStatus,
+])
 useNativeLoading(showLoadingOverlay, '加载中')
 
 function fillForm(settings: ShopSettings) {
@@ -67,7 +85,54 @@ function fillForm(settings: ShopSettings) {
   form.bookingMode = settings.bookingMode || 'walk_in'
   form.paymentMode = settings.paymentMode || 'mock_auto_paid'
   form.pendingPaymentExpireMinutes = `${settings.pendingPaymentExpireMinutes || 1}`
+  form.notificationSettings = normalizeNotificationSettingsForForm(settings.notificationSettings)
   form.businessHours = normalizeBusinessHours(settings.businessHours)
+}
+
+function getDefaultNotificationSettings(): NotificationSettings {
+  return {
+    ...defaultNotificationSettings,
+    templates: {
+      reservationNotice: {
+        ...defaultNotificationSettings.templates.reservationNotice,
+        fields: { ...defaultNotificationSettings.templates.reservationNotice.fields },
+      },
+      orderStatus: {
+        ...defaultNotificationSettings.templates.orderStatus,
+        fields: { ...defaultNotificationSettings.templates.orderStatus.fields },
+      },
+    },
+  }
+}
+
+function normalizeNotificationSettingsForForm(settings?: Partial<NotificationSettings>): NotificationSettings {
+  const fallback = getDefaultNotificationSettings()
+
+  return {
+    ...fallback,
+    ...settings,
+    customerEnabled: settings?.customerEnabled ?? fallback.customerEnabled,
+    staffEnabled: settings?.staffEnabled ?? fallback.staffEnabled,
+    reminderBeforeMinutes: Math.max(Math.floor(Number(settings?.reminderBeforeMinutes || fallback.reminderBeforeMinutes)), 1),
+    templates: {
+      reservationNotice: {
+        ...fallback.templates.reservationNotice,
+        ...settings?.templates?.reservationNotice,
+        fields: {
+          ...fallback.templates.reservationNotice.fields,
+          ...settings?.templates?.reservationNotice?.fields,
+        },
+      },
+      orderStatus: {
+        ...fallback.templates.orderStatus,
+        ...settings?.templates?.orderStatus,
+        fields: {
+          ...fallback.templates.orderStatus.fields,
+          ...settings?.templates?.orderStatus?.fields,
+        },
+      },
+    },
+  }
 }
 
 function normalizeBusinessHours(hours?: BusinessHour[]) {
@@ -116,6 +181,14 @@ function handlePaymentModeChange(event: { detail: { value: number | string } }) 
   if (option) {
     form.paymentMode = option.value
   }
+}
+
+function handleNotificationEnabledChange(field: 'customerEnabled' | 'staffEnabled', event: { detail: { value: boolean } }) {
+  form.notificationSettings[field] = event.detail.value
+}
+
+function getNotificationFieldLabel(fieldName: string) {
+  return notificationFieldLabelMap[fieldName] || fieldName
 }
 
 function handleTimeChange(index: number, field: 'startTime' | 'endTime', event: { detail: { value: string } }) {
@@ -267,6 +340,7 @@ async function handleSave() {
   const notice = form.notice.trim()
   const coverImages = form.coverImages.map(item => item.trim()).filter(Boolean)
   const pendingPaymentExpireMinutes = Math.max(Math.floor(Number(form.pendingPaymentExpireMinutes)), 0)
+  const reminderBeforeMinutes = Math.max(Math.floor(Number(form.notificationSettings.reminderBeforeMinutes)), 0)
   const businessHours = form.businessHours.map(item => ({
     label: item.label.trim() || '营业',
     startTime: item.startTime,
@@ -293,6 +367,11 @@ async function handleSave() {
     return
   }
 
+  if (!Number.isFinite(reminderBeforeMinutes) || reminderBeforeMinutes <= 0) {
+    showToast('请填写有效提醒提前时间')
+    return
+  }
+
   saving.value = true
 
   try {
@@ -306,6 +385,11 @@ async function handleSave() {
       bookingMode: form.bookingMode,
       paymentMode: form.paymentMode,
       pendingPaymentExpireMinutes,
+      notificationSettings: {
+        ...form.notificationSettings,
+        reminderBeforeMinutes,
+        templates: getDefaultNotificationSettings().templates,
+      },
     })
     fillForm(res.settings)
     markHomeDataDirty()
@@ -449,6 +533,60 @@ onPullDownRefresh(() => {
         <input v-model.trim="form.pendingPaymentExpireMinutes" class="form-field__input" type="number" placeholder="1">
         <view class="form-field__help">
           测试阶段默认 1 分钟，超时后订单自动关闭
+        </view>
+      </view>
+
+      <view class="settings-section">
+        <view class="settings-section__header">
+          <view class="settings-section__title">
+            提醒设置
+          </view>
+        </view>
+
+        <view class="switch-row">
+          <view>
+            <view class="switch-row__title">
+              顾客提醒
+            </view>
+            <view class="switch-row__desc">
+              预约、到点和待结账提醒使用顾客授权
+            </view>
+          </view>
+          <switch color="#1f6b56" :checked="form.notificationSettings.customerEnabled" @change="handleNotificationEnabledChange('customerEnabled', $event)" />
+        </view>
+
+        <view class="switch-row">
+          <view>
+            <view class="switch-row__title">
+              员工提醒
+            </view>
+            <view class="switch-row__desc">
+              服务员和管理员授权后接收订单提醒
+            </view>
+          </view>
+          <switch color="#1f6b56" :checked="form.notificationSettings.staffEnabled" @change="handleNotificationEnabledChange('staffEnabled', $event)" />
+        </view>
+
+        <view class="form-field">
+          <view class="form-field__label">
+            快到点提前分钟数
+          </view>
+          <input v-model.trim="form.notificationSettings.reminderBeforeMinutes" class="form-field__input" type="number" placeholder="10">
+        </view>
+
+        <view v-for="template in notificationTemplateList" :key="template.templateId" class="template-card">
+          <view class="template-card__title">
+            {{ template.title }}
+          </view>
+          <view class="template-card__id">
+            {{ template.templateId }}
+          </view>
+          <view class="template-card__fields">
+            <view v-for="(fieldCode, fieldName) in template.fields" :key="fieldName" class="template-card__field">
+              <text>{{ getNotificationFieldLabel(fieldName) }}</text>
+              <text>{{ fieldCode }}</text>
+            </view>
+          </view>
         </view>
       </view>
 
@@ -727,6 +865,77 @@ onPullDownRefresh(() => {
     color: #c9472b;
     font-size: 23rpx;
     line-height: 52rpx;
+  }
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+  border: 2rpx solid #e6eee9;
+  border-radius: 8rpx;
+  background: #fbfcfb;
+  padding: 22rpx;
+
+  & + & {
+    margin-top: 18rpx;
+  }
+
+  &__title {
+    color: #17211d;
+    font-size: 27rpx;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  &__desc {
+    margin-top: 8rpx;
+    color: #84918c;
+    font-size: 22rpx;
+    line-height: 1.4;
+  }
+}
+
+.template-card {
+  margin-top: 18rpx;
+  border: 2rpx solid #dfe8e3;
+  border-radius: 8rpx;
+  background: #fbfcfb;
+  padding: 22rpx;
+
+  &__title {
+    color: #17352f;
+    font-size: 27rpx;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  &__id {
+    margin-top: 10rpx;
+    word-break: break-all;
+    color: #718079;
+    font-size: 21rpx;
+    line-height: 1.45;
+  }
+
+  &__fields {
+    display: grid;
+    gap: 10rpx;
+    margin-top: 18rpx;
+  }
+
+  &__field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16rpx;
+    border-radius: 8rpx;
+    background: #f4f7f2;
+    padding: 12rpx 16rpx;
+    color: #718079;
+    font-size: 22rpx;
+    line-height: 1.35;
   }
 }
 

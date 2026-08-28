@@ -1,16 +1,15 @@
 import type { CloudFunctionResponse } from './types/home'
 import type { DeletePackageParams, DeletePackageResult, ManagePackagesData, SavePackageParams, SavePackageResult, UpdatePackageStatusParams, UpdatePackageStatusResult } from './types/package'
+import { assertLogin, resolveCloudResponse } from './authGuard'
 import { callCloudFunction } from '@/cloud'
 
 export async function getManagePackages() {
+  assertLogin('请先登录后管理套餐')
+
   // #ifdef MP-WEIXIN
   const res = await callCloudFunction<CloudFunctionResponse<ManagePackagesData>>('getManagePackages')
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '套餐获取失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '套餐获取失败')
   // #endif
 
   return {
@@ -22,6 +21,8 @@ export async function getManagePackages() {
 }
 
 export async function savePackage(params: SavePackageParams) {
+  assertLogin('请先登录后保存套餐')
+
   const requestParams: SavePackageParams = {
     ...(params.packageId ? { packageId: params.packageId.trim() } : {}),
     name: params.name.trim(),
@@ -40,17 +41,15 @@ export async function savePackage(params: SavePackageParams) {
     { ...requestParams },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '套餐保存失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '套餐保存失败')
   // #endif
 
   throw new Error('当前平台暂不支持保存套餐')
 }
 
 export async function updatePackageStatus(params: UpdatePackageStatusParams) {
+  assertLogin('请先登录后调整套餐')
+
   const packageId = params.packageId.trim()
 
   if (!packageId) {
@@ -66,17 +65,15 @@ export async function updatePackageStatus(params: UpdatePackageStatusParams) {
     },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '套餐状态调整失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '套餐状态调整失败')
   // #endif
 
   throw new Error('当前平台暂不支持调整套餐')
 }
 
 export async function deletePackage(params: DeletePackageParams) {
+  assertLogin('请先登录后删除套餐')
+
   const packageId = params.packageId.trim()
 
   if (!packageId) {
@@ -91,11 +88,7 @@ export async function deletePackage(params: DeletePackageParams) {
     },
   )
 
-  if (res.code !== 0) {
-    throw new Error(res.message || '套餐删除失败')
-  }
-
-  return res.data
+  return resolveCloudResponse(res, '套餐删除失败')
   // #endif
 
   throw new Error('当前平台暂不支持删除套餐')

@@ -7,6 +7,32 @@ cloud.init({
 
 const db = cloud.database()
 const debugVersion = 'initDatabase-real-seed-20260825'
+const notificationTemplateConfig = {
+  reservationNotice: {
+    templateId: '8O7iDjllM5Yi1TBFTaxwwubW9kuNbr77rtbOQnjeaSc',
+    title: '预约通知',
+    scene: 'reservation_notice',
+    fields: {
+      customerName: 'name1',
+      appointmentTime: 'date3',
+      appointmentItem: 'thing13',
+      appointmentStatus: 'phrase14',
+      remark: 'thing8',
+    },
+  },
+  orderStatus: {
+    templateId: 'swMnYem-qmhfPYmL94qIfrFb2Kfws1xT2hjgsN37Pso',
+    title: '订单状态提醒',
+    scene: 'order_status',
+    fields: {
+      orderNo: 'character_string6',
+      orderStatus: 'phrase2',
+      orderAmount: 'amount40',
+      updatedAt: 'time20',
+      remark: 'thing5',
+    },
+  },
+}
 
 function getDateText(date) {
   const year = date.getFullYear()
@@ -142,6 +168,12 @@ async function upsertShopSettings() {
       bookingMode: 'walk_in',
       paymentMode: 'mock_auto_paid',
       pendingPaymentExpireMinutes: 1,
+      notificationSettings: {
+        customerEnabled: true,
+        staffEnabled: true,
+        reminderBeforeMinutes: 10,
+        templates: notificationTemplateConfig,
+      },
       location: {
         latitude: 22.5328,
         longitude: 113.9887,

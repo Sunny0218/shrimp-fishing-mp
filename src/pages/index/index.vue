@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { HomeData, ShrimpPackage, TimeSlot } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
+import { useTokenStore } from '@/store'
 import { consumeHomeDataDirty } from '@/utils/homeDataRefresh'
 
 defineOptions({
@@ -20,10 +21,12 @@ const homeData = ref<HomeData>({ ...defaultHomeData })
 const loading = ref(false)
 const errorText = ref('')
 const currentTime = ref(new Date())
+const tokenStore = useTokenStore()
 
 const shopInfo = computed(() => homeData.value.settings)
 const packageList = computed(() => homeData.value.packages)
 const timeSlotList = computed(() => homeData.value.timeSlots)
+const isLoggedIn = computed(() => tokenStore.hasLogin)
 const heroCoverImages = computed(() => shopInfo.value.coverImages?.filter(Boolean) || [])
 const isSlotBookingMode = computed(() => shopInfo.value.bookingMode === 'slot')
 const hasOpenTimeSlot = computed(() => timeSlotList.value.some(slot => slot.status !== 'closed' && getSlotRemaining(slot) > 0))
@@ -187,15 +190,34 @@ function getTodayBusinessStatus() {
 
 function handleBooking(packageItem: ShrimpPackage) {
   const query = packageItem._id ? `?packageId=${packageItem._id}` : ''
+  const targetUrl = `/pages/booking/index${query}`
+
+  if (!isLoggedIn.value) {
+    goLogin(targetUrl)
+    return
+  }
 
   uni.navigateTo({
-    url: `/pages/booking/index${query}`,
+    url: targetUrl,
   })
 }
 
 function handleWalkInOrder() {
+  const targetUrl = '/pages/walk-in/index'
+
+  if (!isLoggedIn.value) {
+    goLogin(targetUrl)
+    return
+  }
+
   uni.navigateTo({
-    url: '/pages/walk-in/index',
+    url: targetUrl,
+  })
+}
+
+function goLogin(redirectUrl: string) {
+  uni.navigateTo({
+    url: `/pages/auth/login?redirect=${encodeURIComponent(redirectUrl)}`,
   })
 }
 
@@ -228,6 +250,7 @@ onLoad(() => {
 })
 
 onShow(() => {
+  tokenStore.updateNowTime()
   currentTime.value = new Date()
 
   if (consumeHomeDataDirty()) {
@@ -282,7 +305,7 @@ onPullDownRefresh(() => {
             :disabled="loading"
             @click="handleWalkInOrder"
           >
-            现场开单
+            {{ isLoggedIn ? '现场开单' : '去登录' }}
           </button>
         </view>
       </view>
@@ -344,7 +367,7 @@ onPullDownRefresh(() => {
               {{ formatPrice(packageItem.price) }}
             </view>
             <button class="package-card__btn" :disabled="loading" @click="handleBooking(packageItem)">
-              预约
+              {{ isLoggedIn ? '预约' : '去登录' }}
             </button>
           </view>
         </view>

@@ -3,6 +3,23 @@ export type TimeSlotStatus = 'available' | 'full' | 'closed'
 export type BookingMode = 'walk_in' | 'slot'
 export type PaymentMode = 'mock_auto_paid' | 'mock_pending_payment'
 
+export interface NotificationTemplateConfig {
+  templateId: string
+  title: string
+  scene: string
+  fields: Record<string, string>
+}
+
+export interface NotificationSettings {
+  customerEnabled: boolean
+  staffEnabled: boolean
+  reminderBeforeMinutes: number
+  templates: {
+    reservationNotice: NotificationTemplateConfig
+    orderStatus: NotificationTemplateConfig
+  }
+}
+
 export interface BusinessHour {
   label: string
   startTime: string
@@ -26,6 +43,7 @@ export interface ShopSettings {
   bookingMode?: BookingMode
   paymentMode?: PaymentMode
   pendingPaymentExpireMinutes?: number
+  notificationSettings?: NotificationSettings
   location?: ShopLocation
   updatedAt?: Date | string
 }
@@ -40,6 +58,7 @@ export interface SaveShopSettingsParams {
   bookingMode: BookingMode
   paymentMode: PaymentMode
   pendingPaymentExpireMinutes: number
+  notificationSettings: NotificationSettings
 }
 
 export interface SaveShopSettingsResult {

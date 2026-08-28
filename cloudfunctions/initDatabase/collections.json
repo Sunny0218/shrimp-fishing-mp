@@ -54,6 +54,16 @@
       "name": "settings",
       "description": "门店基础配置",
       "permission": "adminOnly"
+    },
+    {
+      "name": "notification_subscriptions",
+      "description": "订阅消息授权记录",
+      "permission": "adminOnly"
+    },
+    {
+      "name": "notification_logs",
+      "description": "订阅消息发送日志",
+      "permission": "adminOnly"
     }
   ]
 }
