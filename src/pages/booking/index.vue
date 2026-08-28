@@ -100,6 +100,12 @@ async function handleSubmit() {
     return
   }
 
+  const confirmed = await confirmCreateOrder()
+
+  if (!confirmed) {
+    return
+  }
+
   submitting.value = true
 
   try {
@@ -129,6 +135,34 @@ async function handleSubmit() {
   finally {
     submitting.value = false
   }
+}
+
+function confirmCreateOrder() {
+  const packageItem = selectedPackage.value
+
+  if (!packageItem) {
+    return Promise.resolve(false)
+  }
+
+  const slotText = isSlotBookingMode.value && selectedSlot.value
+    ? `\n预约场次：${selectedSlot.value.date} ${selectedSlot.value.startTime}-${selectedSlot.value.endTime}`
+    : ''
+
+  return new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: '确认提交预约',
+      content: `套餐：${packageItem.name}\n时长：${formatDuration(packageItem.durationMinutes)}\n杆数：${packageItem.rodCount} 支${slotText}\n需支付：${formatPrice(packageItem.price)}`,
+      confirmText: '提交预约',
+      cancelText: '再看看',
+      confirmColor: '#1f6b56',
+      success: (res) => {
+        resolve(res.confirm)
+      },
+      fail: () => {
+        resolve(false)
+      },
+    })
+  })
 }
 
 function goLogin() {
