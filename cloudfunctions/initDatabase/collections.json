@@ -26,6 +26,11 @@
       "permission": "adminOnly"
     },
     {
+      "name": "daily_order_counters",
+      "description": "每日订单短编号计数器",
+      "permission": "adminOnly"
+    },
+    {
       "name": "payments",
       "description": "微信支付记录",
       "permission": "adminOnly"

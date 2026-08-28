@@ -216,6 +216,7 @@ onPullDownRefresh(() => {
           :timer-level="order.status === 'pending_checkout' ? 'warning' : ''"
           :meta-text="getOrderMeta(order)"
           :order-no="order.orderNo"
+          :daily-no="order.dailyNo"
           :price-text="formatPrice(order.finalAmount)"
           @click="handleViewDetail(order)"
         />

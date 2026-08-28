@@ -36,6 +36,50 @@ function createOrderNo() {
   return `XC${dateText}${timeText}${randomText}`
 }
 
+function getBusinessDateText(date) {
+  const chinaTime = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+
+  return chinaTime.toISOString().slice(0, 10)
+}
+
+function formatDailyNo(sequence) {
+  return `A${`${sequence}`.padStart(2, '0')}`
+}
+
+async function createDailyOrderIdentity(transaction, businessDate) {
+  const counterId = `order_${businessDate}`
+  const counterRef = transaction.collection('daily_order_counters').doc(counterId)
+  const counterRes = await counterRef.get().catch(() => ({ data: null }))
+  const sequence = Number(counterRes.data?.sequence || 0) + 1
+  const now = new Date()
+
+  if (counterRes.data) {
+    await counterRef.update({
+      data: {
+        sequence,
+        updatedAt: now,
+      },
+    })
+  }
+  else {
+    await counterRef.set({
+      data: {
+        type: 'order',
+        businessDate,
+        sequence,
+        createdAt: now,
+        updatedAt: now,
+      },
+    })
+  }
+
+  return {
+    businessDate,
+    dailySequence: sequence,
+    dailyNo: formatDailyNo(sequence),
+  }
+}
+
 function createRandomCheckinCode() {
   return `${Math.floor(10000000 + Math.random() * 90000000)}`
 }
@@ -125,6 +169,7 @@ exports.main = async (event = {}) => {
     }
 
     const now = new Date()
+    const businessDate = getBusinessDateText(now)
     const paymentSettings = await getPaymentSettings()
     const isPendingPaymentMode = paymentSettings.paymentMode === 'mock_pending_payment'
     const orderStatus = isPendingPaymentMode ? 'pending_payment' : 'paid'
@@ -189,19 +234,25 @@ exports.main = async (event = {}) => {
     }
 
     const result = await db.runTransaction(async (transaction) => {
+      const dailyIdentity = await createDailyOrderIdentity(transaction, businessDate)
+      const orderDataWithDailyNo = {
+        ...orderData,
+        ...dailyIdentity,
+      }
       const orderRes = await transaction.collection('orders').add({
-        data: orderData,
+        data: orderDataWithDailyNo,
       })
 
       if (isPendingPaymentMode) {
         return {
           orderRes,
+          orderData: orderDataWithDailyNo,
           payment: null,
         }
       }
 
       const payment = await createMockPaidPayment(transaction, {
-        order: orderData,
+        order: orderDataWithDailyNo,
         orderId: orderRes._id,
         userId: user._id,
         openid,
@@ -212,6 +263,7 @@ exports.main = async (event = {}) => {
 
       return {
         orderRes,
+        orderData: orderDataWithDailyNo,
         payment,
       }
     })
@@ -219,6 +271,7 @@ exports.main = async (event = {}) => {
     const responseData = {
       orderId: result.orderRes._id,
       orderNo,
+      dailyNo: result.orderData.dailyNo,
       status: orderData.status,
       ...(checkinCode ? { checkinCode } : {}),
       pricingRule: {

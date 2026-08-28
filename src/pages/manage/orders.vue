@@ -3,7 +3,7 @@ import OrderCard from '@/components/OrderCard.vue'
 import OrderStatusTabs from '@/components/OrderStatusTabs.vue'
 import type { ManageOrderStatusFilter, Order, OrdersData, OrderStatus, PricingRuleSnapshot } from '@/api/types/order'
 import { storeToRefs } from 'pinia'
-import { getOrders } from '@/api/order'
+import { checkInOrder, getOrders } from '@/api/order'
 import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
@@ -68,6 +68,7 @@ const selectedStartDate = ref(getLocalDateText())
 const selectedEndDate = ref(getLocalDateText())
 const ordersData = ref<OrdersData>()
 const currentTime = ref(Date.now())
+const checkingInOrderId = ref('')
 let timer: ReturnType<typeof setInterval> | undefined
 const userStore = useUserStore()
 const { userInfo } = storeToRefs(userStore)
@@ -104,6 +105,7 @@ const currentDateLabel = computed(() => {
   return `${selectedStartDate.value} 至 ${selectedEndDate.value}`
 })
 const canWaiveOvertime = computed(() => ['admin', 'super_admin'].includes(userInfo.value.role || ''))
+const canManageCheckin = computed(() => ['staff', 'admin', 'super_admin'].includes(userInfo.value.role || ''))
 const showInitialLoading = computed(() => requestLoading.value && !ordersData.value)
 const showLoadingOverlay = computed(() => requestLoading.value && !!ordersData.value)
 useNativeLoading(showLoadingOverlay, '切换中')
@@ -206,6 +208,81 @@ function handleChangeStatus(statusValue: string) {
 function handleViewDetail(order: Order) {
   uni.navigateTo({
     url: `/pages/orders/detail?id=${order._id}`,
+  })
+}
+
+function getOrderActionLabel(order: Order) {
+  if (order.status === 'paid' && canManageCheckin.value) {
+    return order.orderType === 'metered' ? '开始计时' : '核销'
+  }
+
+  if (order.status === 'in_progress') {
+    return '结束计时'
+  }
+
+  return ''
+}
+
+function isOrderActionLoading(order: Order) {
+  return finishingOrderId.value === order._id || checkingInOrderId.value === order._id
+}
+
+function isOrderActionDisabled() {
+  return !!finishingOrderId.value || !!checkingInOrderId.value
+}
+
+function handleOrderAction(order: Order) {
+  if (order.status === 'paid') {
+    handleCheckInOrder(order)
+    return
+  }
+
+  if (order.status === 'in_progress') {
+    handleFinishTiming(getOrderForFinish(order))
+  }
+}
+
+function handleCheckInOrder(order: Order) {
+  if (!canManageCheckin.value || checkingInOrderId.value || !order.checkinCode) {
+    return
+  }
+
+  const actionText = order.orderType === 'metered' ? '开始计时' : '核销'
+  const displayNo = order.dailyNo || order.orderNo
+
+  uni.showModal({
+    title: actionText,
+    content: `确认对订单 ${displayNo} ${actionText}吗？确认后订单会进入计时中。`,
+    confirmText: actionText,
+    confirmColor: '#1f6b56',
+    success: async (res) => {
+      if (!res.confirm) {
+        return
+      }
+
+      checkingInOrderId.value = order._id
+
+      try {
+        await checkInOrder({
+          orderId: order._id,
+          checkinCode: order.checkinCode,
+        })
+        uni.showToast({
+          title: `${actionText}成功`,
+          icon: 'success',
+        })
+        await fetchOrders()
+      }
+      catch (error) {
+        uni.showToast({
+          title: error instanceof Error ? error.message : `${actionText}失败`,
+          icon: 'none',
+        })
+      }
+      finally {
+        checkingInOrderId.value = ''
+      }
+    },
   })
 }
 
@@ -515,12 +592,13 @@ onUnload(() => {
           :timer-level="order.status === 'pending_checkout' ? 'warning' : getTimingLevel(order)"
           :meta-text="getOrderMeta(order)"
           :order-no="order.orderNo"
+          :daily-no="order.dailyNo"
           :price-text="formatPrice(order.finalAmount)"
-          :action-label="order.status === 'in_progress' ? '结束计时' : ''"
-          :action-loading="finishingOrderId === order._id"
-          :action-disabled="!!finishingOrderId"
+          :action-label="getOrderActionLabel(order)"
+          :action-loading="isOrderActionLoading(order)"
+          :action-disabled="isOrderActionDisabled()"
           @click="handleViewDetail(order)"
-          @action="handleFinishTiming(getOrderForFinish(order))"
+          @action="handleOrderAction(order)"
         />
       </view>
     </view>

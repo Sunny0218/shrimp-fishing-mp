@@ -81,6 +81,8 @@ export interface RodSession {
 export interface Order {
   _id: string
   orderNo: string
+  dailyNo?: string
+  dailySequence?: number
   userId: string
   openid: string
   orderType: OrderType
@@ -152,6 +154,7 @@ export interface CreateOrderParams {
 export interface CreateOrderResult {
   orderId: string
   orderNo: string
+  dailyNo?: string
   status: OrderStatus
   bookedCount?: number
   slotStatus?: string
@@ -167,6 +170,7 @@ export interface CreateWalkInOrderParams {
 export interface CreateWalkInOrderResult {
   orderId: string
   orderNo: string
+  dailyNo?: string
   status: Extract<OrderStatus, 'pending_payment' | 'paid'>
   checkinCode?: string
   pricingRule: PricingRule

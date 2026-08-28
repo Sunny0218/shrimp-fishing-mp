@@ -181,7 +181,7 @@ function buildMessageData(order, config) {
   }
 
   return {
-    character_string6: { value: truncateText(order.orderNo, 32) },
+    character_string6: { value: truncateText(order.dailyNo || order.orderNo, 32) },
     phrase2: { value: truncateText(config.statusText, 10) },
     amount40: { value: formatAmount(getOrderAmount(order, config)) },
     time20: { value: formatDateTime(new Date()) },

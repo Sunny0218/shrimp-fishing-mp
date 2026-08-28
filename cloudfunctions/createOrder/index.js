@@ -33,6 +33,50 @@ function createOrderNo() {
   return `SF${dateText}${timeText}${randomText}`
 }
 
+function getBusinessDateText(date) {
+  const chinaTime = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+
+  return chinaTime.toISOString().slice(0, 10)
+}
+
+function formatDailyNo(sequence) {
+  return `A${`${sequence}`.padStart(2, '0')}`
+}
+
+async function createDailyOrderIdentity(transaction, businessDate) {
+  const counterId = `order_${businessDate}`
+  const counterRef = transaction.collection('daily_order_counters').doc(counterId)
+  const counterRes = await counterRef.get().catch(() => ({ data: null }))
+  const sequence = Number(counterRes.data?.sequence || 0) + 1
+  const now = new Date()
+
+  if (counterRes.data) {
+    await counterRef.update({
+      data: {
+        sequence,
+        updatedAt: now,
+      },
+    })
+  }
+  else {
+    await counterRef.set({
+      data: {
+        type: 'order',
+        businessDate,
+        sequence,
+        createdAt: now,
+        updatedAt: now,
+      },
+    })
+  }
+
+  return {
+    businessDate,
+    dailySequence: sequence,
+    dailyNo: formatDailyNo(sequence),
+  }
+}
+
 function createRandomCheckinCode() {
   return `${Math.floor(10000000 + Math.random() * 90000000)}`
 }
@@ -115,6 +159,7 @@ exports.main = async (event = {}) => {
     const paymentMode = paymentSettings.paymentMode
     const isPendingPaymentMode = paymentMode === 'mock_pending_payment'
     const now = new Date()
+    const businessDate = getBusinessDateText(now)
     const paymentExpiredAt = isPendingPaymentMode
       ? new Date(now.getTime() + paymentSettings.pendingPaymentExpireMinutes * 60 * 1000)
       : null
@@ -161,29 +206,36 @@ exports.main = async (event = {}) => {
     }
 
     async function addOrderWithOptionalPayment(transaction, data) {
+      const dailyIdentity = await createDailyOrderIdentity(transaction, businessDate)
+      const orderDataWithDailyNo = {
+        ...data,
+        ...dailyIdentity,
+      }
       const orderRes = await transaction.collection('orders').add({
-        data,
+        data: orderDataWithDailyNo,
       })
 
       if (isPendingPaymentMode) {
         return {
           orderRes,
+          orderData: orderDataWithDailyNo,
           payment: null,
         }
       }
 
       const payment = await createMockPaidPayment(transaction, {
-        order: data,
+        order: orderDataWithDailyNo,
         orderId: orderRes._id,
         userId: user._id,
         openid,
-        amount: data.paidAmount,
+        amount: orderDataWithDailyNo.paidAmount,
         type: 'order',
         now,
       })
 
       return {
         orderRes,
+        orderData: orderDataWithDailyNo,
         payment,
       }
     }
@@ -199,15 +251,20 @@ exports.main = async (event = {}) => {
         data: {
           orderId: result.orderRes._id,
           orderNo,
+          dailyNo: result.orderData.dailyNo,
           status: orderData.status,
-          ...(result.payment ? { payment: {
-            _id: result.payment._id,
-            paymentNo: result.payment.paymentNo,
-            amount: result.payment.amount,
-            type: result.payment.type,
-            status: result.payment.status,
-            paidAt: result.payment.paidAt,
-          } } : {}),
+          ...(result.payment
+            ? {
+                payment: {
+                  _id: result.payment._id,
+                  paymentNo: result.payment.paymentNo,
+                  amount: result.payment.amount,
+                  type: result.payment.type,
+                  status: result.payment.status,
+                  paidAt: result.payment.paidAt,
+                },
+              }
+            : {}),
         },
       }
     }
@@ -273,17 +330,22 @@ exports.main = async (event = {}) => {
       data: {
         orderId: result.orderRes._id,
         orderNo,
+        dailyNo: result.orderData.dailyNo,
         status: slotOrderData.status,
         bookedCount: nextBookedCount,
         slotStatus: nextSlotStatus,
-        ...(result.payment ? { payment: {
-          _id: result.payment._id,
-          paymentNo: result.payment.paymentNo,
-          amount: result.payment.amount,
-          type: result.payment.type,
-          status: result.payment.status,
-          paidAt: result.payment.paidAt,
-        } } : {}),
+        ...(result.payment
+          ? {
+              payment: {
+                _id: result.payment._id,
+                paymentNo: result.payment.paymentNo,
+                amount: result.payment.amount,
+                type: result.payment.type,
+                status: result.payment.status,
+                paidAt: result.payment.paidAt,
+              },
+            }
+          : {}),
       },
     }
   }

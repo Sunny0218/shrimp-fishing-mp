@@ -10,6 +10,7 @@ withDefaults(defineProps<{
   timeItems?: OrderTimeItem[]
   metaText: string
   orderNo: string
+  dailyNo?: string
   priceText: string
   typeLabel?: string
   typeVariant?: 'package' | 'metered' | ''
@@ -23,6 +24,7 @@ withDefaults(defineProps<{
   timeItems: () => [],
   typeLabel: '',
   typeVariant: '',
+  dailyNo: '',
   timerText: '',
   timerLevel: '',
   actionLabel: '',
@@ -91,9 +93,14 @@ const emit = defineEmits<{
     </view>
 
     <view class="order-card__footer">
-      <text class="order-card__no">
-        {{ orderNo }}
-      </text>
+      <view class="order-card__no-wrap">
+        <text v-if="dailyNo" class="order-card__daily-no">
+          编号 {{ dailyNo }}
+        </text>
+        <text class="order-card__no">
+          {{ dailyNo ? orderNo : `订单号 ${orderNo}` }}
+        </text>
+      </view>
       <text class="order-card__price">
         {{ priceText }}
       </text>
@@ -261,8 +268,21 @@ const emit = defineEmits<{
     padding-top: 18rpx;
   }
 
-  &__no {
+  &__no-wrap {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6rpx;
+  }
+
+  &__daily-no {
+    color: #1f6b56;
+    font-size: 26rpx;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  &__no {
     color: #89938f;
     font-size: 22rpx;
     line-height: 1.4;

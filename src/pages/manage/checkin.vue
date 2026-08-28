@@ -12,6 +12,7 @@ definePage({
 interface ParsedCheckinPayload {
   orderId?: string
   orderNo?: string
+  dailyNo?: string
   checkinCode: string
 }
 
@@ -119,6 +120,7 @@ function parseCheckinPayload(text: string): ParsedCheckinPayload {
       return {
         orderId: parsed.orderId?.trim(),
         orderNo: parsed.orderNo?.trim(),
+        dailyNo: parsed.dailyNo?.trim(),
         checkinCode: normalizeCode(parsed.checkinCode),
       }
     }
@@ -135,6 +137,7 @@ function parseCheckinPayload(text: string): ParsedCheckinPayload {
       return {
         orderId: query.orderId?.trim(),
         orderNo: query.orderNo?.trim(),
+        dailyNo: query.dailyNo?.trim(),
         checkinCode,
       }
     }
@@ -213,8 +216,8 @@ function handleSubmit() {
 
   uni.showModal({
     title: pageCopy.value.modalTitle,
-    content: payload.orderNo
-      ? `订单 ${payload.orderNo} 确认后将开始计时。`
+    content: payload.dailyNo || payload.orderNo
+      ? `订单 ${payload.dailyNo || payload.orderNo} 确认后将开始计时。`
       : `${pageCopy.value.modalCodeName} ${payload.checkinCode} 确认后将开始计时。`,
     confirmText: pageCopy.value.modalConfirm,
     confirmColor: '#1f6b56',
@@ -323,6 +326,14 @@ onLoad((query) => {
         <view class="pending-order__title">
           {{ pageCopy.pendingTitle }}
         </view>
+        <view v-if="displayPayload.dailyNo" class="info-row">
+          <text class="info-row__label">
+            沟通编号
+          </text>
+          <text class="info-row__value info-row__value--code">
+            {{ displayPayload.dailyNo }}
+          </text>
+        </view>
         <view v-if="displayPayload.orderNo" class="info-row">
           <text class="info-row__label">
             订单号
@@ -349,6 +360,14 @@ onLoad((query) => {
     <view v-if="result?.order" class="result-card">
       <view class="result-card__title">
         已开始计时
+      </view>
+      <view v-if="result.order.dailyNo" class="info-row">
+        <text class="info-row__label">
+          沟通编号
+        </text>
+        <text class="info-row__value info-row__value--code">
+          {{ result.order.dailyNo }}
+        </text>
       </view>
       <view class="info-row">
         <text class="info-row__label">

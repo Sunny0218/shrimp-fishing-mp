@@ -3,7 +3,7 @@ import type { Order, OrderDateValue, OrderDetailData, OrderStatus, PricingRuleSn
 import qrcode from 'qrcode-generator'
 import { storeToRefs } from 'pinia'
 import { requestNotificationSubscription } from '@/api/notification'
-import { cancelOrder, getOrderDetail, payCheckoutOrder, payOrder, updateRodSession } from '@/api/order'
+import { cancelOrder, checkInOrder, getOrderDetail, payCheckoutOrder, payOrder, updateRodSession } from '@/api/order'
 import type { NotificationTemplateKey } from '@/config/notificationTemplates'
 import { activeOrderNotificationTemplateIds, activeOrderNotificationTemplateKeys, notificationTemplateKeys } from '@/config/notificationTemplates'
 import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
@@ -21,6 +21,7 @@ const cancelling = ref(false)
 const payingOrder = ref(false)
 const payingCheckout = ref(false)
 const subscribingNotification = ref(false)
+const checkingInOrder = ref(false)
 const operatingRodSessionId = ref('')
 const notificationAuthorizationBlocked = ref(false)
 const optimisticNotificationTemplateKeys = ref<NotificationTemplateKey[]>([])
@@ -190,6 +191,7 @@ const checkinQrCodeUrl = computed(() => {
     type: 'shrimp_fishing_checkin',
     orderId: order.value._id,
     orderNo: order.value.orderNo,
+    dailyNo: order.value.dailyNo || '',
     checkinCode: order.value.checkinCode,
   }))
   qr.make()
@@ -233,6 +235,8 @@ const expectedEndedAtTime = computed(() => {
 })
 const canShowTimingCard = computed(() => !!startedAtTime.value && ['in_progress', 'pending_checkout', 'completed'].includes(order.value?.status || ''))
 const canManageTiming = computed(() => ['staff', 'admin', 'super_admin'].includes(userInfo.value.role || ''))
+const canDirectCheckIn = computed(() => canShowCheckinCode.value && canManageTiming.value)
+const directCheckInText = computed(() => order.value?.orderType === 'metered' ? '确认开始计时' : '确认核销')
 const canFinishTiming = computed(() => canManageTiming.value && order.value?.status === 'in_progress')
 const canWaiveOvertime = computed(() => ['admin', 'super_admin'].includes(userInfo.value.role || ''))
 const meteredRodSessions = computed<RodSession[]>(() => {
@@ -842,6 +846,51 @@ function handleFinishCurrentOrder() {
   handleFinishTiming(orderForFinish)
 }
 
+function handleDirectCheckIn() {
+  if (!order.value || !canDirectCheckIn.value || checkingInOrder.value) {
+    return
+  }
+
+  const currentOrder = order.value
+  const actionText = currentOrder.orderType === 'metered' ? '开始计时' : '核销'
+  const displayNo = currentOrder.dailyNo || currentOrder.orderNo
+
+  uni.showModal({
+    title: actionText,
+    content: `确认对订单 ${displayNo} ${actionText}吗？确认后订单会进入计时中。`,
+    confirmText: actionText,
+    confirmColor: '#1f6b56',
+    success: async (res) => {
+      if (!res.confirm) {
+        return
+      }
+
+      checkingInOrder.value = true
+
+      try {
+        await checkInOrder({
+          orderId: currentOrder._id,
+          checkinCode: currentOrder.checkinCode,
+        })
+        uni.showToast({
+          title: `${actionText}成功`,
+          icon: 'success',
+        })
+        await fetchOrderDetail(false)
+      }
+      catch (error) {
+        uni.showToast({
+          title: error instanceof Error ? error.message : `${actionText}失败`,
+          icon: 'none',
+        })
+      }
+      finally {
+        checkingInOrder.value = false
+      }
+    },
+  })
+}
+
 function handlePayCheckout() {
   if (!order.value || payingCheckout.value || !canPayCheckout.value) {
     return
@@ -1009,6 +1058,9 @@ onUnload(() => {
         </view>
         <view v-if="orderTitle" class="order-detail__title">
           {{ orderTitle }}
+        </view>
+        <view v-if="order.dailyNo" class="order-detail__daily-no">
+          沟通编号：{{ order.dailyNo }}
         </view>
         <view class="order-detail__order-no" :class="{ 'order-detail__order-no--primary': !orderTitle }">
           订单号：{{ order.orderNo }}
@@ -1395,6 +1447,14 @@ onUnload(() => {
         <view class="order-card__tip">
           {{ checkinTip }}
         </view>
+        <button
+          v-if="canDirectCheckIn"
+          class="checkin-code__direct-btn"
+          :disabled="checkingInOrder"
+          @click="handleDirectCheckIn"
+        >
+          {{ checkingInOrder ? '处理中...' : directCheckInText }}
+        </button>
       </view>
 
       <view class="order-card">
@@ -1670,6 +1730,18 @@ onUnload(() => {
     font-size: 44rpx;
     font-weight: 700;
     line-height: 1.2;
+  }
+
+  &__daily-no {
+    width: fit-content;
+    margin-top: 18rpx;
+    border-radius: 8rpx;
+    background: rgb(246 196 83 / 18%);
+    padding: 10rpx 16rpx;
+    color: #f6c453;
+    font-size: 30rpx;
+    font-weight: 700;
+    line-height: 1.25;
   }
 
   &__order-no {
@@ -2082,6 +2154,17 @@ onUnload(() => {
     color: #ffffff;
     font-size: 26rpx;
     line-height: 64rpx;
+  }
+
+  &__direct-btn {
+    min-height: 76rpx;
+    margin-top: 22rpx;
+    border-radius: 8rpx;
+    background: #1f6b56;
+    color: #ffffff;
+    font-size: 28rpx;
+    font-weight: 600;
+    line-height: 76rpx;
   }
 }
 
