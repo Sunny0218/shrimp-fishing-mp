@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ActionButton from '@/components/ActionButton.vue'
+import PricingRuleCard from '@/components/PricingRuleCard.vue'
 import type { HomeData } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
 import { createWalkInOrder } from '@/api/order'
@@ -107,25 +108,8 @@ function formatPrice(price?: number) {
   return `¥${((price || 0) / 100).toFixed(0)}`
 }
 
-function formatDuration(minutes?: number) {
-  const duration = minutes || 0
-
-  if (duration < 60) {
-    return `${duration}分钟`
-  }
-
-  const hours = Math.floor(duration / 60)
-  const restMinutes = duration % 60
-
-  return restMinutes ? `${hours}小时${restMinutes}分钟` : `${hours}小时`
-}
-
 function getFirstHourAmount() {
   return pricingRule.value?.firstHourAmount || pricingRule.value?.pricePerHour || 0
-}
-
-function getExtraPricePerHour() {
-  return pricingRule.value?.extraPricePerHour || pricingRule.value?.pricePerHour || 0
 }
 
 function handleChangeRodCount(delta: number) {
@@ -200,28 +184,14 @@ onPullDownRefresh(() => {
         <view class="walk-in-section__title">
           计费规则
         </view>
-        <view v-if="pricingRule" class="pricing-card">
-          <view>
-            <view class="pricing-card__name">
-              {{ pricingRule.name }}
-            </view>
-            <view class="pricing-card__desc">
-              {{ pricingRule.description || '从服务员确认开始计时时计算' }}
-            </view>
-          </view>
-          <view class="pricing-card__price">
-            首小时 {{ formatPrice(getFirstHourAmount()) }}
-          </view>
-          <view class="pricing-card__extra">
-            续钟 {{ formatPrice(getExtraPricePerHour()) }}/小时
-          </view>
-          <view class="pricing-card__meta">
-            最低 {{ formatDuration(pricingRule.minimumMinutes) }} · 按 {{ formatDuration(pricingRule.unitMinutes) }} 计费
-          </view>
-          <view class="pricing-card__prepaid">
-            首小时预付 {{ formatPrice(prepaidAmount) }}
-          </view>
-        </view>
+        <PricingRuleCard
+          v-if="pricingRule"
+          class="walk-in-section__pricing-rule"
+          :rule="pricingRule"
+          mode="summary"
+          show-prepaid
+          :prepaid-amount="prepaidAmount"
+        />
         <view v-else class="walk-in-placeholder walk-in-placeholder--inner">
           门店暂未配置现场计费规则
         </view>
@@ -330,6 +300,7 @@ onPullDownRefresh(() => {
   padding: 28rpx;
 
   &__title {
+    margin-bottom: 20rpx;
     color: #17211d;
     font-size: 30rpx;
     font-weight: 700;
@@ -359,60 +330,8 @@ onPullDownRefresh(() => {
   }
 }
 
-.pricing-card {
-  margin-top: 20rpx;
-  border: 2rpx solid #e5eee9;
-  border-radius: 8rpx;
-  background: #fbfcfb;
-  padding: 22rpx;
-
-  &__name {
-    color: #17211d;
-    font-size: 30rpx;
-    font-weight: 700;
-    line-height: 1.3;
-  }
-
-  &__desc {
-    margin-top: 12rpx;
-    color: #718079;
-    font-size: 24rpx;
-    line-height: 1.4;
-  }
-
-  &__price {
-    margin-top: 22rpx;
-    color: #c9472b;
-    font-size: 38rpx;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
-  &__extra {
-    margin-top: 10rpx;
-    color: #8a6a19;
-    font-size: 25rpx;
-    font-weight: 600;
-    line-height: 1.35;
-  }
-
-  &__meta {
-    margin-top: 12rpx;
-    color: #8a6a19;
-    font-size: 24rpx;
-    line-height: 1.4;
-  }
-
-  &__prepaid {
-    margin-top: 18rpx;
-    border-radius: 8rpx;
-    background: #fff7df;
-    padding: 16rpx 18rpx;
-    color: #c9472b;
-    font-size: 25rpx;
-    font-weight: 700;
-    line-height: 1.35;
-  }
+.walk-in-section__pricing-rule {
+  margin-top: 0;
 }
 
 .form-field {

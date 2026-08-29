@@ -2,7 +2,7 @@
 import ActionButton from '@/components/ActionButton.vue'
 import FormField from '@/components/FormField.vue'
 import FormSection from '@/components/FormSection.vue'
-import StatusBadge from '@/components/StatusBadge.vue'
+import PricingRuleCard from '@/components/PricingRuleCard.vue'
 import type { PricingRule } from '@/api/types/home'
 import type { PricingRuleStatus } from '@/api/types/pricing'
 import { getManagePricingRules, savePricingRule, updatePricingRuleStatus } from '@/api/pricing'
@@ -261,23 +261,6 @@ function formatPriceInput(price?: number) {
   return `${(price / 100).toFixed(price % 100 === 0 ? 0 : 2)}`
 }
 
-function formatPrice(price?: number) {
-  return `¥${((price || 0) / 100).toFixed(0)}`
-}
-
-function formatDuration(minutes?: number) {
-  const duration = minutes || 0
-
-  if (duration < 60) {
-    return `${duration}分钟`
-  }
-
-  const hours = Math.floor(duration / 60)
-  const restMinutes = duration % 60
-
-  return restMinutes ? `${hours}小时${restMinutes}分钟` : `${hours}小时`
-}
-
 function showNoEditToast() {
   showToast('服务员仅可查看计费规则')
 }
@@ -379,32 +362,18 @@ onPullDownRefresh(() => {
         暂无计费规则
       </view>
       <view v-else class="pricing-list">
-        <view v-for="rule in ruleList" :key="rule._id" class="pricing-card">
-          <view class="pricing-card__header">
-            <view class="pricing-card__name">
-              {{ rule.name }}
-            </view>
-            <StatusBadge :text="rule.status === 'active' ? '启用中' : '停用'" :variant="rule.status === 'active' ? 'success' : 'neutral'" />
-          </view>
-          <view class="pricing-card__desc">
-            {{ rule.description || '暂无描述' }}
-          </view>
-          <view class="pricing-card__price">
-            首小时 {{ formatPrice(rule.firstHourAmount || rule.pricePerHour) }}
-            <text class="pricing-card__price-sub">
-              续钟 {{ formatPrice(rule.extraPricePerHour || rule.pricePerHour) }}/小时
-            </text>
-          </view>
-          <view class="pricing-card__meta">
-            <text>最低 {{ formatDuration(rule.minimumMinutes) }}</text>
-            <text>按 {{ formatDuration(rule.unitMinutes) }} 计费</text>
-            <text>排序 {{ rule.sort || 0 }}</text>
-          </view>
-          <view v-if="canEdit" class="pricing-card__footer">
-            <ActionButton class="pricing-card__btn" label="编辑" block variant="ghost" size="small" @click="handleEdit(rule)" />
+        <PricingRuleCard
+          v-for="rule in ruleList"
+          :key="rule._id"
+          :rule="rule"
+          mode="manage"
+          show-status
+          show-sort
+        >
+          <template v-if="canEdit" #actions>
+            <ActionButton class="pricing-card__btn" label="编辑" variant="ghost" size="small" @click="handleEdit(rule)" />
             <ActionButton
               class="pricing-card__btn"
-              block
               :variant="rule.status === 'active' ? 'warning' : 'primary'"
               size="small"
               :label="rule.status === 'active' ? '停用' : '启用'"
@@ -413,8 +382,8 @@ onPullDownRefresh(() => {
               :disabled="updatingStatusId === rule._id"
               @click="handleToggleStatus(rule)"
             />
-          </view>
-        </view>
+          </template>
+        </PricingRuleCard>
       </view>
     </view>
   </view>
@@ -429,7 +398,6 @@ onPullDownRefresh(() => {
 }
 
 .pricing-toolbar,
-.pricing-card,
 .pricing-placeholder,
 .pricing-note {
   border-radius: 8rpx;
@@ -538,74 +506,6 @@ onPullDownRefresh(() => {
 }
 
 .pricing-card {
-  padding: 26rpx;
-
-  &__header,
-  &__footer,
-  &__meta {
-    display: flex;
-    align-items: center;
-  }
-
-  &__header {
-    justify-content: space-between;
-    gap: 20rpx;
-  }
-
-  &__name {
-    min-width: 0;
-    color: #17211d;
-    font-size: 31rpx;
-    font-weight: 700;
-    line-height: 1.3;
-  }
-
-  &__desc {
-    margin-top: 14rpx;
-    color: #718079;
-    font-size: 25rpx;
-    line-height: 1.45;
-  }
-
-  &__price {
-    margin-top: 18rpx;
-    color: #c9472b;
-    font-size: 34rpx;
-    font-weight: 700;
-    line-height: 1.2;
-
-    &-sub {
-      display: block;
-      margin-top: 8rpx;
-      color: #8a6a19;
-      font-size: 24rpx;
-      font-weight: 600;
-    }
-  }
-
-  &__meta {
-    flex-wrap: wrap;
-    gap: 10rpx;
-    margin-top: 18rpx;
-    color: #52615b;
-    font-size: 23rpx;
-    line-height: 1.35;
-
-    text {
-      border-radius: 8rpx;
-      background: #eef4f0;
-      padding: 8rpx 12rpx;
-    }
-  }
-
-  &__footer {
-    justify-content: flex-end;
-    gap: 12rpx;
-    margin-top: 22rpx;
-    border-top: 2rpx solid #eef2ef;
-    padding-top: 18rpx;
-  }
-
   &__btn {
     min-width: 108rpx;
     padding: 0 22rpx;
