@@ -307,8 +307,4 @@ onReachBottom(() => {
   flex-direction: column;
   gap: 20rpx;
 }
-
-button::after {
-  border: none;
-}
 </style>

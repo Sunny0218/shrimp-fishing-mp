@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia'
+import ActionButton from '@/components/ActionButton.vue'
 import { LOGIN_PAGE } from '@/router/config'
 import { useUserStore } from '@/store'
 import { useTokenStore } from '@/store/token'
@@ -101,9 +102,7 @@ const roleText = computed(() => roleTextMap[userInfo.value.role || 'customer'])
           {{ tokenStore.hasLogin ? roleText : '登录后查看预约、订单和核销码' }}
         </view>
       </view>
-      <button v-if="!tokenStore.hasLogin" class="profile-card__login" @click="handleLogin">
-        登录
-      </button>
+      <ActionButton v-if="!tokenStore.hasLogin" class="profile-card__login" label="登录" block variant="secondary" size="small" @click="handleLogin" />
     </view>
 
     <view class="profile-section">
@@ -149,9 +148,7 @@ const roleText = computed(() => roleTextMap[userInfo.value.role || 'customer'])
     </view>
 
     <view v-if="tokenStore.hasLogin" class="profile-page__footer">
-      <button class="profile-page__logout" :disabled="loggingOut" @click="handleLogout">
-        {{ loggingOut ? '退出中...' : '退出登录' }}
-      </button>
+      <ActionButton class="profile-page__logout" block label="退出登录" loading-text="退出中..." :loading="loggingOut" variant="danger-outline" size="large" @click="handleLogout" />
     </view>
   </view>
 </template>
@@ -168,13 +165,6 @@ const roleText = computed(() => roleTextMap[userInfo.value.role || 'customer'])
   }
 
   &__logout {
-    min-height: 76rpx;
-    border-radius: 8rpx;
-    border: 2rpx solid #e8d0c7;
-    background: #ffffff;
-    color: #c9472b;
-    font-size: 28rpx;
-    line-height: 76rpx;
   }
 }
 
@@ -218,11 +208,7 @@ const roleText = computed(() => roleTextMap[userInfo.value.role || 'customer'])
     width: 136rpx;
     min-height: 60rpx;
     flex-shrink: 0;
-    border-radius: 8rpx;
-    background: #f6c453;
-    color: #20312b;
     font-size: 24rpx;
-    line-height: 60rpx;
   }
 }
 
@@ -277,9 +263,5 @@ const roleText = computed(() => roleTextMap[userInfo.value.role || 'customer'])
     font-size: 32rpx;
     line-height: 1;
   }
-}
-
-button::after {
-  border: none;
 }
 </style>

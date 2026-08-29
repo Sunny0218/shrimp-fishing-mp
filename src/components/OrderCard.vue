@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ActionButton from './ActionButton.vue'
 import type { OrderStatus } from '@/api/types/order'
 import type { OrderTimeItem } from '@/utils/orderDisplay'
 
@@ -107,13 +108,15 @@ const emit = defineEmits<{
     </view>
 
     <view v-if="actionLabel" class="order-card__actions">
-      <button
+      <ActionButton
         class="order-card__action-btn"
+        block
+        size="small"
+        :label="actionLabel"
+        :loading="actionLoading"
         :disabled="actionDisabled"
         @click.stop="emit('action')"
-      >
-        {{ actionLoading ? '处理中...' : actionLabel }}
-      </button>
+      />
     </view>
   </view>
 </template>
@@ -303,22 +306,7 @@ const emit = defineEmits<{
   }
 
   &__action-btn {
-    width: 176rpx;
-    min-height: 58rpx;
-    margin: 0;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
-    font-size: 24rpx;
-    line-height: 58rpx;
+    min-width: 176rpx;
   }
-}
-
-button::after {
-  border: none;
-}
-
-button[disabled] {
-  opacity: 0.55;
 }
 </style>

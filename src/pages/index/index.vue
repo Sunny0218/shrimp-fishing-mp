@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import ActionButton from '@/components/ActionButton.vue'
 import type { HomeData, ShrimpPackage, TimeSlot } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
 import { useTokenStore } from '@/store'
@@ -293,29 +294,29 @@ onPullDownRefresh(() => {
           {{ shopInfo.address }}
         </view>
         <view class="home-page__actions">
-          <button
+          <ActionButton
             class="home-page__ghost-btn"
+            label="联系门店"
+            block
+            variant="outline-light"
             :disabled="loading"
             @click="handleCallShop"
-          >
-            联系门店
-          </button>
-          <button
+          />
+          <ActionButton
             class="home-page__primary-btn"
+            :label="isLoggedIn ? '现场开单' : '去登录'"
+            block
+            variant="secondary"
             :disabled="loading"
             @click="handleWalkInOrder"
-          >
-            {{ isLoggedIn ? '现场开单' : '去登录' }}
-          </button>
+          />
         </view>
       </view>
     </view>
 
     <view v-if="errorText" class="home-page__alert">
       <text>{{ errorText }}</text>
-      <button class="home-page__retry-btn" :disabled="loading" @click="fetchHomeData">
-        重试
-      </button>
+      <ActionButton class="home-page__retry-btn" label="重试" block size="small" variant="danger-solid" :disabled="loading" @click="fetchHomeData" />
     </view>
 
     <view class="home-section home-section--notice">
@@ -366,9 +367,7 @@ onPullDownRefresh(() => {
             <view class="package-card__price">
               {{ formatPrice(packageItem.price) }}
             </view>
-            <button class="package-card__btn" :disabled="loading" @click="handleBooking(packageItem)">
-              {{ isLoggedIn ? '预约' : '去登录' }}
-            </button>
+            <ActionButton class="package-card__btn" block size="small" :label="isLoggedIn ? '预约' : '去登录'" :disabled="loading" @click="handleBooking(packageItem)" />
           </view>
         </view>
       </view>
@@ -496,31 +495,18 @@ onPullDownRefresh(() => {
   }
 
   &__actions {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 20rpx;
     margin-top: 36rpx;
   }
 
-  &__primary-btn,
-  &__ghost-btn,
-  &__retry-btn {
-    min-height: 76rpx;
-    border-radius: 8rpx;
-    font-size: 28rpx;
-    line-height: 76rpx;
-  }
-
   &__primary-btn {
-    width: 220rpx;
-    background: #f6c453;
-    color: #20312b;
+    width: 100%;
   }
 
   &__ghost-btn {
-    width: 220rpx;
-    border: 2rpx solid rgb(255 255 255 / 45%);
-    background: transparent;
-    color: #ffffff;
+    width: 100%;
   }
 
   &__alert {
@@ -539,10 +525,7 @@ onPullDownRefresh(() => {
   &__retry-btn {
     width: 140rpx;
     min-height: 60rpx;
-    background: #c9472b;
-    color: #ffffff;
     font-size: 24rpx;
-    line-height: 60rpx;
   }
 
   &__placeholder {
@@ -656,11 +639,6 @@ onPullDownRefresh(() => {
   &__btn {
     width: 136rpx;
     min-height: 60rpx;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
-    font-size: 24rpx;
-    line-height: 60rpx;
   }
 }
 
@@ -706,13 +684,5 @@ onPullDownRefresh(() => {
       color: #9a4b31;
     }
   }
-}
-
-button::after {
-  border: none;
-}
-
-button[disabled] {
-  opacity: 0.6;
 }
 </style>

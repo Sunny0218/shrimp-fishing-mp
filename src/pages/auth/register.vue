@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import ActionButton from '@/components/ActionButton.vue'
 import { LOGIN_PAGE } from '@/router/config'
 
 definePage({
@@ -23,9 +24,7 @@ function doRegister() {
     <view class="text-center">
       注册页
     </view>
-    <button class="mt-4 w-40 text-center" @click="doRegister">
-      点击模拟注册
-    </button>
+    <ActionButton class="mt-4 w-40 text-center" label="点击模拟注册" @click="doRegister" />
   </view>
 </template>
 

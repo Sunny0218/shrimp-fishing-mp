@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ActionButton from '@/components/ActionButton.vue'
 import type { PackageStatus, ShrimpPackage } from '@/api/types/home'
 import { deletePackage, getManagePackages, savePackage, updatePackageStatus } from '@/api/package'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
@@ -351,14 +352,15 @@ onPullDownRefresh(() => {
           {{ canEdit ? '维护顾客可预约的固定套餐' : '当前角色仅可查看套餐' }}
         </view>
       </view>
-      <button
+      <ActionButton
         v-if="canEdit"
         class="package-toolbar__btn"
+        label="新增"
+        block
+        size="small"
         :disabled="saving"
         @click="handleCreate"
-      >
-        新增
-      </button>
+      />
     </view>
 
     <view v-if="showForm" class="package-form">
@@ -366,9 +368,7 @@ onPullDownRefresh(() => {
         <view class="package-form__title">
           {{ formTitle }}
         </view>
-        <button class="package-form__close" :disabled="saving" @click="handleCancelForm">
-          取消
-        </button>
+        <ActionButton class="package-form__close" label="取消" block variant="ghost" size="small" :disabled="saving" @click="handleCancelForm" />
       </view>
 
       <view class="form-field">
@@ -428,9 +428,9 @@ onPullDownRefresh(() => {
         </view>
       </view>
 
-      <button class="package-form__submit" :disabled="saving" @click="handleSave">
-        {{ saving ? '保存中...' : '保存套餐' }}
-      </button>
+      <view class="package-form__actions">
+        <ActionButton class="package-form__submit" block label="保存套餐" loading-text="保存中..." :loading="saving" variant="secondary" size="large" @click="handleSave" />
+      </view>
     </view>
 
     <view class="package-content">
@@ -439,9 +439,7 @@ onPullDownRefresh(() => {
       </view>
       <view v-else-if="errorText" class="package-placeholder package-placeholder--error">
         <text>{{ errorText }}</text>
-        <button class="package-placeholder__btn" @click="fetchPackages">
-          重试
-        </button>
+        <ActionButton class="package-placeholder__btn" label="重试" @click="fetchPackages" />
       </view>
       <view v-else-if="!packageList.length" class="package-placeholder">
         暂无套餐
@@ -470,24 +468,29 @@ onPullDownRefresh(() => {
               {{ formatPrice(packageItem.price) }}
             </view>
             <view v-if="canEdit" class="package-card__actions">
-              <button class="package-card__btn package-card__btn--ghost" @click="handleEdit(packageItem)">
-                编辑
-              </button>
-              <button
+              <ActionButton class="package-card__btn" label="编辑" block variant="ghost" size="small" @click="handleEdit(packageItem)" />
+              <ActionButton
                 class="package-card__btn"
-                :class="{ 'package-card__btn--warning': packageItem.status === 'active' }"
+                block
+                :variant="packageItem.status === 'active' ? 'warning' : 'primary'"
+                size="small"
+                :label="packageItem.status === 'active' ? '停用' : '启用'"
+                loading-text="处理中"
+                :loading="updatingStatusId === packageItem._id"
                 :disabled="updatingStatusId === packageItem._id"
                 @click="handleToggleStatus(packageItem)"
-              >
-                {{ updatingStatusId === packageItem._id ? '处理中' : packageItem.status === 'active' ? '停用' : '启用' }}
-              </button>
-              <button
-                class="package-card__btn package-card__btn--danger"
+              />
+              <ActionButton
+                class="package-card__btn"
+                block
+                variant="danger-outline"
+                size="small"
+                label="删除"
+                loading-text="删除中"
+                :loading="deletingPackageId === packageItem._id"
                 :disabled="deletingPackageId === packageItem._id"
                 @click="handleDelete(packageItem)"
-              >
-                {{ deletingPackageId === packageItem._id ? '删除中' : '删除' }}
-              </button>
+              />
             </view>
           </view>
         </view>
@@ -537,13 +540,6 @@ onPullDownRefresh(() => {
   &__btn {
     flex-shrink: 0;
     width: 132rpx;
-    min-height: 64rpx;
-    margin: 0;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
-    font-size: 25rpx;
-    line-height: 64rpx;
   }
 }
 
@@ -568,24 +564,11 @@ onPullDownRefresh(() => {
 
   &__close {
     width: 112rpx;
-    min-height: 56rpx;
-    margin: 0;
-    border-radius: 8rpx;
-    background: #eef2ef;
     color: #52615b;
-    font-size: 24rpx;
-    line-height: 56rpx;
   }
 
-  &__submit {
-    min-height: 76rpx;
+  &__actions {
     margin-top: 28rpx;
-    border-radius: 8rpx;
-    background: #f6c453;
-    color: #20312b;
-    font-size: 28rpx;
-    font-weight: 700;
-    line-height: 76rpx;
   }
 }
 
@@ -650,14 +633,7 @@ onPullDownRefresh(() => {
   }
 
   &__btn {
-    width: 180rpx;
-    min-height: 66rpx;
     margin-top: 22rpx;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
-    font-size: 25rpx;
-    line-height: 66rpx;
   }
 }
 
@@ -749,37 +725,7 @@ onPullDownRefresh(() => {
   }
 
   &__btn {
-    width: 108rpx;
-    min-height: 58rpx;
-    margin: 0;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
-    font-size: 24rpx;
-    line-height: 58rpx;
-
-    &--ghost {
-      background: #eef2ef;
-      color: #52615b;
-    }
-
-    &--warning {
-      background: #f6c453;
-      color: #20312b;
-    }
-
-    &--danger {
-      background: #f7e5de;
-      color: #c9472b;
-    }
+    min-width: 108rpx;
   }
-}
-
-button::after {
-  border: none;
-}
-
-button[disabled] {
-  opacity: 0.55;
 }
 </style>

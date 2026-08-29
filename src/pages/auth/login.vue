@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia'
 import { bindWechatPhoneNumber } from '@/api/login'
+import ActionButton from '@/components/ActionButton.vue'
 import { useUserStore } from '@/store'
 import { useTokenStore } from '@/store/token'
 import { isPageTabbar } from '@/tabbar/store'
@@ -172,30 +173,31 @@ onLoad((query) => {
         推荐授权手机号，方便门店联系和核对订单；也可以先用微信身份登录，之后再补绑手机号。
       </view>
       <!-- #ifdef MP-WEIXIN -->
-      <button
+      <ActionButton
         class="login-card__button"
         open-type="getPhoneNumber"
+        block
+        :label="logging ? '登录中...' : '手机号授权登录'"
         :disabled="logging"
         @getphonenumber="handlePhoneLogin"
-      >
-        {{ logging ? '登录中...' : '手机号授权登录' }}
-      </button>
-      <button
+      />
+      <ActionButton
         class="login-card__secondary-button"
+        label="微信登录，暂不绑定手机号"
+        block
+        variant="ghost"
         :disabled="logging"
         @click="handleWechatLogin"
-      >
-        微信登录，暂不绑定手机号
-      </button>
+      />
       <!-- #endif -->
       <!-- #ifndef MP-WEIXIN -->
-      <button
+      <ActionButton
         class="login-card__button"
+        block
+        :label="logging ? '登录中...' : '登录'"
         :disabled="logging"
         @click="handleWechatLogin"
-      >
-        {{ logging ? '登录中...' : '登录' }}
-      </button>
+      />
       <!-- #endif -->
       <view v-if="tokenStore.hasLogin" class="login-card__tip">
         当前已登录：{{ displayName }}
@@ -266,24 +268,19 @@ onLoad((query) => {
   }
 
   &__button {
+    display: block;
     margin-top: 34rpx;
-    min-height: 82rpx;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
     font-size: 30rpx;
-    line-height: 82rpx;
+    min-height: 82rpx;
+    width: 100%;
   }
 
   &__secondary-button {
+    display: block;
     margin-top: 18rpx;
     min-height: 76rpx;
-    border: 2rpx solid #d9e3df;
-    border-radius: 8rpx;
-    background: #ffffff;
-    color: #1f6b56;
+    width: 100%;
     font-size: 28rpx;
-    line-height: 76rpx;
   }
 
   &__tip {
@@ -293,13 +290,5 @@ onLoad((query) => {
     line-height: 1.4;
     text-align: center;
   }
-}
-
-button::after {
-  border: none;
-}
-
-button[disabled] {
-  opacity: 0.6;
 }
 </style>

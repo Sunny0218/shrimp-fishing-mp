@@ -4,6 +4,7 @@ import qrcode from 'qrcode-generator'
 import { storeToRefs } from 'pinia'
 import { requestNotificationSubscription } from '@/api/notification'
 import { cancelOrder, checkInOrder, getOrderDetail, payCheckoutOrder, payOrder, updateRodSession } from '@/api/order'
+import ActionButton from '@/components/ActionButton.vue'
 import type { NotificationTemplateKey } from '@/config/notificationTemplates'
 import { activeOrderNotificationTemplateIds, activeOrderNotificationTemplateKeys, notificationTemplateKeys } from '@/config/notificationTemplates'
 import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
@@ -1088,9 +1089,7 @@ onUnload(() => {
 
     <view v-else-if="errorText" class="order-detail-page__error">
       <text>{{ errorText }}</text>
-      <button class="order-detail-page__retry" @click="handleRetry">
-        重试
-      </button>
+      <ActionButton class="order-detail-page__retry" label="重试" @click="handleRetry" />
     </view>
 
     <view v-else-if="order" class="order-detail">
@@ -1118,14 +1117,17 @@ onUnload(() => {
             授权后可接收快到点、到点和订单状态提醒
           </view>
         </view>
-        <button
+        <ActionButton
           class="notify-card__btn"
           :class="{ 'notify-card__btn--disabled': hasSubscribedOrderNotification }"
+          :label="subscribeOrderNotificationText"
+          block
+          :variant="hasSubscribedOrderNotification ? 'ghost' : 'primary'"
           :disabled="subscribingNotification || hasSubscribedOrderNotification"
+          :loading="subscribingNotification"
+          loading-text="订阅中..."
           @click="handleSubscribeOrderNotification"
-        >
-          {{ subscribeOrderNotificationText }}
-        </button>
+        />
       </view>
 
       <view v-if="canPayOrder" class="order-card payment-card">
@@ -1238,13 +1240,15 @@ onUnload(() => {
           </text>
         </view>
         <view v-if="canFinishTiming" class="timing-card__actions">
-          <button
+          <ActionButton
             class="timing-card__finish-btn"
+            label="结束计时"
+            block
+            loading-text="处理中..."
+            :loading="finishingOrderId === order._id"
             :disabled="!!finishingOrderId"
             @click="handleFinishCurrentOrder"
-          >
-            {{ finishingOrderId === order._id ? '处理中...' : '结束计时' }}
-          </button>
+          />
         </view>
       </view>
 
@@ -1298,22 +1302,29 @@ onUnload(() => {
               {{ getRodSettlementText(session) }}
             </view>
             <view v-if="canStopRodSession(session) || canResumeRodSession(session)" class="rod-session__actions">
-              <button
+              <ActionButton
                 v-if="canStopRodSession(session)"
                 class="rod-session__btn"
+                label="停杆"
+                block
+                size="small"
+                loading-text="处理中..."
+                :loading="operatingRodSessionId === session.id"
                 :disabled="operatingRodSessionId === session.id"
                 @click="handleUpdateRodSession(session, 'stop')"
-              >
-                {{ operatingRodSessionId === session.id ? '处理中...' : '停杆' }}
-              </button>
-              <button
+              />
+              <ActionButton
                 v-if="canResumeRodSession(session)"
                 class="rod-session__btn rod-session__btn--secondary"
+                label="续钟"
+                block
+                variant="secondary"
+                size="small"
+                loading-text="处理中..."
+                :loading="operatingRodSessionId === session.id"
                 :disabled="operatingRodSessionId === session.id"
                 @click="handleUpdateRodSession(session, 'resume')"
-              >
-                {{ operatingRodSessionId === session.id ? '处理中...' : '续钟' }}
-              </button>
+              />
             </view>
           </view>
         </view>
@@ -1334,13 +1345,15 @@ onUnload(() => {
         <view class="checkout-card__desc">
           {{ checkoutDesc }}
         </view>
-        <button
+        <ActionButton
           class="checkout-card__pay-btn"
+          block
+          :label="checkoutPayText"
+          loading-text="支付中..."
+          :loading="payingCheckout"
           :disabled="payingCheckout"
           @click="handlePayCheckout"
-        >
-          {{ payingCheckout ? '支付中...' : checkoutPayText }}
-        </button>
+        />
       </view>
 
       <view class="order-card">
@@ -1477,9 +1490,7 @@ onUnload(() => {
           <view class="checkin-code__value">
             {{ order.checkinCode }}
           </view>
-          <button class="checkin-code__copy" @click="handleCopyCheckinCode">
-            复制号码
-          </button>
+          <ActionButton class="checkin-code__copy" label="复制号码" block @click="handleCopyCheckinCode" />
         </view>
         <view v-else class="checkin-code checkin-code--disabled">
           <view class="checkin-code__value">
@@ -1492,14 +1503,16 @@ onUnload(() => {
         <view class="order-card__tip">
           {{ checkinTip }}
         </view>
-        <button
+        <ActionButton
           v-if="canDirectCheckIn"
           class="checkin-code__direct-btn"
+          block
+          :label="directCheckInText"
+          loading-text="处理中..."
+          :loading="checkingInOrder"
           :disabled="checkingInOrder"
           @click="handleDirectCheckIn"
-        >
-          {{ checkingInOrder ? '处理中...' : directCheckInText }}
-        </button>
+        />
       </view>
 
       <view class="order-card">
@@ -1674,25 +1687,29 @@ onUnload(() => {
         </view>
       </view>
 
-      <button class="order-detail-page__home-btn" @click="handleBackHome">
-        返回首页
-      </button>
-      <button
+      <ActionButton class="order-detail-page__home-btn" block label="返回首页" @click="handleBackHome" />
+      <ActionButton
         v-if="canPayOrder"
         class="order-detail-page__pay-btn"
+        block
+        label="模拟支付"
+        loading-text="支付中..."
+        :loading="payingOrder"
+        variant="secondary"
         :disabled="payingOrder"
         @click="handlePayOrder"
-      >
-        {{ payingOrder ? '支付中...' : '模拟支付' }}
-      </button>
-      <button
+      />
+      <ActionButton
         v-if="canCancel"
         class="order-detail-page__cancel-btn"
+        block
+        :label="cancelActionText"
+        loading-text="处理中..."
+        :loading="cancelling"
+        variant="danger"
         :disabled="cancelling"
         @click="handleCancelOrder"
-      >
-        {{ cancelling ? '处理中...' : cancelActionText }}
-      </button>
+      />
     </view>
   </view>
 </template>
@@ -2221,13 +2238,5 @@ onUnload(() => {
     font-weight: 600;
     line-height: 76rpx;
   }
-}
-
-button::after {
-  border: none;
-}
-
-button[disabled] {
-  opacity: 0.6;
 }
 </style>

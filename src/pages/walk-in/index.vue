@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ActionButton from '@/components/ActionButton.vue'
 import type { HomeData } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
 import { createWalkInOrder } from '@/api/order'
@@ -191,9 +192,7 @@ onPullDownRefresh(() => {
 
     <view v-else-if="errorText" class="walk-in-placeholder walk-in-placeholder--error">
       <text>{{ errorText }}</text>
-      <button class="walk-in-placeholder__btn" @click="fetchData">
-        重试
-      </button>
+      <ActionButton class="walk-in-placeholder__btn" label="重试" @click="fetchData" />
     </view>
 
     <view v-else class="walk-in-content">
@@ -237,15 +236,11 @@ onPullDownRefresh(() => {
             杆数
           </view>
           <view class="rod-stepper">
-            <button class="rod-stepper__btn" :disabled="rodCount <= 1" @click="handleChangeRodCount(-1)">
-              -
-            </button>
+            <ActionButton class="rod-stepper__btn" label="-" variant="ghost" size="small" :disabled="rodCount <= 1" @click="handleChangeRodCount(-1)" />
             <view class="rod-stepper__value">
               {{ rodCount }} 支
             </view>
-            <button class="rod-stepper__btn" :disabled="rodCount >= 20" @click="handleChangeRodCount(1)">
-              +
-            </button>
+            <ActionButton class="rod-stepper__btn" label="+" variant="ghost" size="small" :disabled="rodCount >= 20" @click="handleChangeRodCount(1)" />
           </view>
           <view class="form-field__hint">
             后续可在同一订单内支持单支杆独立停杆和续钟。
@@ -265,13 +260,15 @@ onPullDownRefresh(() => {
         </view>
       </view>
 
-      <button
+      <ActionButton
         class="walk-in-submit"
+        block
+        variant="secondary"
+        size="large"
+        :label="submitText"
         :disabled="submitting || (isLoggedIn && !pricingRule)"
         @click="handleSubmit"
-      >
-        {{ submitText }}
-      </button>
+      />
     </view>
   </view>
 </template>
@@ -358,13 +355,7 @@ onPullDownRefresh(() => {
 
   &__btn {
     width: 180rpx;
-    min-height: 66rpx;
     margin-top: 22rpx;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
-    font-size: 25rpx;
-    line-height: 66rpx;
   }
 }
 
@@ -478,13 +469,13 @@ onPullDownRefresh(() => {
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: 0;
+    width: 76rpx;
     min-height: 76rpx;
-    margin: 0;
     border-radius: 0;
     background: #f4f7f2;
     color: #1f6b56;
     font-size: 34rpx;
-    line-height: 76rpx;
 
     &[disabled] {
       color: #b7c2bd;
@@ -501,20 +492,7 @@ onPullDownRefresh(() => {
 }
 
 .walk-in-submit {
+  margin-top: 28rpx;
   min-height: 78rpx;
-  border-radius: 8rpx;
-  background: #f6c453;
-  color: #20312b;
-  font-size: 28rpx;
-  font-weight: 700;
-  line-height: 78rpx;
-}
-
-button::after {
-  border: none;
-}
-
-button[disabled] {
-  opacity: 0.55;
 }
 </style>

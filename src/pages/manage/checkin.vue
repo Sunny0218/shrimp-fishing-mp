@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CheckInOrderResult, OrderDateValue } from '@/api/types/order'
 import { checkInOrder } from '@/api/order'
+import ActionButton from '@/components/ActionButton.vue'
 import { getDateTimeValue } from '@/utils/orderDisplay'
 
 definePage({
@@ -304,9 +305,7 @@ onLoad((query) => {
     </view>
 
     <view v-if="!hasCheckedIn" class="checkin-card">
-      <button class="checkin-page__scan-btn" :disabled="submitting" @click="handleScan">
-        {{ pageCopy.scanButton }}
-      </button>
+      <ActionButton class="checkin-page__scan-btn" block size="large" :label="pageCopy.scanButton" :disabled="submitting" @click="handleScan" />
 
       <view class="manual-field">
         <view class="manual-field__label">
@@ -352,9 +351,17 @@ onLoad((query) => {
         </view>
       </view>
 
-      <button class="checkin-page__submit-btn" :disabled="!canSubmit" @click="handleSubmit">
-        {{ submitting ? pageCopy.submittingText : pageCopy.submitText }}
-      </button>
+      <ActionButton
+        class="checkin-page__submit-btn"
+        block
+        size="large"
+        variant="secondary"
+        :label="pageCopy.submitText"
+        :loading="submitting"
+        :loading-text="pageCopy.submittingText"
+        :disabled="!canSubmit"
+        @click="handleSubmit"
+      />
     </view>
 
     <view v-if="result?.order" class="result-card">
@@ -410,9 +417,7 @@ onLoad((query) => {
         </text>
       </view>
 
-      <button class="result-card__next-btn" @click="handleNextCheckin">
-        {{ pageCopy.resultNextText }}
-      </button>
+      <ActionButton class="result-card__next-btn" block size="large" :label="pageCopy.resultNextText" @click="handleNextCheckin" />
     </view>
   </view>
 </template>
@@ -426,22 +431,11 @@ onLoad((query) => {
 
   &__scan-btn,
   &__submit-btn {
-    min-height: 84rpx;
-    border-radius: 8rpx;
     font-size: 30rpx;
-    font-weight: 600;
-    line-height: 84rpx;
-  }
-
-  &__scan-btn {
-    background: #1f6b56;
-    color: #ffffff;
   }
 
   &__submit-btn {
     margin-top: 28rpx;
-    background: #f6c453;
-    color: #20312b;
   }
 }
 
@@ -534,14 +528,8 @@ onLoad((query) => {
   }
 
   &__next-btn {
-    min-height: 78rpx;
     margin-top: 24rpx;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
     font-size: 28rpx;
-    font-weight: 600;
-    line-height: 78rpx;
   }
 }
 
@@ -590,13 +578,5 @@ onLoad((query) => {
       font-size: 26rpx;
     }
   }
-}
-
-button::after {
-  border: none;
-}
-
-button[disabled] {
-  opacity: 0.55;
 }
 </style>

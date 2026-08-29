@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ActionButton from '@/components/ActionButton.vue'
 import type { BookingMode, BusinessHour, NotificationSettings, PaymentMode, ShopSettings } from '@/api/types/home'
 import { defaultHomeData, getHomeData, saveShopSettings } from '@/api/home'
 import { defaultNotificationSettings, notificationTemplateConfig } from '@/config/notificationTemplates'
@@ -439,9 +440,7 @@ onPullDownRefresh(() => {
 
     <view v-else-if="errorText" class="settings-placeholder settings-placeholder--error">
       <text>{{ errorText }}</text>
-      <button class="settings-placeholder__btn" @click="fetchSettings">
-        重试
-      </button>
+      <ActionButton class="settings-placeholder__btn" label="重试" @click="fetchSettings" />
     </view>
 
     <view v-else class="settings-form">
@@ -471,9 +470,7 @@ onPullDownRefresh(() => {
           <view class="settings-section__title">
             首页封面图
           </view>
-          <button class="settings-section__btn settings-section__btn--wide" :disabled="saving || uploadingCoverImage" @click="handleUploadCoverImage">
-            {{ uploadingCoverImage ? '上传中' : '上传' }}
-          </button>
+          <ActionButton class="settings-section__btn settings-section__btn--wide" label="上传" block loading-text="上传中" size="small" :loading="uploadingCoverImage" :disabled="saving || uploadingCoverImage" @click="handleUploadCoverImage" />
         </view>
 
         <view v-if="!form.coverImages.length" class="settings-empty">
@@ -491,9 +488,9 @@ onPullDownRefresh(() => {
               </view>
               <input v-model.trim="form.coverImages[index]" class="form-field__input" :maxlength="300" placeholder="上传后自动填入 cloud:// 地址">
             </view>
-            <button class="cover-card__remove" :disabled="saving" @click="handleRemoveCoverImage(index)">
-              删除
-            </button>
+            <view class="cover-card__actions">
+              <ActionButton class="cover-card__remove" label="删除" block variant="danger-outline" size="small" :disabled="saving" @click="handleRemoveCoverImage(index)" />
+            </view>
           </view>
         </view>
       </view>
@@ -595,9 +592,7 @@ onPullDownRefresh(() => {
           <view class="settings-section__title">
             营业时间
           </view>
-          <button class="settings-section__btn" :disabled="saving" @click="handleAddHour">
-            新增
-          </button>
+          <ActionButton class="settings-section__btn" label="新增" block size="small" :disabled="saving" @click="handleAddHour" />
         </view>
 
         <view v-for="(hour, index) in form.businessHours" :key="index" class="hour-card">
@@ -629,14 +624,17 @@ onPullDownRefresh(() => {
               </picker>
             </view>
           </view>
-          <button
-            v-if="form.businessHours.length > 1"
-            class="hour-card__remove"
-            :disabled="saving"
-            @click="handleRemoveHour(index)"
-          >
-            删除本条
-          </button>
+          <view v-if="form.businessHours.length > 1" class="hour-card__actions">
+            <ActionButton
+              class="hour-card__remove"
+              label="删除本条"
+              block
+              variant="danger-outline"
+              size="small"
+              :disabled="saving"
+              @click="handleRemoveHour(index)"
+            />
+          </view>
         </view>
       </view>
 
@@ -647,9 +645,9 @@ onPullDownRefresh(() => {
         <textarea v-model.trim="form.notice" class="form-field__textarea" :maxlength="120" placeholder="展示在首页底部，可填写预约说明或临时通知" />
       </view>
 
-      <button class="settings-form__submit" :disabled="saving" @click="handleSave">
-        {{ saving ? '保存中...' : '保存门店信息' }}
-      </button>
+      <view class="settings-form__actions">
+        <ActionButton class="settings-form__submit" block label="保存门店信息" loading-text="保存中..." :loading="saving" variant="secondary" size="large" @click="handleSave" />
+      </view>
     </view>
   </view>
 </template>
@@ -700,14 +698,7 @@ onPullDownRefresh(() => {
   }
 
   &__btn {
-    width: 180rpx;
-    min-height: 66rpx;
     margin-top: 22rpx;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
-    font-size: 25rpx;
-    line-height: 66rpx;
   }
 }
 
@@ -715,15 +706,8 @@ onPullDownRefresh(() => {
   margin-top: 22rpx;
   padding: 28rpx;
 
-  &__submit {
-    min-height: 76rpx;
+  &__actions {
     margin-top: 28rpx;
-    border-radius: 8rpx;
-    background: #f6c453;
-    color: #20312b;
-    font-size: 28rpx;
-    font-weight: 700;
-    line-height: 76rpx;
   }
 }
 
@@ -747,13 +731,6 @@ onPullDownRefresh(() => {
 
   &__btn {
     width: 112rpx;
-    min-height: 56rpx;
-    margin: 0;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
-    font-size: 24rpx;
-    line-height: 56rpx;
 
     &--wide {
       width: 136rpx;
@@ -858,13 +835,10 @@ onPullDownRefresh(() => {
 
   &__remove {
     width: 128rpx;
-    min-height: 52rpx;
-    margin: 16rpx 0 0;
-    border-radius: 8rpx;
-    background: #f8ebe7;
-    color: #c9472b;
-    font-size: 23rpx;
-    line-height: 52rpx;
+  }
+
+  &__actions {
+    margin-top: 16rpx;
   }
 }
 
@@ -962,13 +936,10 @@ onPullDownRefresh(() => {
 
   &__remove {
     width: 180rpx;
-    min-height: 58rpx;
-    margin: 20rpx 0 0;
-    border-radius: 8rpx;
-    background: #f8ebe7;
-    color: #c9472b;
-    font-size: 24rpx;
-    line-height: 58rpx;
+  }
+
+  &__actions {
+    margin-top: 20rpx;
   }
 }
 </style>

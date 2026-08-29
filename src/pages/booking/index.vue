@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ActionButton from '@/components/ActionButton.vue'
 import type { HomeData, ShrimpPackage, TimeSlot } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
 import { createOrder } from '@/api/order'
@@ -312,9 +313,7 @@ onShow(() => {
           {{ selectedPackage ? formatPrice(selectedPackage.price) : '待选择' }}
         </view>
       </view>
-      <button class="booking-page__submit" :disabled="loading || submitting" @click="handleSubmit">
-        {{ submitText }}
-      </button>
+      <ActionButton class="booking-page__submit" block :label="submitText" :disabled="loading || submitting" @click="handleSubmit" />
     </view>
   </view>
 </template>
@@ -384,13 +383,9 @@ onShow(() => {
   }
 
   &__submit {
+    margin-top: 18rpx;
     width: 260rpx;
-    min-height: 76rpx;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
     font-size: 28rpx;
-    line-height: 76rpx;
   }
 }
 
@@ -514,13 +509,5 @@ onShow(() => {
     font-weight: 700;
     text-align: center;
   }
-}
-
-button::after {
-  border: none;
-}
-
-button[disabled] {
-  opacity: 0.6;
 }
 </style>

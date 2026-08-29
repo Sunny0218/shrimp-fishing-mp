@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ActionButton from '@/components/ActionButton.vue'
 import type { PricingRule } from '@/api/types/home'
 import type { PricingRuleStatus } from '@/api/types/pricing'
 import { getManagePricingRules, savePricingRule, updatePricingRuleStatus } from '@/api/pricing'
@@ -305,14 +306,15 @@ onPullDownRefresh(() => {
           {{ canEdit ? '配置顾客现场开单后的按时计费标准' : '当前角色仅可查看计费规则' }}
         </view>
       </view>
-      <button
+      <ActionButton
         v-if="canEdit"
         class="pricing-toolbar__btn"
+        label="新增"
+        block
+        size="small"
         :disabled="saving"
         @click="handleCreate"
-      >
-        新增
-      </button>
+      />
     </view>
 
     <view class="pricing-note">
@@ -324,9 +326,7 @@ onPullDownRefresh(() => {
         <view class="pricing-form__title">
           {{ formTitle }}
         </view>
-        <button class="pricing-form__close" :disabled="saving" @click="handleCancelForm">
-          取消
-        </button>
+        <ActionButton class="pricing-form__close" label="取消" block variant="ghost" size="small" :disabled="saving" @click="handleCancelForm" />
       </view>
 
       <view class="form-field">
@@ -386,9 +386,9 @@ onPullDownRefresh(() => {
         </view>
       </view>
 
-      <button class="pricing-form__submit" :disabled="saving" @click="handleSave">
-        {{ saving ? '保存中...' : '保存计费规则' }}
-      </button>
+      <view class="pricing-form__actions">
+        <ActionButton class="pricing-form__submit" block label="保存计费规则" loading-text="保存中..." :loading="saving" variant="secondary" size="large" @click="handleSave" />
+      </view>
     </view>
 
     <view class="pricing-content">
@@ -397,9 +397,7 @@ onPullDownRefresh(() => {
       </view>
       <view v-else-if="errorText" class="pricing-placeholder pricing-placeholder--error">
         <text>{{ errorText }}</text>
-        <button class="pricing-placeholder__btn" @click="fetchRules">
-          重试
-        </button>
+        <ActionButton class="pricing-placeholder__btn" label="重试" @click="fetchRules" />
       </view>
       <view v-else-if="!ruleList.length" class="pricing-placeholder">
         暂无计费规则
@@ -429,17 +427,18 @@ onPullDownRefresh(() => {
             <text>排序 {{ rule.sort || 0 }}</text>
           </view>
           <view v-if="canEdit" class="pricing-card__footer">
-            <button class="pricing-card__btn pricing-card__btn--ghost" @click="handleEdit(rule)">
-              编辑
-            </button>
-            <button
+            <ActionButton class="pricing-card__btn" label="编辑" block variant="ghost" size="small" @click="handleEdit(rule)" />
+            <ActionButton
               class="pricing-card__btn"
-              :class="{ 'pricing-card__btn--warning': rule.status === 'active' }"
+              block
+              :variant="rule.status === 'active' ? 'warning' : 'primary'"
+              size="small"
+              :label="rule.status === 'active' ? '停用' : '启用'"
+              loading-text="处理中"
+              :loading="updatingStatusId === rule._id"
               :disabled="updatingStatusId === rule._id"
               @click="handleToggleStatus(rule)"
-            >
-              {{ updatingStatusId === rule._id ? '处理中' : rule.status === 'active' ? '停用' : '启用' }}
-            </button>
+            />
           </view>
         </view>
       </view>
@@ -489,13 +488,6 @@ onPullDownRefresh(() => {
   &__btn {
     flex-shrink: 0;
     width: 132rpx;
-    min-height: 64rpx;
-    margin: 0;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
-    font-size: 25rpx;
-    line-height: 64rpx;
   }
 }
 
@@ -528,24 +520,11 @@ onPullDownRefresh(() => {
 
   &__close {
     width: 112rpx;
-    min-height: 56rpx;
-    margin: 0;
-    border-radius: 8rpx;
-    background: #eef2ef;
     color: #52615b;
-    font-size: 24rpx;
-    line-height: 56rpx;
   }
 
-  &__submit {
-    min-height: 76rpx;
+  &__actions {
     margin-top: 28rpx;
-    border-radius: 8rpx;
-    background: #f6c453;
-    color: #20312b;
-    font-size: 28rpx;
-    font-weight: 700;
-    line-height: 76rpx;
   }
 }
 
@@ -610,14 +589,7 @@ onPullDownRefresh(() => {
   }
 
   &__btn {
-    width: 180rpx;
-    min-height: 66rpx;
     margin-top: 22rpx;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
-    font-size: 25rpx;
-    line-height: 66rpx;
   }
 }
 
@@ -712,35 +684,8 @@ onPullDownRefresh(() => {
   }
 
   &__btn {
-    width: auto;
     min-width: 108rpx;
-    min-height: 58rpx;
-    margin: 0;
-    border-radius: 8rpx;
-    background: #1f6b56;
     padding: 0 22rpx;
-    color: #ffffff;
-    font-size: 24rpx;
-    line-height: 58rpx;
-    white-space: nowrap;
-
-    &--ghost {
-      background: #eef4f0;
-      color: #1f6b56;
-    }
-
-    &--warning {
-      background: #f7eee2;
-      color: #9b5d16;
-    }
   }
-}
-
-button::after {
-  border: none;
-}
-
-button[disabled] {
-  opacity: 0.55;
 }
 </style>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ActionButton from './ActionButton.vue'
+
 type PageStateVariant = 'default' | 'error' | 'inner'
 
 withDefaults(defineProps<{
@@ -18,14 +20,15 @@ const emit = defineEmits<{
 <template>
   <view class="page-state" :class="`page-state--${variant}`">
     <text>{{ text }}</text>
-    <button v-if="buttonText" class="page-state__btn" @click="emit('action')">
-      {{ buttonText }}
-    </button>
+    <ActionButton v-if="buttonText" class="page-state__btn" :label="buttonText" @click="emit('action')" />
   </view>
 </template>
 
 <style scoped lang="scss">
 .page-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   border-radius: 8rpx;
   background: #ffffff;
   padding: 44rpx 28rpx;
@@ -44,21 +47,7 @@ const emit = defineEmits<{
   }
 
   &__btn {
-    width: auto;
-    min-width: 180rpx;
-    min-height: 66rpx;
     margin-top: 24rpx;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    padding: 0 24rpx;
-    color: #ffffff;
-    font-size: 25rpx;
-    line-height: 66rpx;
-    white-space: nowrap;
   }
-}
-
-button::after {
-  border: none;
 }
 </style>
