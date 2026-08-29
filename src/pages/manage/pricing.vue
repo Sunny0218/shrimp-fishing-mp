@@ -2,6 +2,7 @@
 import ActionButton from '@/components/ActionButton.vue'
 import FormField from '@/components/FormField.vue'
 import FormSection from '@/components/FormSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import type { PricingRule } from '@/api/types/home'
 import type { PricingRuleStatus } from '@/api/types/pricing'
 import { getManagePricingRules, savePricingRule, updatePricingRuleStatus } from '@/api/pricing'
@@ -383,9 +384,7 @@ onPullDownRefresh(() => {
             <view class="pricing-card__name">
               {{ rule.name }}
             </view>
-            <view class="pricing-card__status" :class="{ 'pricing-card__status--disabled': rule.status !== 'active' }">
-              {{ rule.status === 'active' ? '启用中' : '停用' }}
-            </view>
+            <StatusBadge :text="rule.status === 'active' ? '启用中' : '停用'" :variant="rule.status === 'active' ? 'success' : 'neutral'" />
           </view>
           <view class="pricing-card__desc">
             {{ rule.description || '暂无描述' }}
@@ -559,21 +558,6 @@ onPullDownRefresh(() => {
     font-size: 31rpx;
     font-weight: 700;
     line-height: 1.3;
-  }
-
-  &__status {
-    flex-shrink: 0;
-    border-radius: 8rpx;
-    background: #e8f3ed;
-    padding: 8rpx 14rpx;
-    color: #1f6b56;
-    font-size: 22rpx;
-    line-height: 1.2;
-
-    &--disabled {
-      background: #f0f2ef;
-      color: #89938f;
-    }
   }
 
   &__desc {

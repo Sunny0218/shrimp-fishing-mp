@@ -2,6 +2,7 @@
 import ActionButton from '@/components/ActionButton.vue'
 import FormField from '@/components/FormField.vue'
 import FormSection from '@/components/FormSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import type { PackageStatus, ShrimpPackage } from '@/api/types/home'
 import { deletePackage, getManagePackages, savePackage, updatePackageStatus } from '@/api/package'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
@@ -425,9 +426,7 @@ onPullDownRefresh(() => {
             <view class="package-card__name">
               {{ packageItem.name }}
             </view>
-            <view class="package-card__status" :class="{ 'package-card__status--disabled': packageItem.status !== 'active' }">
-              {{ packageItem.status === 'active' ? '启用' : '停用' }}
-            </view>
+            <StatusBadge :text="packageItem.status === 'active' ? '启用' : '停用'" :variant="packageItem.status === 'active' ? 'success' : 'neutral'" />
           </view>
           <view class="package-card__desc">
             {{ packageItem.description || '暂无描述' }}
@@ -606,21 +605,6 @@ onPullDownRefresh(() => {
     font-size: 31rpx;
     font-weight: 700;
     line-height: 1.3;
-  }
-
-  &__status {
-    flex-shrink: 0;
-    border-radius: 8rpx;
-    background: #e8f3ed;
-    padding: 8rpx 14rpx;
-    color: #1f6b56;
-    font-size: 22rpx;
-    line-height: 1.2;
-
-    &--disabled {
-      background: #f0f2ef;
-      color: #89938f;
-    }
   }
 
   &__desc {

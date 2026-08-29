@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { requestNotificationSubscription } from '@/api/notification'
 import { cancelOrder, checkInOrder, getOrderDetail, payCheckoutOrder, payOrder, updateRodSession } from '@/api/order'
 import ActionButton from '@/components/ActionButton.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import type { NotificationTemplateKey } from '@/config/notificationTemplates'
 import { activeOrderNotificationTemplateIds, activeOrderNotificationTemplateKeys, notificationTemplateKeys } from '@/config/notificationTemplates'
 import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
@@ -209,6 +210,22 @@ const orderTitle = computed(() => {
   }
 
   return orderTitleMap[order.value.status] || '订单详情'
+})
+
+const detailStatusVariant = computed(() => {
+  if (order.value?.status === 'in_progress') {
+    return 'warning'
+  }
+
+  if (order.value?.status === 'pending_checkout') {
+    return 'info'
+  }
+
+  if (['cancelled', 'refund_pending', 'refunded'].includes(order.value?.status || '')) {
+    return 'neutral'
+  }
+
+  return 'warning'
 })
 const checkinTip = computed(() => {
   if (!order.value) {
@@ -1094,9 +1111,7 @@ onUnload(() => {
 
     <view v-else-if="order" class="order-detail">
       <view class="order-detail__hero">
-        <view class="order-detail__status">
-          {{ getStatusText(order.status) }}
-        </view>
+        <StatusBadge :text="getStatusText(order.status)" :variant="detailStatusVariant" size="medium" />
         <view v-if="orderTitle" class="order-detail__title">
           {{ orderTitle }}
         </view>
@@ -1774,16 +1789,6 @@ onUnload(() => {
     border-radius: 8rpx;
     background: #163b32;
     padding: 36rpx 28rpx;
-  }
-
-  &__status {
-    width: fit-content;
-    border-radius: 8rpx;
-    background: #f6c453;
-    padding: 8rpx 16rpx;
-    color: #20312b;
-    font-size: 24rpx;
-    line-height: 1.2;
   }
 
   &__title {

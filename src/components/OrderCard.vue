@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ActionButton from './ActionButton.vue'
+import StatusBadge from './StatusBadge.vue'
 import type { OrderStatus } from '@/api/types/order'
 import type { OrderTimeItem } from '@/utils/orderDisplay'
 
@@ -37,6 +38,14 @@ const emit = defineEmits<{
   click: []
   action: []
 }>()
+
+const statusVariantMap: Partial<Record<OrderStatus, 'success' | 'warning' | 'info' | 'neutral'>> = {
+  in_progress: 'warning',
+  pending_checkout: 'info',
+  cancelled: 'neutral',
+  refund_pending: 'neutral',
+  refunded: 'neutral',
+}
 </script>
 
 <template>
@@ -55,9 +64,7 @@ const emit = defineEmits<{
         </view>
       </view>
       <view class="order-card__aside">
-        <view class="order-card__status" :class="`order-card__status--${status}`">
-          {{ statusText }}
-        </view>
+        <StatusBadge :text="statusText" :variant="statusVariantMap[status] || 'success'" />
         <view
           v-if="timerText"
           class="order-card__timer"
@@ -181,32 +188,6 @@ const emit = defineEmits<{
     align-items: flex-end;
     gap: 10rpx;
     max-width: 240rpx;
-  }
-
-  &__status {
-    flex-shrink: 0;
-    border-radius: 8rpx;
-    background: #e8f3ed;
-    padding: 8rpx 14rpx;
-    color: #1f6b56;
-    font-size: 22rpx;
-    line-height: 1.2;
-
-    &--in_progress {
-      background: #f8f2df;
-      color: #c9472b;
-    }
-
-    &--pending_checkout {
-      background: #eef1f6;
-      color: #43546c;
-    }
-
-    &--cancelled,
-    &--refunded {
-      background: #f0f2ef;
-      color: #89938f;
-    }
   }
 
   &__line,
