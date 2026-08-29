@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ActionButton from '@/components/ActionButton.vue'
+import PackageCard from '@/components/PackageCard.vue'
 import type { HomeData, ShrimpPackage, TimeSlot } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
 import { createOrder } from '@/api/order'
@@ -206,25 +207,16 @@ onShow(() => {
         套餐暂未配置
       </view>
       <view v-else class="package-list">
-        <view
+        <PackageCard
           v-for="packageItem in packageList"
           :key="packageItem._id"
-          class="package-card"
-          :class="{ 'package-card--active': selectedPackageId === packageItem._id }"
+          :package-item="packageItem"
+          mode="select"
+          :selected="selectedPackageId === packageItem._id"
+          :show-description="false"
+          :show-people="false"
           @click="handleSelectPackage(packageItem)"
-        >
-          <view>
-            <view class="package-card__name">
-              {{ packageItem.name }}
-            </view>
-            <view class="package-card__meta">
-              {{ formatDuration(packageItem.durationMinutes) }} · {{ packageItem.rodCount }} 支杆
-            </view>
-          </view>
-          <view class="package-card__price">
-            {{ formatPrice(packageItem.price) }}
-          </view>
-        </view>
+        />
       </view>
     </view>
 
@@ -408,7 +400,6 @@ onShow(() => {
   gap: 18rpx;
 }
 
-.package-card,
 .slot-card,
 .package-summary {
   border: 2rpx solid transparent;
@@ -416,38 +407,6 @@ onShow(() => {
   background: #ffffff;
   padding: 24rpx;
   box-shadow: 0 10rpx 22rpx rgb(31 59 50 / 5%);
-}
-
-.package-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24rpx;
-
-  &--active {
-    border-color: #1f6b56;
-  }
-
-  &__name {
-    color: #17211d;
-    font-size: 30rpx;
-    font-weight: 700;
-    line-height: 1.25;
-  }
-
-  &__meta {
-    margin-top: 10rpx;
-    color: #6c7a74;
-    font-size: 24rpx;
-    line-height: 1.35;
-  }
-
-  &__price {
-    flex-shrink: 0;
-    color: #c9472b;
-    font-size: 34rpx;
-    font-weight: 700;
-  }
 }
 
 .slot-card {

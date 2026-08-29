@@ -2,7 +2,7 @@
 import ActionButton from '@/components/ActionButton.vue'
 import FormField from '@/components/FormField.vue'
 import FormSection from '@/components/FormSection.vue'
-import StatusBadge from '@/components/StatusBadge.vue'
+import PackageCard from '@/components/PackageCard.vue'
 import type { PackageStatus, ShrimpPackage } from '@/api/types/home'
 import { deletePackage, getManagePackages, savePackage, updatePackageStatus } from '@/api/package'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
@@ -304,26 +304,6 @@ function formatPriceInput(price?: number) {
   return `${(price / 100).toFixed(price % 100 === 0 ? 0 : 2)}`
 }
 
-function formatPrice(price?: number) {
-  return `¥${((price || 0) / 100).toFixed(0)}`
-}
-
-function formatDuration(minutes?: number) {
-  const safeMinutes = minutes || 0
-  const hours = Math.floor(safeMinutes / 60)
-  const restMinutes = safeMinutes % 60
-
-  if (hours && restMinutes) {
-    return `${hours}小时${restMinutes}分钟`
-  }
-
-  if (hours) {
-    return `${hours}小时`
-  }
-
-  return `${restMinutes}分钟`
-}
-
 function showNoEditToast() {
   showToast('服务员仅可查看套餐')
 }
@@ -421,26 +401,15 @@ onPullDownRefresh(() => {
         暂无套餐
       </view>
       <view v-else class="package-list">
-        <view v-for="packageItem in packageList" :key="packageItem._id" class="package-card">
-          <view class="package-card__header">
-            <view class="package-card__name">
-              {{ packageItem.name }}
-            </view>
-            <StatusBadge :text="packageItem.status === 'active' ? '启用' : '停用'" :variant="packageItem.status === 'active' ? 'success' : 'neutral'" />
-          </view>
-          <view class="package-card__desc">
-            {{ packageItem.description || '暂无描述' }}
-          </view>
-          <view class="package-card__meta">
-            <text>{{ formatDuration(packageItem.durationMinutes) }}</text>
-            <text>{{ packageItem.rodCount }} 支杆</text>
-            <text>建议 {{ packageItem.maxPeople }} 人</text>
-            <text>排序 {{ packageItem.sort || 0 }}</text>
-          </view>
-          <view class="package-card__footer">
-            <view class="package-card__price">
-              {{ formatPrice(packageItem.price) }}
-            </view>
+        <PackageCard
+          v-for="packageItem in packageList"
+          :key="packageItem._id"
+          :package-item="packageItem"
+          mode="manage"
+          show-status
+          show-sort
+        >
+          <template #actions>
             <view v-if="canEdit" class="package-card__actions">
               <ActionButton class="package-card__btn" label="编辑" block variant="ghost" size="small" @click="handleEdit(packageItem)" />
               <ActionButton
@@ -466,8 +435,8 @@ onPullDownRefresh(() => {
                 @click="handleDelete(packageItem)"
               />
             </view>
-          </view>
-        </view>
+          </template>
+        </PackageCard>
       </view>
     </view>
   </view>
@@ -483,7 +452,6 @@ onPullDownRefresh(() => {
 
 .package-toolbar,
 .package-form,
-.package-card,
 .package-placeholder {
   border-radius: 8rpx;
   background: #ffffff;
@@ -583,67 +551,9 @@ onPullDownRefresh(() => {
 }
 
 .package-card {
-  padding: 26rpx;
-
-  &__header,
-  &__footer,
-  &__actions,
-  &__meta {
+  &__actions {
     display: flex;
     align-items: center;
-  }
-
-  &__header,
-  &__footer {
-    justify-content: space-between;
-    gap: 20rpx;
-  }
-
-  &__name {
-    min-width: 0;
-    color: #17211d;
-    font-size: 31rpx;
-    font-weight: 700;
-    line-height: 1.3;
-  }
-
-  &__desc {
-    margin-top: 14rpx;
-    color: #718079;
-    font-size: 25rpx;
-    line-height: 1.45;
-  }
-
-  &__meta {
-    flex-wrap: wrap;
-    gap: 10rpx;
-    margin-top: 18rpx;
-    color: #52615b;
-    font-size: 23rpx;
-    line-height: 1.35;
-
-    text {
-      border-radius: 8rpx;
-      background: #eef4f0;
-      padding: 8rpx 12rpx;
-    }
-  }
-
-  &__footer {
-    margin-top: 22rpx;
-    border-top: 2rpx solid #eef2ef;
-    padding-top: 18rpx;
-  }
-
-  &__price {
-    flex-shrink: 0;
-    color: #c9472b;
-    font-size: 32rpx;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
-  &__actions {
     justify-content: flex-end;
     gap: 12rpx;
   }

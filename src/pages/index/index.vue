@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import ActionButton from '@/components/ActionButton.vue'
+import PackageCard from '@/components/PackageCard.vue'
 import type { HomeData, ShrimpPackage, TimeSlot } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
 import { useTokenStore } from '@/store'
@@ -91,21 +92,6 @@ async function fetchHomeData() {
     loading.value = false
     uni.stopPullDownRefresh()
   }
-}
-
-function formatPrice(price: number) {
-  return `¥${(price / 100).toFixed(0)}`
-}
-
-function formatDuration(minutes: number) {
-  if (minutes < 60) {
-    return `${minutes}分钟`
-  }
-
-  const hours = Math.floor(minutes / 60)
-  const restMinutes = minutes % 60
-
-  return restMinutes ? `${hours}小时${restMinutes}分钟` : `${hours}小时`
 }
 
 function getSlotRemaining(slot: TimeSlot) {
@@ -347,29 +333,17 @@ onPullDownRefresh(() => {
         套餐暂未配置
       </view>
       <view v-else class="package-list">
-        <view
+        <PackageCard
           v-for="packageItem in packageList"
           :key="packageItem._id"
-          class="package-card"
+          :package-item="packageItem"
+          mode="home"
+          @click="handleBooking"
         >
-          <view class="package-card__main">
-            <view class="package-card__name">
-              {{ packageItem.name }}
-            </view>
-            <view class="package-card__desc">
-              {{ packageItem.description || '门店精选套餐' }}
-            </view>
-            <view class="package-card__meta">
-              {{ formatDuration(packageItem.durationMinutes) }} · {{ packageItem.rodCount }} 支杆 · 建议 {{ packageItem.maxPeople }} 人
-            </view>
-          </view>
-          <view class="package-card__side">
-            <view class="package-card__price">
-              {{ formatPrice(packageItem.price) }}
-            </view>
+          <template #actions>
             <ActionButton class="package-card__btn" block size="small" :label="isLoggedIn ? '预约' : '去登录'" :disabled="loading" @click="handleBooking(packageItem)" />
-          </view>
-        </view>
+          </template>
+        </PackageCard>
       </view>
     </view>
 
@@ -584,62 +558,9 @@ onPullDownRefresh(() => {
   gap: 20rpx;
 }
 
-.package-card {
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 20rpx;
-  min-height: 188rpx;
-  border-radius: 8rpx;
-  background: #ffffff;
-  padding: 24rpx;
-  box-shadow: 0 12rpx 26rpx rgb(31 59 50 / 6%);
-
-  &__main {
-    min-width: 0;
-    flex: 1;
-  }
-
-  &__name {
-    color: #17211d;
-    font-size: 32rpx;
-    font-weight: 700;
-    line-height: 1.25;
-  }
-
-  &__desc {
-    margin-top: 12rpx;
-    color: #5c6b65;
-    font-size: 25rpx;
-    line-height: 1.45;
-  }
-
-  &__meta {
-    margin-top: 16rpx;
-    color: #8a6f28;
-    font-size: 24rpx;
-    line-height: 1.35;
-  }
-
-  &__side {
-    width: 152rpx;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    justify-content: space-between;
-  }
-
-  &__price {
-    color: #c9472b;
-    font-size: 38rpx;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
-  &__btn {
-    width: 136rpx;
-    min-height: 60rpx;
-  }
+.package-card__btn {
+  width: 136rpx;
+  min-height: 60rpx;
 }
 
 .slot-list {
