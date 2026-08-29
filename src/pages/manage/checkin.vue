@@ -2,6 +2,7 @@
 import type { CheckInOrderResult, OrderDateValue } from '@/api/types/order'
 import { checkInOrder } from '@/api/order'
 import ActionButton from '@/components/ActionButton.vue'
+import InfoRow from '@/components/InfoRow.vue'
 import { getDateTimeValue } from '@/utils/orderDisplay'
 
 definePage({
@@ -325,30 +326,9 @@ onLoad((query) => {
         <view class="pending-order__title">
           {{ pageCopy.pendingTitle }}
         </view>
-        <view v-if="displayPayload.dailyNo" class="info-row">
-          <text class="info-row__label">
-            沟通编号
-          </text>
-          <text class="info-row__value info-row__value--code">
-            {{ displayPayload.dailyNo }}
-          </text>
-        </view>
-        <view v-if="displayPayload.orderNo" class="info-row">
-          <text class="info-row__label">
-            订单号
-          </text>
-          <text class="info-row__value">
-            {{ displayPayload.orderNo }}
-          </text>
-        </view>
-        <view class="info-row">
-          <text class="info-row__label">
-            {{ pageCopy.codeLabel }}
-          </text>
-          <text class="info-row__value info-row__value--code">
-            {{ displayPayload.checkinCode }}
-          </text>
-        </view>
+        <InfoRow v-if="displayPayload.dailyNo" label="沟通编号" :value="displayPayload.dailyNo" variant="code" />
+        <InfoRow v-if="displayPayload.orderNo" label="订单号" :value="displayPayload.orderNo" />
+        <InfoRow :label="pageCopy.codeLabel" :value="displayPayload.checkinCode" variant="code" />
       </view>
 
       <ActionButton
@@ -368,54 +348,16 @@ onLoad((query) => {
       <view class="result-card__title">
         已开始计时
       </view>
-      <view v-if="result.order.dailyNo" class="info-row">
-        <text class="info-row__label">
-          沟通编号
-        </text>
-        <text class="info-row__value info-row__value--code">
-          {{ result.order.dailyNo }}
-        </text>
-      </view>
-      <view class="info-row">
-        <text class="info-row__label">
-          订单号
-        </text>
-        <text class="info-row__value">
-          {{ result.order.orderNo }}
-        </text>
-      </view>
-      <view class="info-row">
-        <text class="info-row__label">
-          {{ result.order.orderType === 'metered' ? '计费规则' : '套餐' }}
-        </text>
-        <text class="info-row__value">
-          {{ getOrderName(result.order) }}
-        </text>
-      </view>
-      <view class="info-row">
-        <text class="info-row__label">
-          {{ result.order.orderType === 'metered' ? '结算方式' : '金额' }}
-        </text>
-        <text class="info-row__price" :class="{ 'info-row__price--muted': result.order.orderType === 'metered' }">
-          {{ getAmountText(result.order) }}
-        </text>
-      </view>
-      <view class="info-row">
-        <text class="info-row__label">
-          开始时间
-        </text>
-        <text class="info-row__value">
-          {{ formatDateTime(result.order.startedAt || result.checkedInAt) }}
-        </text>
-      </view>
-      <view class="info-row">
-        <text class="info-row__label">
-          {{ result.order.orderType === 'metered' ? '计费说明' : '预计结束' }}
-        </text>
-        <text class="info-row__value">
-          {{ getExpectedEndedAtText(result.order) }}
-        </text>
-      </view>
+      <InfoRow v-if="result.order.dailyNo" label="沟通编号" :value="result.order.dailyNo" variant="code" />
+      <InfoRow label="订单号" :value="result.order.orderNo" />
+      <InfoRow :label="result.order.orderType === 'metered' ? '计费规则' : '套餐'" :value="getOrderName(result.order)" />
+      <InfoRow
+        :label="result.order.orderType === 'metered' ? '结算方式' : '金额'"
+        :value="getAmountText(result.order)"
+        :variant="result.order.orderType === 'metered' ? 'muted' : 'price'"
+      />
+      <InfoRow label="开始时间" :value="formatDateTime(result.order.startedAt || result.checkedInAt)" />
+      <InfoRow :label="result.order.orderType === 'metered' ? '计费说明' : '预计结束'" :value="getExpectedEndedAtText(result.order)" />
 
       <ActionButton class="result-card__next-btn" block size="large" :label="pageCopy.resultNextText" @click="handleNextCheckin" />
     </view>
@@ -530,53 +472,6 @@ onLoad((query) => {
   &__next-btn {
     margin-top: 24rpx;
     font-size: 28rpx;
-  }
-}
-
-.info-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24rpx;
-  padding: 16rpx 0;
-  border-bottom: 2rpx solid #eef2ef;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &__label {
-    flex-shrink: 0;
-    color: #718079;
-    font-size: 26rpx;
-    line-height: 1.4;
-  }
-
-  &__value,
-  &__price {
-    min-width: 0;
-    color: #17211d;
-    font-size: 26rpx;
-    line-height: 1.4;
-    text-align: right;
-    word-break: break-all;
-  }
-
-  &__value--code {
-    font-size: 36rpx;
-    font-weight: 700;
-    letter-spacing: 4rpx;
-  }
-
-  &__price {
-    color: #c9472b;
-    font-size: 30rpx;
-    font-weight: 700;
-
-    &--muted {
-      color: #52615b;
-      font-size: 26rpx;
-    }
   }
 }
 </style>

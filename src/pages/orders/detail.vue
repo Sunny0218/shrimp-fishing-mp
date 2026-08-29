@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { requestNotificationSubscription } from '@/api/notification'
 import { cancelOrder, checkInOrder, getOrderDetail, payCheckoutOrder, payOrder, updateRodSession } from '@/api/order'
 import ActionButton from '@/components/ActionButton.vue'
+import InfoRow from '@/components/InfoRow.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { NotificationTemplateKey } from '@/config/notificationTemplates'
 import { activeOrderNotificationTemplateIds, activeOrderNotificationTemplateKeys, notificationTemplateKeys } from '@/config/notificationTemplates'
@@ -1157,14 +1158,7 @@ onUnload(() => {
             {{ paymentCountdownText }}
           </view>
         </view>
-        <view class="info-row">
-          <text class="info-row__label">
-            支付截止
-          </text>
-          <text class="info-row__value">
-            {{ formatDateTime(paymentExpiredAtTime) }}
-          </text>
-        </view>
+        <InfoRow label="支付截止" :value="formatDateTime(paymentExpiredAtTime)" />
         <view class="order-card__tip">
           超时未支付会自动关闭订单，需要重新预约。
         </view>
@@ -1182,78 +1176,15 @@ onUnload(() => {
             {{ countdownText }}
           </view>
         </view>
-        <view class="info-row">
-          <text class="info-row__label">
-            开始时间
-          </text>
-          <text class="info-row__value">
-            {{ formatDateTime(startedAtTime) }}
-          </text>
-        </view>
-        <view v-if="order.orderType !== 'metered'" class="info-row">
-          <text class="info-row__label">
-            预计结束
-          </text>
-          <text class="info-row__value">
-            {{ formatDateTime(expectedEndedAtTime) }}
-          </text>
-        </view>
-        <view v-if="endedAtTime" class="info-row">
-          <text class="info-row__label">
-            实际结束
-          </text>
-          <text class="info-row__value">
-            {{ formatDateTime(endedAtTime) }}
-          </text>
-        </view>
-        <view class="info-row">
-          <text class="info-row__label">
-            实际用时
-          </text>
-          <text class="info-row__value">
-            {{ actualDurationText }}
-          </text>
-        </view>
-        <view v-if="overtimeElapsedMinutes" class="info-row">
-          <text class="info-row__label">
-            超出用时
-          </text>
-          <text class="info-row__value">
-            {{ formatDuration(overtimeElapsedMinutes) }}
-          </text>
-        </view>
-        <view v-if="overtimeAmountForDisplay" class="info-row">
-          <text class="info-row__label">
-            {{ overtimeAmountLabel }}
-          </text>
-          <text class="info-row__price">
-            {{ formatPrice(overtimeAmountForDisplay) }}
-          </text>
-        </view>
-        <view v-if="order.earlyFinishedMinutes" class="info-row">
-          <text class="info-row__label">
-            提前完成
-          </text>
-          <text class="info-row__value">
-            {{ formatDuration(order.earlyFinishedMinutes) }}
-          </text>
-        </view>
-        <view v-if="order.earlyFinishReason" class="info-row">
-          <text class="info-row__label">
-            提前原因
-          </text>
-          <text class="info-row__value">
-            {{ order.earlyFinishReason }}
-          </text>
-        </view>
-        <view v-if="order.waivedOvertimeAmount" class="info-row">
-          <text class="info-row__label">
-            已免收
-          </text>
-          <text class="info-row__value">
-            {{ formatPrice(order.waivedOvertimeAmount) }}
-          </text>
-        </view>
+        <InfoRow label="开始时间" :value="formatDateTime(startedAtTime)" />
+        <InfoRow v-if="order.orderType !== 'metered'" label="预计结束" :value="formatDateTime(expectedEndedAtTime)" />
+        <InfoRow v-if="endedAtTime" label="实际结束" :value="formatDateTime(endedAtTime)" />
+        <InfoRow label="实际用时" :value="actualDurationText" />
+        <InfoRow v-if="overtimeElapsedMinutes" label="超出用时" :value="formatDuration(overtimeElapsedMinutes)" />
+        <InfoRow v-if="overtimeAmountForDisplay" :label="overtimeAmountLabel" :value="formatPrice(overtimeAmountForDisplay)" variant="price" />
+        <InfoRow v-if="order.earlyFinishedMinutes" label="提前完成" :value="formatDuration(order.earlyFinishedMinutes)" />
+        <InfoRow v-if="order.earlyFinishReason" label="提前原因" :value="order.earlyFinishReason" />
+        <InfoRow v-if="order.waivedOvertimeAmount" label="已免收" :value="formatPrice(order.waivedOvertimeAmount)" />
         <view v-if="canFinishTiming" class="timing-card__actions">
           <ActionButton
             class="timing-card__finish-btn"
@@ -1375,119 +1306,27 @@ onUnload(() => {
         <view class="order-card__title">
           {{ order.orderType === 'metered' ? '现场开单信息' : '预约信息' }}
         </view>
-        <view class="info-row">
-          <text class="info-row__label">
-            {{ order.orderType === 'metered' ? '计费规则' : '套餐' }}
-          </text>
-          <text class="info-row__value">
-            {{ order.orderType === 'metered' ? pricingRuleSnapshot?.name || '现场计时' : packageSnapshot?.name || '套餐预约' }}
-          </text>
-        </view>
-        <view class="info-row">
-          <text class="info-row__label">
-            {{ order.orderType === 'metered' ? '开单方式' : '预约方式' }}
-          </text>
-          <text class="info-row__value">
-            {{ order.orderType === 'metered' ? '现场开单' : slotSnapshot?.date ? '预约场次' : '到店安排' }}
-          </text>
-        </view>
-        <view v-if="order.customerPhone" class="info-row">
-          <text class="info-row__label">
-            顾客手机号
-          </text>
-          <text class="info-row__value">
-            {{ order.customerPhone }}
-          </text>
-        </view>
-        <view v-if="slotSnapshot?.date" class="info-row">
-          <text class="info-row__label">
-            日期
-          </text>
-          <text class="info-row__value">
-            {{ slotSnapshot.date }}
-          </text>
-        </view>
-        <view v-if="slotSnapshot?.date" class="info-row">
-          <text class="info-row__label">
-            时间
-          </text>
-          <text class="info-row__value">
-            {{ slotSnapshot?.startTime || '-' }}-{{ slotSnapshot?.endTime || '-' }}
-          </text>
-        </view>
-        <view v-if="order.orderType !== 'metered'" class="info-row">
-          <text class="info-row__label">
-            时长
-          </text>
-          <text class="info-row__value">
-            {{ formatDuration(packageSnapshot?.durationMinutes) }}
-          </text>
-        </view>
-        <view v-if="order.orderType !== 'metered'" class="info-row">
-          <text class="info-row__label">
-            杆数
-          </text>
-          <text class="info-row__value">
-            {{ order.rodCount }} 支杆
-          </text>
-        </view>
+        <InfoRow
+          :label="order.orderType === 'metered' ? '计费规则' : '套餐'"
+          :value="order.orderType === 'metered' ? pricingRuleSnapshot?.name || '现场计时' : packageSnapshot?.name || '套餐预约'"
+        />
+        <InfoRow
+          :label="order.orderType === 'metered' ? '开单方式' : '预约方式'"
+          :value="order.orderType === 'metered' ? '现场开单' : slotSnapshot?.date ? '预约场次' : '到店安排'"
+        />
+        <InfoRow v-if="order.customerPhone" label="顾客手机号" :value="order.customerPhone" />
+        <InfoRow v-if="slotSnapshot?.date" label="日期" :value="slotSnapshot.date" />
+        <InfoRow v-if="slotSnapshot?.date" label="时间" :value="`${slotSnapshot?.startTime || '-'}-${slotSnapshot?.endTime || '-'}`" />
+        <InfoRow v-if="order.orderType !== 'metered'" label="时长" :value="formatDuration(packageSnapshot?.durationMinutes)" />
+        <InfoRow v-if="order.orderType !== 'metered'" label="杆数" :value="`${order.rodCount} 支杆`" />
         <template v-if="order.orderType === 'metered'">
-          <view class="info-row">
-            <text class="info-row__label">
-              杆数
-            </text>
-            <text class="info-row__value">
-              {{ order.rodCount }} 支杆
-            </text>
-          </view>
-          <view v-if="order.paidAmount" class="info-row">
-            <text class="info-row__label">
-              已预付首小时
-            </text>
-            <text class="info-row__value">
-              {{ formatPrice(order.paidAmount) }}
-            </text>
-          </view>
-          <view class="info-row">
-            <text class="info-row__label">
-              首小时价格
-            </text>
-            <text class="info-row__value">
-              {{ formatPrice(pricingRuleSnapshot?.firstHourAmount || pricingRuleSnapshot?.pricePerHour) }}
-            </text>
-          </view>
-          <view v-if="order.orderType === 'metered'" class="info-row">
-            <text class="info-row__label">
-              续钟单价
-            </text>
-            <text class="info-row__value">
-              {{ formatPrice(pricingRuleSnapshot?.extraPricePerHour || pricingRuleSnapshot?.pricePerHour) }}/小时
-            </text>
-          </view>
-          <view class="info-row">
-            <text class="info-row__label">
-              最低计费
-            </text>
-            <text class="info-row__value">
-              {{ formatDuration(pricingRuleSnapshot?.minimumMinutes) }}
-            </text>
-          </view>
-          <view class="info-row">
-            <text class="info-row__label">
-              计费粒度
-            </text>
-            <text class="info-row__value">
-              {{ formatDuration(pricingRuleSnapshot?.unitMinutes) }}
-            </text>
-          </view>
-          <view v-if="order.chargedMeteredMinutes" class="info-row">
-            <text class="info-row__label">
-              结算时长
-            </text>
-            <text class="info-row__value">
-              {{ formatDuration(order.chargedMeteredMinutes) }}
-            </text>
-          </view>
+          <InfoRow label="杆数" :value="`${order.rodCount} 支杆`" />
+          <InfoRow v-if="order.paidAmount" label="已预付首小时" :value="formatPrice(order.paidAmount)" />
+          <InfoRow label="首小时价格" :value="formatPrice(pricingRuleSnapshot?.firstHourAmount || pricingRuleSnapshot?.pricePerHour)" />
+          <InfoRow label="续钟单价" :value="`${formatPrice(pricingRuleSnapshot?.extraPricePerHour || pricingRuleSnapshot?.pricePerHour)}/小时`" />
+          <InfoRow label="最低计费" :value="formatDuration(pricingRuleSnapshot?.minimumMinutes)" />
+          <InfoRow label="计费粒度" :value="formatDuration(pricingRuleSnapshot?.unitMinutes)" />
+          <InfoRow v-if="order.chargedMeteredMinutes" label="结算时长" :value="formatDuration(order.chargedMeteredMinutes)" />
         </template>
       </view>
 
@@ -1535,171 +1374,31 @@ onUnload(() => {
           费用明细
         </view>
         <template v-if="order.orderType === 'metered'">
-          <view v-if="order.actualDurationMinutes" class="info-row">
-            <text class="info-row__label">
-              实际计时
-            </text>
-            <text class="info-row__value">
-              {{ formatDuration(order.actualDurationMinutes) }}
-            </text>
-          </view>
-          <view v-if="order.chargedMeteredMinutes" class="info-row">
-            <text class="info-row__label">
-              结算时长
-            </text>
-            <text class="info-row__value">
-              {{ formatDuration(order.chargedMeteredMinutes) }}
-            </text>
-          </view>
-          <view v-if="canShowMeteredSettlement" class="info-row">
-            <text class="info-row__label">
-              现场计时金额
-            </text>
-            <text class="info-row__price">
-              {{ formatPrice(order.finalAmount) }}
-            </text>
-          </view>
-          <view v-else class="info-row">
-            <text class="info-row__label">
-              结算金额
-            </text>
-            <text class="info-row__value">
-              结束计时后生成
-            </text>
-          </view>
-          <view v-if="order.checkoutAmount" class="info-row">
-            <text class="info-row__label">
-              待支付
-            </text>
-            <text class="info-row__price">
-              {{ formatPrice(order.checkoutAmount) }}
-            </text>
-          </view>
-          <view v-if="order.checkoutPaidAmount" class="info-row">
-            <text class="info-row__label">
-              已支付结算
-            </text>
-            <text class="info-row__value">
-              {{ formatPrice(order.checkoutPaidAmount) }}
-            </text>
-          </view>
-          <view v-if="order.checkoutPaidAt" class="info-row">
-            <text class="info-row__label">
-              支付时间
-            </text>
-            <text class="info-row__value">
-              {{ formatDateTime(order.checkoutPaidAt) }}
-            </text>
-          </view>
+          <InfoRow v-if="order.actualDurationMinutes" label="实际计时" :value="formatDuration(order.actualDurationMinutes)" />
+          <InfoRow v-if="order.chargedMeteredMinutes" label="结算时长" :value="formatDuration(order.chargedMeteredMinutes)" />
+          <InfoRow v-if="canShowMeteredSettlement" label="现场计时金额" :value="formatPrice(order.finalAmount)" variant="price" />
+          <InfoRow v-else label="结算金额" value="结束计时后生成" />
+          <InfoRow v-if="order.checkoutAmount" label="待支付" :value="formatPrice(order.checkoutAmount)" variant="price" />
+          <InfoRow v-if="order.checkoutPaidAmount" label="已支付结算" :value="formatPrice(order.checkoutPaidAmount)" />
+          <InfoRow v-if="order.checkoutPaidAt" label="支付时间" :value="formatDateTime(order.checkoutPaidAt)" />
         </template>
         <template v-else>
-          <view class="info-row">
-            <text class="info-row__label">
-              套餐金额
-            </text>
-            <text class="info-row__value">
-              {{ formatPrice(order.baseAmount) }}
-            </text>
-          </view>
-          <view v-if="order.discountAmount" class="info-row">
-            <text class="info-row__label">
-              优惠金额
-            </text>
-            <text class="info-row__value">
-              -{{ formatPrice(order.discountAmount) }}
-            </text>
-          </view>
-          <view v-if="order.overtimeAmount" class="info-row">
-            <text class="info-row__label">
-              超时金额
-            </text>
-            <text class="info-row__value">
-              {{ formatPrice(order.overtimeAmount) }}
-            </text>
-          </view>
-          <view v-if="order.checkoutAmount" class="info-row">
-            <text class="info-row__label">
-              待补款
-            </text>
-            <text class="info-row__price">
-              {{ formatPrice(order.checkoutAmount) }}
-            </text>
-          </view>
-          <view v-if="order.checkoutPaidAmount" class="info-row">
-            <text class="info-row__label">
-              已补款
-            </text>
-            <text class="info-row__value">
-              {{ formatPrice(order.checkoutPaidAmount) }}
-            </text>
-          </view>
-          <view v-if="order.checkoutPaidAt" class="info-row">
-            <text class="info-row__label">
-              补款时间
-            </text>
-            <text class="info-row__value">
-              {{ formatDateTime(order.checkoutPaidAt) }}
-            </text>
-          </view>
+          <InfoRow label="套餐金额" :value="formatPrice(order.baseAmount)" />
+          <InfoRow v-if="order.discountAmount" label="优惠金额" :value="`-${formatPrice(order.discountAmount)}`" />
+          <InfoRow v-if="order.overtimeAmount" label="超时金额" :value="formatPrice(order.overtimeAmount)" />
+          <InfoRow v-if="order.checkoutAmount" label="待补款" :value="formatPrice(order.checkoutAmount)" variant="price" />
+          <InfoRow v-if="order.checkoutPaidAmount" label="已补款" :value="formatPrice(order.checkoutPaidAmount)" />
+          <InfoRow v-if="order.checkoutPaidAt" label="补款时间" :value="formatDateTime(order.checkoutPaidAt)" />
         </template>
         <template v-if="order.refundAmount || order.refundedAt || order.refundNo">
-          <view v-if="order.refundAmount" class="info-row">
-            <text class="info-row__label">
-              退款金额
-            </text>
-            <text class="info-row__price">
-              {{ formatPrice(order.refundAmount) }}
-            </text>
-          </view>
-          <view v-if="order.refundedAt" class="info-row">
-            <text class="info-row__label">
-              退款时间
-            </text>
-            <text class="info-row__value">
-              {{ formatDateTime(order.refundedAt) }}
-            </text>
-          </view>
-          <view v-if="order.refundNo" class="info-row">
-            <text class="info-row__label">
-              退款单号
-            </text>
-            <text class="info-row__value">
-              {{ order.refundNo }}
-            </text>
-          </view>
+          <InfoRow v-if="order.refundAmount" label="退款金额" :value="formatPrice(order.refundAmount)" variant="price" />
+          <InfoRow v-if="order.refundedAt" label="退款时间" :value="formatDateTime(order.refundedAt)" />
+          <InfoRow v-if="order.refundNo" label="退款单号" :value="order.refundNo" />
         </template>
-        <view class="info-row">
-          <text class="info-row__label">
-            已支付
-          </text>
-          <text class="info-row__value">
-            {{ formatPrice(getPaidAmount(order)) }}
-          </text>
-        </view>
-        <view v-if="order.adjustAmount" class="info-row">
-          <text class="info-row__label">
-            调整金额
-          </text>
-          <text class="info-row__value">
-            {{ formatPrice(order.adjustAmount) }}
-          </text>
-        </view>
-        <view v-if="order.goodsAmount" class="info-row">
-          <text class="info-row__label">
-            商品金额
-          </text>
-          <text class="info-row__value">
-            {{ formatPrice(order.goodsAmount) }}
-          </text>
-        </view>
-        <view class="info-row">
-          <text class="info-row__label">
-            最终金额
-          </text>
-          <text class="info-row__price">
-            {{ formatPrice(order.finalAmount) }}
-          </text>
-        </view>
+        <InfoRow label="已支付" :value="formatPrice(getPaidAmount(order))" />
+        <InfoRow v-if="order.adjustAmount" label="调整金额" :value="formatPrice(order.adjustAmount)" />
+        <InfoRow v-if="order.goodsAmount" label="商品金额" :value="formatPrice(order.goodsAmount)" />
+        <InfoRow label="最终金额" :value="formatPrice(order.finalAmount)" variant="price" />
       </view>
 
       <ActionButton class="order-detail-page__home-btn" block label="返回首页" @click="handleBackHome" />
@@ -1879,41 +1578,6 @@ onUnload(() => {
     font-size: 24rpx;
     line-height: 1.5;
     text-align: center;
-  }
-}
-
-.info-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24rpx;
-  padding: 16rpx 0;
-  border-bottom: 2rpx solid #eef2ef;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &__label {
-    flex-shrink: 0;
-    color: #718079;
-    font-size: 26rpx;
-    line-height: 1.4;
-  }
-
-  &__value,
-  &__price {
-    min-width: 0;
-    color: #17211d;
-    font-size: 26rpx;
-    line-height: 1.4;
-    text-align: right;
-  }
-
-  &__price {
-    color: #c9472b;
-    font-size: 32rpx;
-    font-weight: 700;
   }
 }
 
