@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
+import ManageCard from '@/components/ManageCard.vue'
 import { useUserStore } from '@/store'
 
 definePage({
@@ -88,103 +89,12 @@ onLoad(() => {
     </view>
 
     <view class="grid grid-cols-2 mt-4 gap-3">
-      <view class="manage-card" @click="handleOpenCheckin('package')">
-        <view class="manage-card__title">
-          套餐核销
-        </view>
-        <view class="manage-card__desc">
-          扫码或输入预约套餐核销码
-        </view>
-      </view>
-      <view class="manage-card" @click="handleOpenTodayOrders">
-        <view class="manage-card__title">
-          门店订单
-        </view>
-        <view class="manage-card__desc">
-          按日期查看预约与进行中订单
-        </view>
-      </view>
-      <view class="manage-card" @click="handleOpenCheckin('metered')">
-        <view class="manage-card__title">
-          到店计时
-        </view>
-        <view class="manage-card__desc">
-          现场确认顾客订单并开始计时
-        </view>
-      </view>
-      <view class="manage-card" @click="handleOpenPackages">
-        <view class="manage-card__title">
-          套餐管理
-        </view>
-        <view class="manage-card__desc">
-          配置固定套餐价格
-        </view>
-      </view>
-      <view class="manage-card" :class="{ 'manage-card--disabled': !canEditShop }" @click="handleOpenSettings">
-        <view class="manage-card__title">
-          门店信息
-        </view>
-        <view class="manage-card__desc">
-          {{ canEditShop ? '维护首页展示和联系方式' : '仅管理员可维护' }}
-        </view>
-      </view>
-      <view class="manage-card" @click="handleOpenPricing">
-        <view class="manage-card__title">
-          计费规则
-        </view>
-        <view class="manage-card__desc">
-          配置首小时和续钟价格
-        </view>
-      </view>
+      <ManageCard title="套餐核销" description="扫码或输入预约套餐核销码" @click="handleOpenCheckin('package')" />
+      <ManageCard title="门店订单" description="按日期查看预约与进行中订单" accent="warning" @click="handleOpenTodayOrders" />
+      <ManageCard title="到店计时" description="现场确认顾客订单并开始计时" @click="handleOpenCheckin('metered')" />
+      <ManageCard title="套餐管理" description="配置固定套餐价格" accent="warning" @click="handleOpenPackages" />
+      <ManageCard title="门店信息" :description="canEditShop ? '维护首页展示和联系方式' : '仅管理员可维护'" :muted="!canEditShop" @click="handleOpenSettings" />
+      <ManageCard title="计费规则" description="配置首小时和续钟价格" accent="warning" @click="handleOpenPricing" />
     </view>
   </view>
 </template>
-
-<style scoped lang="scss">
-.manage-card {
-  position: relative;
-  overflow: hidden;
-  min-height: 180rpx;
-  border-radius: 8rpx;
-  border: 2rpx solid #edf3ef;
-  background: linear-gradient(135deg, #ffffff 0%, #fbfdfb 100%);
-  padding: 28rpx;
-  box-shadow: 0 8rpx 24rpx rgb(24 54 47 / 6%);
-
-  &::before {
-    position: absolute;
-    top: 24rpx;
-    left: 0;
-    width: 8rpx;
-    height: 44rpx;
-    border-radius: 0 8rpx 8rpx 0;
-    background: #1f6b56;
-    content: '';
-  }
-
-  &:active {
-    background: #eef6f2;
-  }
-
-  &:nth-child(2n)::before {
-    background: #f6c453;
-  }
-
-  &--disabled {
-    opacity: 0.72;
-  }
-
-  &__title {
-    color: #17352f;
-    font-size: 32rpx;
-    font-weight: 600;
-  }
-
-  &__desc {
-    margin-top: 16rpx;
-    color: #73827e;
-    font-size: 24rpx;
-    line-height: 1.45;
-  }
-}
-</style>
