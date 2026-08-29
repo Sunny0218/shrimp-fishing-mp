@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import ActionButton from '@/components/ActionButton.vue'
+import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import type { PricingRule } from '@/api/types/home'
 import type { PricingRuleStatus } from '@/api/types/pricing'
 import { getManagePricingRules, savePricingRule, updatePricingRuleStatus } from '@/api/pricing'
@@ -321,75 +323,48 @@ onPullDownRefresh(() => {
       只有一条启用中的计费规则会用于顾客现场开单；启用新规则时，其他规则会自动停用。
     </view>
 
-    <view v-if="showForm" class="pricing-form">
-      <view class="pricing-form__header">
-        <view class="pricing-form__title">
-          {{ formTitle }}
-        </view>
+    <FormSection v-if="showForm" :title="formTitle">
+      <template #action>
         <ActionButton class="pricing-form__close" label="取消" block variant="ghost" size="small" :disabled="saving" @click="handleCancelForm" />
-      </view>
+      </template>
 
-      <view class="form-field">
-        <view class="form-field__label">
-          规则名称
-        </view>
+      <FormField label="规则名称">
         <input v-model.trim="form.name" class="form-field__input" :maxlength="30" placeholder="例如 现场计时标准价">
-      </view>
+      </FormField>
 
-      <view class="form-field">
-        <view class="form-field__label">
-          规则描述
-        </view>
+      <FormField label="规则描述">
         <textarea v-model.trim="form.description" class="form-field__textarea" :maxlength="80" placeholder="给顾客看的计费说明" />
-      </view>
+      </FormField>
 
       <view class="form-grid">
-        <view class="form-field">
-          <view class="form-field__label">
-            首小时价格（元）
-          </view>
+        <FormField compact label="首小时价格（元）">
           <input v-model.trim="form.firstHourAmountYuan" class="form-field__input" type="digit" placeholder="68">
-        </view>
-        <view class="form-field">
-          <view class="form-field__label">
-            续钟每小时价（元）
-          </view>
+        </FormField>
+        <FormField compact label="续钟每小时价（元）">
           <input v-model.trim="form.extraPricePerHourYuan" class="form-field__input" type="digit" placeholder="58">
-        </view>
-        <view class="form-field">
-          <view class="form-field__label">
-            最低计费（分钟）
-          </view>
+        </FormField>
+        <FormField compact label="最低计费（分钟）">
           <input v-model.trim="form.minimumMinutes" class="form-field__input" type="number" placeholder="60">
-        </view>
-        <view class="form-field">
-          <view class="form-field__label">
-            计费粒度（分钟）
-          </view>
+        </FormField>
+        <FormField compact label="计费粒度（分钟）">
           <input v-model.trim="form.unitMinutes" class="form-field__input" type="number" placeholder="30">
-        </view>
-        <view class="form-field">
-          <view class="form-field__label">
-            排序
-          </view>
+        </FormField>
+        <FormField compact label="排序">
           <input v-model.trim="form.sort" class="form-field__input" type="number" placeholder="0">
-        </view>
-        <view class="form-field">
-          <view class="form-field__label">
-            状态
-          </view>
+        </FormField>
+        <FormField compact label="状态">
           <picker :value="statusIndex" :range="statusOptions" range-key="label" @change="handleStatusChange">
             <view class="form-field__picker">
               {{ statusOptions[statusIndex]?.label || '启用' }}
             </view>
           </picker>
-        </view>
+        </FormField>
       </view>
 
-      <view class="pricing-form__actions">
+      <template #actions>
         <ActionButton class="pricing-form__submit" block label="保存计费规则" loading-text="保存中..." :loading="saving" variant="secondary" size="large" @click="handleSave" />
-      </view>
-    </view>
+      </template>
+    </FormSection>
 
     <view class="pricing-content">
       <view v-if="showInitialLoading" class="pricing-placeholder">
@@ -455,7 +430,6 @@ onPullDownRefresh(() => {
 }
 
 .pricing-toolbar,
-.pricing-form,
 .pricing-card,
 .pricing-placeholder,
 .pricing-note {
@@ -500,31 +474,9 @@ onPullDownRefresh(() => {
 }
 
 .pricing-form {
-  margin-top: 22rpx;
-  padding: 28rpx;
-
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20rpx;
-    margin-bottom: 22rpx;
-  }
-
-  &__title {
-    color: #17211d;
-    font-size: 31rpx;
-    font-weight: 700;
-    line-height: 1.3;
-  }
-
   &__close {
     width: 112rpx;
     color: #52615b;
-  }
-
-  &__actions {
-    margin-top: 28rpx;
   }
 }
 
@@ -535,19 +487,6 @@ onPullDownRefresh(() => {
 }
 
 .form-field {
-  margin-top: 20rpx;
-
-  .form-grid & {
-    margin-top: 0;
-  }
-
-  &__label {
-    margin-bottom: 10rpx;
-    color: #718079;
-    font-size: 23rpx;
-    line-height: 1.3;
-  }
-
   &__input,
   &__textarea,
   &__picker {

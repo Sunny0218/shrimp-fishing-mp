@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import ActionButton from '@/components/ActionButton.vue'
+import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import type { PackageStatus, ShrimpPackage } from '@/api/types/home'
 import { deletePackage, getManagePackages, savePackage, updatePackageStatus } from '@/api/package'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
@@ -363,75 +365,48 @@ onPullDownRefresh(() => {
       />
     </view>
 
-    <view v-if="showForm" class="package-form">
-      <view class="package-form__header">
-        <view class="package-form__title">
-          {{ formTitle }}
-        </view>
+    <FormSection v-if="showForm" :title="formTitle">
+      <template #action>
         <ActionButton class="package-form__close" label="取消" block variant="ghost" size="small" :disabled="saving" @click="handleCancelForm" />
-      </view>
+      </template>
 
-      <view class="form-field">
-        <view class="form-field__label">
-          套餐名称
-        </view>
+      <FormField label="套餐名称">
         <input v-model.trim="form.name" class="form-field__input" :maxlength="30" placeholder="例如 双人畅钓 2 小时">
-      </view>
+      </FormField>
 
-      <view class="form-field">
-        <view class="form-field__label">
-          套餐描述
-        </view>
+      <FormField label="套餐描述">
         <textarea v-model.trim="form.description" class="form-field__textarea" :maxlength="80" placeholder="给顾客看的简短说明" />
-      </view>
+      </FormField>
 
       <view class="form-grid">
-        <view class="form-field">
-          <view class="form-field__label">
-            价格（元）
-          </view>
+        <FormField compact label="价格（元）">
           <input v-model.trim="form.priceYuan" class="form-field__input" type="digit" placeholder="128">
-        </view>
-        <view class="form-field">
-          <view class="form-field__label">
-            时长（分钟）
-          </view>
+        </FormField>
+        <FormField compact label="时长（分钟）">
           <input v-model.trim="form.durationMinutes" class="form-field__input" type="number" placeholder="120">
-        </view>
-        <view class="form-field">
-          <view class="form-field__label">
-            杆数
-          </view>
+        </FormField>
+        <FormField compact label="杆数">
           <input v-model.trim="form.rodCount" class="form-field__input" type="number" placeholder="2">
-        </view>
-        <view class="form-field">
-          <view class="form-field__label">
-            建议人数
-          </view>
+        </FormField>
+        <FormField compact label="建议人数">
           <input v-model.trim="form.maxPeople" class="form-field__input" type="number" placeholder="2">
-        </view>
-        <view class="form-field">
-          <view class="form-field__label">
-            排序
-          </view>
+        </FormField>
+        <FormField compact label="排序">
           <input v-model.trim="form.sort" class="form-field__input" type="number" placeholder="0">
-        </view>
-        <view class="form-field">
-          <view class="form-field__label">
-            状态
-          </view>
+        </FormField>
+        <FormField compact label="状态">
           <picker :value="statusIndex" :range="statusOptions" range-key="label" @change="handleStatusChange">
             <view class="form-field__picker">
               {{ statusOptions[statusIndex]?.label || '启用' }}
             </view>
           </picker>
-        </view>
+        </FormField>
       </view>
 
-      <view class="package-form__actions">
+      <template #actions>
         <ActionButton class="package-form__submit" block label="保存套餐" loading-text="保存中..." :loading="saving" variant="secondary" size="large" @click="handleSave" />
-      </view>
-    </view>
+      </template>
+    </FormSection>
 
     <view class="package-content">
       <view v-if="showInitialLoading" class="package-placeholder">
@@ -544,31 +519,9 @@ onPullDownRefresh(() => {
 }
 
 .package-form {
-  margin-top: 22rpx;
-  padding: 28rpx;
-
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20rpx;
-    margin-bottom: 22rpx;
-  }
-
-  &__title {
-    color: #17211d;
-    font-size: 31rpx;
-    font-weight: 700;
-    line-height: 1.3;
-  }
-
   &__close {
     width: 112rpx;
     color: #52615b;
-  }
-
-  &__actions {
-    margin-top: 28rpx;
   }
 }
 
@@ -579,19 +532,6 @@ onPullDownRefresh(() => {
 }
 
 .form-field {
-  margin-top: 20rpx;
-
-  .form-grid & {
-    margin-top: 0;
-  }
-
-  &__label {
-    margin-bottom: 10rpx;
-    color: #718079;
-    font-size: 23rpx;
-    line-height: 1.3;
-  }
-
   &__input,
   &__textarea,
   &__picker {
