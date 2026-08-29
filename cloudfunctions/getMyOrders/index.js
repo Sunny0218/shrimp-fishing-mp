@@ -34,6 +34,17 @@ function getDateValue(value) {
   return Number.isNaN(time) ? 0 : time
 }
 
+function normalizePagination(event) {
+  const page = Math.max(Math.floor(Number(event.page || 1)), 1)
+  const pageSize = Math.min(Math.max(Math.floor(Number(event.pageSize || 20)), 1), 50)
+
+  return {
+    page,
+    pageSize,
+    offset: (page - 1) * pageSize,
+  }
+}
+
 async function getPendingPaymentExpireMinutes() {
   const settingsRes = await db.collection('settings').limit(1).get().catch(() => ({ data: [] }))
   const settings = settingsRes.data[0] || {}
@@ -136,6 +147,7 @@ exports.main = async (event = {}) => {
   }
 
   const status = typeof event.status === 'string' ? event.status.trim() : 'all'
+  const { page, pageSize, offset } = normalizePagination(event)
 
   try {
     await closeExpiredPendingOrders(openid, new Date())
@@ -150,7 +162,8 @@ exports.main = async (event = {}) => {
         .collection('orders')
         .where(where)
         .orderBy('createdAt', 'desc')
-        .limit(50)
+        .skip(offset)
+        .limit(pageSize)
         .get(),
     ])
 
@@ -159,7 +172,10 @@ exports.main = async (event = {}) => {
       message: 'ok',
       data: {
         rows: listRes.data,
+        page,
+        pageSize,
         total: countRes.total,
+        hasMore: offset + listRes.data.length < countRes.total,
         serverTime: new Date().toISOString(),
       },
     }

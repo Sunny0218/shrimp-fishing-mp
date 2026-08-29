@@ -87,6 +87,8 @@ export async function getMyOrders(params: GetMyOrdersParams = {}) {
     'getMyOrders',
     {
       status: params.status || 'all',
+      ...(params.page ? { page: params.page } : {}),
+      ...(params.pageSize ? { pageSize: params.pageSize } : {}),
     },
   )
 
@@ -95,7 +97,10 @@ export async function getMyOrders(params: GetMyOrdersParams = {}) {
 
   return {
     rows: [],
+    page: params.page || 1,
+    pageSize: params.pageSize || 20,
     total: 0,
+    hasMore: false,
     serverTime: new Date().toISOString(),
   }
 }
@@ -111,6 +116,8 @@ export async function getOrders(params: GetOrdersParams = {}) {
       ...(params.date ? { date: params.date.trim() } : {}),
       ...(params.startDate ? { startDate: params.startDate.trim() } : {}),
       ...(params.endDate ? { endDate: params.endDate.trim() } : {}),
+      ...(params.page ? { page: params.page } : {}),
+      ...(params.pageSize ? { pageSize: params.pageSize } : {}),
     },
   )
 
@@ -119,7 +126,10 @@ export async function getOrders(params: GetOrdersParams = {}) {
 
   return {
     rows: [],
+    page: params.page || 1,
+    pageSize: params.pageSize || 20,
     total: 0,
+    hasMore: false,
     summary: {
       all: 0,
       active: 0,

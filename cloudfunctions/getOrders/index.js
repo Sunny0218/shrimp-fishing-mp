@@ -74,6 +74,17 @@ function normalizeDateRange(event) {
   }
 }
 
+function normalizePagination(event) {
+  const page = Math.max(Math.floor(Number(event.page || 1)), 1)
+  const pageSize = Math.min(Math.max(Math.floor(Number(event.pageSize || 20)), 1), 50)
+
+  return {
+    page,
+    pageSize,
+    offset: (page - 1) * pageSize,
+  }
+}
+
 function getDateRangeBounds(startDate, endDate) {
   const start = new Date(`${startDate}T00:00:00+08:00`)
   const endStart = new Date(`${endDate}T00:00:00+08:00`)
@@ -337,6 +348,29 @@ async function closeExpiredPendingOrders(now) {
   await Promise.all(expiredOrders.map(order => closeOneExpiredPendingOrder(order, now)))
 }
 
+async function fetchOrdersByWhere(where) {
+  const rows = []
+  const limit = 100
+  const maxPages = 10
+
+  for (let index = 0; index < maxPages; index += 1) {
+    const res = await db.collection('orders')
+      .where(where)
+      .skip(index * limit)
+      .limit(limit)
+      .get()
+      .catch(() => ({ data: [] }))
+
+    rows.push(...res.data)
+
+    if (res.data.length < limit) {
+      break
+    }
+  }
+
+  return rows
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -347,6 +381,7 @@ exports.main = async (event = {}) => {
 
   const status = normalizeStatus(event.status)
   const { startDate, endDate } = normalizeDateRange(event)
+  const { page, pageSize, offset } = normalizePagination(event)
   const dateText = startDate
   const { start, end } = getDateRangeBounds(startDate, endDate)
   const dateRangeCommand = command.gte(start).and(command.lt(end))
@@ -384,14 +419,14 @@ exports.main = async (event = {}) => {
       { refundedAt: dateRangeCommand },
       { updatedAt: dateRangeCommand },
       { 'slotSnapshot.date': dateTextRangeCommand },
-    ].map(where => db.collection('orders').where(where).limit(100).get().catch(() => ({ data: [] })))
+    ].map(where => fetchOrdersByWhere(where))
     const [pricingRuleRes, orderResList] = await Promise.all([
       pricingRuleTask,
       Promise.all(queryTasks),
     ])
     const orderMap = new Map()
 
-    orderResList.flatMap(res => res.data).forEach((order) => {
+    orderResList.flat().forEach((order) => {
       if (order?._id) {
         orderMap.set(order._id, order)
       }
@@ -405,13 +440,17 @@ exports.main = async (event = {}) => {
       .filter(order => isDateInRange(order.businessDate, startDate, endDate)))
     const summary = createSummary(allOrders)
     const rows = filterOrders(allOrders, status)
+    const pagedRows = rows.slice(offset, offset + pageSize)
 
     return {
       code: 0,
       message: 'ok',
       data: {
-        rows,
+        rows: pagedRows,
+        page,
+        pageSize,
         total: rows.length,
+        hasMore: offset + pagedRows.length < rows.length,
         summary,
         date: dateText,
         startDate,

@@ -191,13 +191,24 @@ export interface OrderDetailData {
   serverTime: string
 }
 
-export interface GetMyOrdersParams {
+export interface PaginationParams {
+  page?: number
+  pageSize?: number
+}
+
+export interface PaginationData {
+  page: number
+  pageSize: number
+  total: number
+  hasMore: boolean
+}
+
+export interface GetMyOrdersParams extends PaginationParams {
   status?: OrderStatus | 'all'
 }
 
-export interface MyOrdersData {
+export interface MyOrdersData extends PaginationData {
   rows: Order[]
-  total: number
   serverTime: string
 }
 
@@ -213,16 +224,15 @@ export interface ManageOrderSummary {
   cancelled: number
 }
 
-export interface GetOrdersParams {
+export interface GetOrdersParams extends PaginationParams {
   status?: ManageOrderStatusFilter
   date?: string
   startDate?: string
   endDate?: string
 }
 
-export interface OrdersData {
+export interface OrdersData extends PaginationData {
   rows: Order[]
-  total: number
   summary: ManageOrderSummary
   date: string
   startDate?: string

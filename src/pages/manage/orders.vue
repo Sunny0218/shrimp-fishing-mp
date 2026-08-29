@@ -67,6 +67,9 @@ const activeDateFilter = ref<DateFilterKey>('today')
 const selectedStartDate = ref(getLocalDateText())
 const selectedEndDate = ref(getLocalDateText())
 const ordersData = ref<OrdersData>()
+const page = ref(1)
+const pageSize = 20
+const loadingMore = ref(false)
 const currentTime = ref(Date.now())
 const checkingInOrderId = ref('')
 let timer: ReturnType<typeof setInterval> | undefined
@@ -76,6 +79,9 @@ const { loading: requestLoading, runLatest } = useLatestRequest()
 
 const orderList = computed(() => ordersData.value?.rows || [])
 const summary = computed(() => ordersData.value?.summary)
+const total = computed(() => ordersData.value?.total || 0)
+const hasMore = computed(() => orderList.value.length < total.value)
+const showListFooter = computed(() => !!ordersData.value && orderList.value.length > 0)
 const activePricingRuleSnapshot = computed<PricingRuleSnapshot | undefined>(() => {
   const rule = ordersData.value?.activePricingRule
 
@@ -123,10 +129,13 @@ async function fetchOrders(status: ManageOrderStatusFilter = activeStatus.value)
       status,
       startDate: selectedStartDate.value,
       endDate: selectedEndDate.value,
+      page: 1,
+      pageSize,
     }),
     {
       onSuccess: (res) => {
         ordersData.value = res
+        page.value = res.page || 1
         selectedStartDate.value = res.startDate || selectedStartDate.value
         selectedEndDate.value = res.endDate || selectedEndDate.value
       },
@@ -140,8 +149,52 @@ async function fetchOrders(status: ManageOrderStatusFilter = activeStatus.value)
   )
 }
 
+async function loadMoreOrders() {
+  if (requestLoading.value || loadingMore.value || !hasMore.value) {
+    return
+  }
+
+  loadingMore.value = true
+  errorText.value = ''
+
+  try {
+    const nextPage = page.value + 1
+    const status = activeStatus.value
+    const startDate = selectedStartDate.value
+    const endDate = selectedEndDate.value
+    const res = await getOrders({
+      status,
+      startDate,
+      endDate,
+      page: nextPage,
+      pageSize,
+    })
+
+    if (status !== activeStatus.value || startDate !== selectedStartDate.value || endDate !== selectedEndDate.value) {
+      return
+    }
+
+    ordersData.value = {
+      ...res,
+      rows: [...orderList.value, ...(res.rows || [])],
+    }
+    page.value = res.page || nextPage
+    selectedStartDate.value = res.startDate || selectedStartDate.value
+    selectedEndDate.value = res.endDate || selectedEndDate.value
+  }
+  catch (error) {
+    uni.showToast({
+      title: error instanceof Error ? error.message : '加载更多订单失败',
+      icon: 'none',
+    })
+  }
+  finally {
+    loadingMore.value = false
+  }
+}
+
 function handleChangeDateFilter(option: DateFilterOption) {
-  if (requestLoading.value) {
+  if (requestLoading.value || loadingMore.value) {
     return
   }
 
@@ -161,6 +214,10 @@ function handleChangeDateFilter(option: DateFilterOption) {
 }
 
 function handleStartDateChange(event: { detail: { value: string } }) {
+  if (requestLoading.value || loadingMore.value) {
+    return
+  }
+
   const date = event.detail.value
 
   if (!date) {
@@ -178,6 +235,10 @@ function handleStartDateChange(event: { detail: { value: string } }) {
 }
 
 function handleEndDateChange(event: { detail: { value: string } }) {
+  if (requestLoading.value || loadingMore.value) {
+    return
+  }
+
   const date = event.detail.value
 
   if (!date) {
@@ -196,6 +257,10 @@ function handleEndDateChange(event: { detail: { value: string } }) {
 
 function handleChangeStatus(statusValue: string) {
   const status = statusValue as ManageOrderStatusFilter
+
+  if (loadingMore.value) {
+    return
+  }
 
   if (activeStatus.value === status) {
     return
@@ -454,6 +519,10 @@ onPullDownRefresh(() => {
   fetchOrders()
 })
 
+onReachBottom(() => {
+  loadMoreOrders()
+})
+
 onUnload(() => {
   stopTimer()
 })
@@ -557,7 +626,7 @@ onUnload(() => {
       <OrderStatusTabs
         :tabs="statusTabs"
         :active="activeStatus"
-        :disabled="requestLoading"
+        :disabled="requestLoading || loadingMore"
         @change="handleChangeStatus"
       />
     </view>
@@ -600,6 +669,10 @@ onUnload(() => {
           @click="handleViewDetail(order)"
           @action="handleOrderAction(order)"
         />
+
+        <view v-if="showListFooter" class="today-orders-page__footer">
+          {{ loadingMore ? '加载中...' : hasMore ? '上拉加载更多' : '没有更多订单了' }}
+        </view>
       </view>
     </view>
   </view>
@@ -640,6 +713,14 @@ onUnload(() => {
   &__content {
     position: relative;
     min-height: 260rpx;
+  }
+
+  &__footer {
+    padding: 8rpx 0 4rpx;
+    color: #8a9891;
+    font-size: 24rpx;
+    line-height: 1.4;
+    text-align: center;
   }
 }
 

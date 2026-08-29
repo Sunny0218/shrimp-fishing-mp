@@ -45,11 +45,17 @@ const errorText = ref('')
 const activeStatus = ref<OrderStatus | 'all'>('all')
 const orderList = ref<Order[]>([])
 const hasFetchedOrders = ref(false)
+const page = ref(1)
+const pageSize = 20
+const total = ref(0)
+const loadingMore = ref(false)
 const tokenStore = useTokenStore()
 const { loading: requestLoading, runLatest } = useLatestRequest()
 const isLoggedIn = computed(() => tokenStore.hasLogin)
 const showInitialLoading = computed(() => requestLoading.value && !hasFetchedOrders.value)
 const showLoadingOverlay = computed(() => requestLoading.value && hasFetchedOrders.value)
+const hasMore = computed(() => orderList.value.length < total.value)
+const showListFooter = computed(() => hasFetchedOrders.value && isLoggedIn.value && orderList.value.length > 0)
 useNativeLoading(showLoadingOverlay, '切换中')
 
 async function fetchOrders(status: OrderStatus | 'all' = activeStatus.value) {
@@ -57,16 +63,24 @@ async function fetchOrders(status: OrderStatus | 'all' = activeStatus.value) {
 
   if (!isLoggedIn.value) {
     orderList.value = []
+    page.value = 1
+    total.value = 0
     hasFetchedOrders.value = true
     uni.stopPullDownRefresh()
     return
   }
 
   await runLatest(
-    () => getMyOrders({ status }),
+    () => getMyOrders({
+      status,
+      page: 1,
+      pageSize,
+    }),
     {
       onSuccess: (res) => {
         orderList.value = res.rows || []
+        page.value = res.page || 1
+        total.value = res.total || 0
         hasFetchedOrders.value = true
       },
       onError: (error) => {
@@ -80,8 +94,48 @@ async function fetchOrders(status: OrderStatus | 'all' = activeStatus.value) {
   )
 }
 
+async function loadMoreOrders() {
+  if (!isLoggedIn.value || requestLoading.value || loadingMore.value || !hasMore.value) {
+    return
+  }
+
+  loadingMore.value = true
+  errorText.value = ''
+
+  try {
+    const nextPage = page.value + 1
+    const status = activeStatus.value
+    const res = await getMyOrders({
+      status,
+      page: nextPage,
+      pageSize,
+    })
+
+    if (status !== activeStatus.value) {
+      return
+    }
+
+    orderList.value = [...orderList.value, ...(res.rows || [])]
+    page.value = res.page || nextPage
+    total.value = res.total ?? total.value
+  }
+  catch (error) {
+    uni.showToast({
+      title: error instanceof Error ? error.message : '加载更多订单失败',
+      icon: 'none',
+    })
+  }
+  finally {
+    loadingMore.value = false
+  }
+}
+
 function handleChangeStatus(statusValue: string) {
   const status = statusValue as OrderStatus | 'all'
+
+  if (loadingMore.value) {
+    return
+  }
 
   if (activeStatus.value === status) {
     return
@@ -167,6 +221,10 @@ onShow(() => {
 onPullDownRefresh(() => {
   fetchOrders()
 })
+
+onReachBottom(() => {
+  loadMoreOrders()
+})
 </script>
 
 <template>
@@ -175,7 +233,7 @@ onPullDownRefresh(() => {
       <OrderStatusTabs
         :tabs="statusTabs"
         :active="activeStatus"
-        :disabled="requestLoading"
+        :disabled="requestLoading || loadingMore"
         @change="handleChangeStatus"
       />
     </view>
@@ -221,6 +279,10 @@ onPullDownRefresh(() => {
           :price-text="formatPrice(order.finalAmount)"
           @click="handleViewDetail(order)"
         />
+
+        <view v-if="showListFooter" class="orders-page__footer">
+          {{ loadingMore ? '加载中...' : hasMore ? '上拉加载更多' : '没有更多订单了' }}
+        </view>
       </view>
     </view>
   </view>
@@ -261,6 +323,14 @@ onPullDownRefresh(() => {
   &__content {
     position: relative;
     min-height: 260rpx;
+  }
+
+  &__footer {
+    padding: 8rpx 0 4rpx;
+    color: #8a9891;
+    font-size: 24rpx;
+    line-height: 1.4;
+    text-align: center;
   }
 }
 
