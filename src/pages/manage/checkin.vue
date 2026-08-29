@@ -3,6 +3,7 @@ import type { CheckInOrderResult, OrderDateValue } from '@/api/types/order'
 import { checkInOrder } from '@/api/order'
 import ActionButton from '@/components/ActionButton.vue'
 import InfoRow from '@/components/InfoRow.vue'
+import SectionCard from '@/components/SectionCard.vue'
 import { getDateTimeValue } from '@/utils/orderDisplay'
 
 definePage({
@@ -305,7 +306,7 @@ onLoad((query) => {
       </view>
     </view>
 
-    <view v-if="!hasCheckedIn" class="checkin-card">
+    <SectionCard v-if="!hasCheckedIn" class="checkin-card">
       <ActionButton class="checkin-page__scan-btn" block size="large" :label="pageCopy.scanButton" :disabled="submitting" @click="handleScan" />
 
       <view class="manual-field">
@@ -342,12 +343,9 @@ onLoad((query) => {
         :disabled="!canSubmit"
         @click="handleSubmit"
       />
-    </view>
+    </SectionCard>
 
-    <view v-if="result?.order" class="result-card">
-      <view class="result-card__title">
-        已开始计时
-      </view>
+    <SectionCard v-if="result?.order" class="result-card" title="已开始计时" title-variant="success">
       <InfoRow v-if="result.order.dailyNo" label="沟通编号" :value="result.order.dailyNo" variant="code" />
       <InfoRow label="订单号" :value="result.order.orderNo" />
       <InfoRow :label="result.order.orderType === 'metered' ? '计费规则' : '套餐'" :value="getOrderName(result.order)" />
@@ -360,7 +358,7 @@ onLoad((query) => {
       <InfoRow :label="result.order.orderType === 'metered' ? '计费说明' : '预计结束'" :value="getExpectedEndedAtText(result.order)" />
 
       <ActionButton class="result-card__next-btn" block size="large" :label="pageCopy.resultNextText" @click="handleNextCheckin" />
-    </view>
+    </SectionCard>
   </view>
 </template>
 
@@ -412,15 +410,6 @@ onLoad((query) => {
   }
 }
 
-.checkin-card,
-.result-card {
-  margin-top: 24rpx;
-  border-radius: 8rpx;
-  background: #ffffff;
-  padding: 28rpx;
-  box-shadow: 0 10rpx 22rpx rgb(31 59 50 / 5%);
-}
-
 .manual-field {
   margin-top: 28rpx;
 
@@ -461,14 +450,6 @@ onLoad((query) => {
 }
 
 .result-card {
-  &__title {
-    margin-bottom: 14rpx;
-    color: #1f6b56;
-    font-size: 34rpx;
-    font-weight: 700;
-    line-height: 1.25;
-  }
-
   &__next-btn {
     margin-top: 24rpx;
     font-size: 28rpx;

@@ -6,6 +6,7 @@ import { requestNotificationSubscription } from '@/api/notification'
 import { cancelOrder, checkInOrder, getOrderDetail, payCheckoutOrder, payOrder, updateRodSession } from '@/api/order'
 import ActionButton from '@/components/ActionButton.vue'
 import InfoRow from '@/components/InfoRow.vue'
+import SectionCard from '@/components/SectionCard.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { NotificationTemplateKey } from '@/config/notificationTemplates'
 import { activeOrderNotificationTemplateIds, activeOrderNotificationTemplateKeys, notificationTemplateKeys } from '@/config/notificationTemplates'
@@ -1112,20 +1113,24 @@ onUnload(() => {
 
     <view v-else-if="order" class="order-detail">
       <view class="order-detail__hero">
-        <StatusBadge :text="getStatusText(order.status)" :variant="detailStatusVariant" size="medium" />
+        <view class="order-detail__hero-top">
+          <StatusBadge :text="getStatusText(order.status)" :variant="detailStatusVariant" size="medium" />
+          <view v-if="order.dailyNo" class="order-detail__daily-no">
+            沟通编号：{{ order.dailyNo }}
+          </view>
+        </view>
         <view v-if="orderTitle" class="order-detail__title">
           {{ orderTitle }}
         </view>
-        <view v-if="order.dailyNo" class="order-detail__daily-no">
-          沟通编号：{{ order.dailyNo }}
-        </view>
-        <view class="order-detail__order-no" :class="{ 'order-detail__order-no--primary': !orderTitle }">
-          订单号：{{ order.orderNo }}
+        <view class="order-detail__meta" :class="{ 'order-detail__meta--primary': !orderTitle }">
+          <view class="order-detail__order-no">
+            订单号：{{ order.orderNo }}
+          </view>
         </view>
       </view>
 
-      <view v-if="canSubscribeOrderNotification" class="order-card notify-card">
-        <view>
+      <SectionCard v-if="canSubscribeOrderNotification" class="notify-card" layout="split">
+        <view class="notify-card__content">
           <view class="notify-card__title">
             消息提醒
           </view>
@@ -1144,12 +1149,9 @@ onUnload(() => {
           loading-text="订阅中..."
           @click="handleSubscribeOrderNotification"
         />
-      </view>
+      </SectionCard>
 
-      <view v-if="canPayOrder" class="order-card payment-card">
-        <view class="order-card__title">
-          支付信息
-        </view>
+      <SectionCard v-if="canPayOrder" class="payment-card" title="支付信息">
         <view class="payment-card__countdown">
           <view class="payment-card__label">
             剩余支付时间
@@ -1162,12 +1164,9 @@ onUnload(() => {
         <view class="order-card__tip">
           超时未支付会自动关闭订单，需要重新预约。
         </view>
-      </view>
+      </SectionCard>
 
-      <view v-if="canShowTimingCard" class="order-card timing-card timing-card--prominent">
-        <view class="order-card__title">
-          计时信息
-        </view>
+      <SectionCard v-if="canShowTimingCard" class="timing-card timing-card--prominent" title="计时信息">
         <view v-if="order.status === 'in_progress'" class="timing-card__countdown">
           <view class="timing-card__label">
             {{ order.orderType === 'metered' ? '已计时' : '剩余时间' }}
@@ -1196,12 +1195,9 @@ onUnload(() => {
             @click="handleFinishCurrentOrder"
           />
         </view>
-      </view>
+      </SectionCard>
 
-      <view v-if="canShowRodSessions" class="order-card rod-session-card">
-        <view class="order-card__title">
-          杆位明细
-        </view>
+      <SectionCard v-if="canShowRodSessions" class="rod-session-card" title="杆位明细">
         <view class="rod-session-list">
           <view v-for="session in meteredRodSessions" :key="session.id" class="rod-session">
             <view class="rod-session__header">
@@ -1274,17 +1270,14 @@ onUnload(() => {
             </view>
           </view>
         </view>
-      </view>
+      </SectionCard>
 
-      <view v-if="canPayCheckout" class="order-card checkout-card">
-        <view class="order-card__header">
-          <view class="order-card__title">
-            {{ checkoutTitle }}
-          </view>
+      <SectionCard v-if="canPayCheckout" class="checkout-card" :title="checkoutTitle">
+        <template #action>
           <view class="order-card__tag order-card__tag--warning">
             待支付
           </view>
-        </view>
+        </template>
         <view class="checkout-card__amount">
           {{ formatPrice(order.checkoutAmount) }}
         </view>
@@ -1300,12 +1293,9 @@ onUnload(() => {
           :disabled="payingCheckout"
           @click="handlePayCheckout"
         />
-      </view>
+      </SectionCard>
 
-      <view class="order-card">
-        <view class="order-card__title">
-          {{ order.orderType === 'metered' ? '现场开单信息' : '预约信息' }}
-        </view>
+      <SectionCard :title="order.orderType === 'metered' ? '现场开单信息' : '预约信息'">
         <InfoRow
           :label="order.orderType === 'metered' ? '计费规则' : '套餐'"
           :value="order.orderType === 'metered' ? pricingRuleSnapshot?.name || '现场计时' : packageSnapshot?.name || '套餐预约'"
@@ -1328,17 +1318,14 @@ onUnload(() => {
           <InfoRow label="计费粒度" :value="formatDuration(pricingRuleSnapshot?.unitMinutes)" />
           <InfoRow v-if="order.chargedMeteredMinutes" label="结算时长" :value="formatDuration(order.chargedMeteredMinutes)" />
         </template>
-      </view>
+      </SectionCard>
 
-      <view class="order-card">
-        <view class="order-card__header">
-          <view class="order-card__title">
-            到店开始计时
-          </view>
+      <SectionCard title="到店开始计时">
+        <template #action>
           <view class="order-card__tag" :class="{ 'order-card__tag--disabled': !canShowCheckinCode }">
             {{ canShowCheckinCode ? '可开始' : '不可开始' }}
           </view>
-        </view>
+        </template>
         <view v-if="canShowCheckinCode" class="checkin-code">
           <image class="checkin-code__qr" :src="checkinQrCodeUrl" mode="aspectFit" />
           <view class="checkin-code__value">
@@ -1367,12 +1354,9 @@ onUnload(() => {
           :disabled="checkingInOrder"
           @click="handleDirectCheckIn"
         />
-      </view>
+      </SectionCard>
 
-      <view class="order-card">
-        <view class="order-card__title">
-          费用明细
-        </view>
+      <SectionCard title="费用明细">
         <template v-if="order.orderType === 'metered'">
           <InfoRow v-if="order.actualDurationMinutes" label="实际计时" :value="formatDuration(order.actualDurationMinutes)" />
           <InfoRow v-if="order.chargedMeteredMinutes" label="结算时长" :value="formatDuration(order.chargedMeteredMinutes)" />
@@ -1399,31 +1383,31 @@ onUnload(() => {
         <InfoRow v-if="order.adjustAmount" label="调整金额" :value="formatPrice(order.adjustAmount)" />
         <InfoRow v-if="order.goodsAmount" label="商品金额" :value="formatPrice(order.goodsAmount)" />
         <InfoRow label="最终金额" :value="formatPrice(order.finalAmount)" variant="price" />
-      </view>
+      </SectionCard>
 
-      <ActionButton class="order-detail-page__home-btn" block label="返回首页" @click="handleBackHome" />
-      <ActionButton
-        v-if="canPayOrder"
-        class="order-detail-page__pay-btn"
-        block
-        label="模拟支付"
-        loading-text="支付中..."
-        :loading="payingOrder"
-        variant="secondary"
-        :disabled="payingOrder"
-        @click="handlePayOrder"
-      />
-      <ActionButton
-        v-if="canCancel"
-        class="order-detail-page__cancel-btn"
-        block
-        :label="cancelActionText"
-        loading-text="处理中..."
-        :loading="cancelling"
-        variant="danger"
-        :disabled="cancelling"
-        @click="handleCancelOrder"
-      />
+      <view class="order-detail-actions">
+        <ActionButton block label="返回首页" @click="handleBackHome" />
+        <ActionButton
+          v-if="canPayOrder"
+          block
+          label="模拟支付"
+          loading-text="支付中..."
+          :loading="payingOrder"
+          variant="secondary"
+          :disabled="payingOrder"
+          @click="handlePayOrder"
+        />
+        <ActionButton
+          v-if="canCancel"
+          block
+          :label="cancelActionText"
+          loading-text="处理中..."
+          :loading="cancelling"
+          variant="danger-outline"
+          :disabled="cancelling"
+          @click="handleCancelOrder"
+        />
+      </view>
     </view>
   </view>
 </template>
@@ -1445,42 +1429,17 @@ onUnload(() => {
     text-align: center;
   }
 
-  &__retry,
-  &__home-btn,
-  &__pay-btn,
-  &__cancel-btn {
-    min-height: 76rpx;
-    border-radius: 8rpx;
-    font-size: 28rpx;
-    line-height: 76rpx;
-  }
-
   &__retry {
     width: 180rpx;
     margin-top: 24rpx;
-    background: #1f6b56;
-    color: #ffffff;
   }
+}
 
-  &__home-btn {
-    margin-top: 28rpx;
-    background: #1f6b56;
-    color: #ffffff;
-  }
-
-  &__pay-btn {
-    margin-top: 18rpx;
-    background: #f6c453;
-    color: #20312b;
-    font-weight: 700;
-  }
-
-  &__cancel-btn {
-    margin-top: 18rpx;
-    border: 2rpx solid #e8d0c7;
-    background: #ffffff;
-    color: #c9472b;
-  }
+.order-detail-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  margin-top: 28rpx;
 }
 
 .order-detail {
@@ -1488,6 +1447,13 @@ onUnload(() => {
     border-radius: 8rpx;
     background: #163b32;
     padding: 36rpx 28rpx;
+  }
+
+  &__hero-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20rpx;
   }
 
   &__title {
@@ -1498,9 +1464,28 @@ onUnload(() => {
     line-height: 1.2;
   }
 
-  &__daily-no {
-    width: fit-content;
+  &__meta {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12rpx;
     margin-top: 18rpx;
+
+    &--primary {
+      margin-top: 28rpx;
+
+      .order-detail__order-no {
+        color: #ffffff;
+        font-size: 34rpx;
+        font-weight: 700;
+      }
+    }
+  }
+
+  &__daily-no {
+    flex-shrink: 0;
+    max-width: 58%;
     border-radius: 8rpx;
     background: rgb(246 196 83 / 18%);
     padding: 10rpx 16rpx;
@@ -1508,77 +1493,45 @@ onUnload(() => {
     font-size: 30rpx;
     font-weight: 700;
     line-height: 1.25;
+    text-align: right;
+    word-break: break-all;
   }
 
   &__order-no {
-    margin-top: 14rpx;
+    max-width: 100%;
     color: #f5ead8;
     font-size: 24rpx;
     line-height: 1.4;
-
-    &--primary {
-      margin-top: 28rpx;
-      color: #ffffff;
-      font-size: 34rpx;
-      font-weight: 700;
-    }
+    word-break: break-all;
   }
 }
 
-.order-card {
-  margin-top: 24rpx;
+.order-card__tag {
+  flex-shrink: 0;
   border-radius: 8rpx;
-  background: #ffffff;
-  padding: 28rpx;
-  box-shadow: 0 10rpx 22rpx rgb(31 59 50 / 5%);
+  background: #e8f3ed;
+  padding: 8rpx 14rpx;
+  color: #1f6b56;
+  font-size: 22rpx;
+  line-height: 1.2;
 
-  &__title {
-    margin-bottom: 18rpx;
-    color: #17211d;
-    font-size: 32rpx;
-    font-weight: 700;
-    line-height: 1.25;
+  &--disabled {
+    background: #f0f2ef;
+    color: #89938f;
   }
 
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20rpx;
-    margin-bottom: 18rpx;
-
-    .order-card__title {
-      margin-bottom: 0;
-    }
+  &--warning {
+    background: #f8f2df;
+    color: #c9472b;
   }
+}
 
-  &__tag {
-    flex-shrink: 0;
-    border-radius: 8rpx;
-    background: #e8f3ed;
-    padding: 8rpx 14rpx;
-    color: #1f6b56;
-    font-size: 22rpx;
-    line-height: 1.2;
-
-    &--disabled {
-      background: #f0f2ef;
-      color: #89938f;
-    }
-
-    &--warning {
-      background: #f8f2df;
-      color: #c9472b;
-    }
-  }
-
-  &__tip {
-    margin-top: 18rpx;
-    color: #718079;
-    font-size: 24rpx;
-    line-height: 1.5;
-    text-align: center;
-  }
+.order-card__tip {
+  margin-top: 18rpx;
+  color: #718079;
+  font-size: 24rpx;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .checkout-card {
@@ -1609,10 +1562,10 @@ onUnload(() => {
 }
 
 .notify-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24rpx;
+  &__content {
+    min-width: 0;
+    flex: 1;
+  }
 
   &__title {
     color: #17352f;
@@ -1722,12 +1675,6 @@ onUnload(() => {
     font-size: 26rpx;
     font-weight: 600;
     line-height: 68rpx;
-  }
-}
-
-.rod-session-card {
-  .order-card__title {
-    margin-bottom: 20rpx;
   }
 }
 
