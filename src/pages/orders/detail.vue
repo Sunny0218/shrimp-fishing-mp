@@ -265,6 +265,12 @@ const remainingMilliseconds = computed(() => {
   return Math.max(expectedEndedAtTime.value - currentTime.value, 0)
 })
 const actualDurationText = computed(() => {
+  if (order.value?.orderType === 'metered' && order.value.status === 'in_progress') {
+    const duration = Math.max(...meteredRodSessions.value.map(session => getRodDurationMinutes(session)), 0)
+
+    return formatDuration(duration)
+  }
+
   if (order.value?.actualDurationMinutes) {
     return formatDuration(order.value.actualDurationMinutes)
   }
@@ -596,7 +602,7 @@ function getRodStatusClass(session: RodSession) {
 }
 
 function getRodDurationMinutes(session: RodSession) {
-  if (session.actualDurationMinutes) {
+  if (session.status !== 'in_progress' && session.actualDurationMinutes) {
     return session.actualDurationMinutes
   }
 
@@ -624,13 +630,23 @@ function getRodDurationMinutes(session: RodSession) {
 }
 
 function getRodAmount(session: RodSession) {
+  const settlement = getRodSettlement(session)
+
+  if (settlement) {
+    return settlement.amount
+  }
+
+  return Math.max(Number(session.amount || 0), Number(session.paidAmount || 0), getFirstHourAmount())
+}
+
+function getRodSettlement(session: RodSession) {
   const rule = pricingRuleSnapshot.value
   const firstHourAmount = rule?.firstHourAmount || rule?.pricePerHour || 0
   const extraPricePerHour = rule?.extraPricePerHour || rule?.pricePerHour || 0
   const unitMinutes = rule?.unitMinutes || 60
 
   if (!firstHourAmount || !extraPricePerHour || unitMinutes <= 0) {
-    return Math.max(Number(session.amount || 0), Number(session.paidAmount || 0), getFirstHourAmount())
+    return null
   }
 
   const billableMinutes = Math.max(getRodDurationMinutes(session), rule?.minimumMinutes || 0)
@@ -638,12 +654,38 @@ function getRodAmount(session: RodSession) {
   const chargedExtraMinutes = extraMinutes > 0
     ? Math.ceil(extraMinutes / unitMinutes) * unitMinutes
     : 0
+  const extraAmount = Math.ceil((chargedExtraMinutes / 60) * extraPricePerHour)
+  const amount = firstHourAmount + extraAmount
 
-  return firstHourAmount + Math.ceil((chargedExtraMinutes / 60) * extraPricePerHour)
+  return {
+    firstHourAmount,
+    extraPricePerHour,
+    unitMinutes,
+    billableMinutes,
+    chargedExtraMinutes,
+    extraAmount,
+    amount,
+  }
 }
 
 function getRodCheckoutAmount(session: RodSession) {
   return Math.max(getRodAmount(session) - Number(session.paidAmount || getFirstHourAmount()), 0)
+}
+
+function getRodSettlementText(session: RodSession) {
+  const settlement = getRodSettlement(session)
+
+  if (!settlement) {
+    return ''
+  }
+
+  const paidAmount = Number(session.paidAmount || settlement.firstHourAmount)
+
+  if (settlement.chargedExtraMinutes <= 0) {
+    return `首小时已预付 ${formatPrice(paidAmount)}，暂无待补`
+  }
+
+  return `续钟 ${formatDuration(settlement.chargedExtraMinutes)} × ${formatPrice(settlement.extraPricePerHour)}/小时 = ${formatPrice(settlement.extraAmount)}`
 }
 
 function canStopRodSession(session: RodSession) {
@@ -1251,6 +1293,9 @@ onUnload(() => {
             </view>
             <view v-if="session.stoppedAt" class="rod-session__time">
               停杆 {{ formatDateTime(session.stoppedAt) }}
+            </view>
+            <view v-if="getRodSettlementText(session)" class="rod-session__calc">
+              {{ getRodSettlementText(session) }}
             </view>
             <view v-if="canStopRodSession(session) || canResumeRodSession(session)" class="rod-session__actions">
               <button
@@ -2081,6 +2126,16 @@ onUnload(() => {
     color: #718079;
     font-size: 23rpx;
     line-height: 1.4;
+  }
+
+  &__calc {
+    margin-top: 14rpx;
+    border-radius: 8rpx;
+    background: #fff7df;
+    padding: 12rpx 14rpx;
+    color: #8a6a19;
+    font-size: 23rpx;
+    line-height: 1.45;
   }
 
   &__actions {

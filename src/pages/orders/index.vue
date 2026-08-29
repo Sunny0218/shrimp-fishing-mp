@@ -24,6 +24,7 @@ const statusTabs: StatusTab[] = [
   { label: '全部', value: 'all' },
   { label: '待到店', value: 'paid' },
   { label: '进行中', value: 'in_progress' },
+  { label: '待结账', value: 'pending_checkout' },
   { label: '已完成', value: 'completed' },
   { label: '已取消', value: 'cancelled' },
 ]
