@@ -712,14 +712,17 @@ onPullDownRefresh(() => {
   }
 
   &__btn {
-    width: 108rpx;
+    width: auto;
+    min-width: 108rpx;
     min-height: 58rpx;
     margin: 0;
     border-radius: 8rpx;
     background: #1f6b56;
+    padding: 0 22rpx;
     color: #ffffff;
     font-size: 24rpx;
     line-height: 58rpx;
+    white-space: nowrap;
 
     &--ghost {
       background: #eef4f0;

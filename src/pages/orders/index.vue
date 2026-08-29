@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import ListFooter from '@/components/ListFooter.vue'
 import OrderCard from '@/components/OrderCard.vue'
 import OrderStatusTabs from '@/components/OrderStatusTabs.vue'
+import PageState from '@/components/PageState.vue'
 import type { Order, OrderStatus } from '@/api/types/order'
 import { getMyOrders } from '@/api/order'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
@@ -239,27 +241,24 @@ onReachBottom(() => {
     </view>
 
     <view class="orders-page__content">
-      <view v-if="showInitialLoading" class="orders-page__placeholder">
-        正在加载订单...
-      </view>
+      <PageState v-if="showInitialLoading" text="正在加载订单..." />
 
-      <view v-else-if="!isLoggedIn" class="orders-page__error">
-        <text>登录后查看你的预约和订单</text>
-        <button class="orders-page__retry" @click="handleGoLogin">
-          去登录
-        </button>
-      </view>
+      <PageState
+        v-else-if="!isLoggedIn"
+        text="登录后查看你的预约和订单"
+        button-text="去登录"
+        @action="handleGoLogin"
+      />
 
-      <view v-else-if="errorText" class="orders-page__error">
-        <text>{{ errorText }}</text>
-        <button class="orders-page__retry" @click="fetchOrders()">
-          重试
-        </button>
-      </view>
+      <PageState
+        v-else-if="errorText"
+        :text="errorText"
+        button-text="重试"
+        variant="error"
+        @action="fetchOrders()"
+      />
 
-      <view v-else-if="!orderList.length" class="orders-page__placeholder">
-        暂无订单
-      </view>
+      <PageState v-else-if="!orderList.length" text="暂无订单" />
 
       <view v-else class="order-list">
         <OrderCard
@@ -280,9 +279,7 @@ onReachBottom(() => {
           @click="handleViewDetail(order)"
         />
 
-        <view v-if="showListFooter" class="orders-page__footer">
-          {{ loadingMore ? '加载中...' : hasMore ? '上拉加载更多' : '没有更多订单了' }}
-        </view>
+        <ListFooter v-if="showListFooter" :loading="loadingMore" :has-more="hasMore" done-text="没有更多订单了" />
       </view>
     </view>
   </view>
@@ -299,38 +296,9 @@ onReachBottom(() => {
     display: block;
   }
 
-  &__placeholder,
-  &__error {
-    border-radius: 8rpx;
-    background: #ffffff;
-    padding: 44rpx 28rpx;
-    color: #718079;
-    font-size: 26rpx;
-    text-align: center;
-  }
-
-  &__retry {
-    width: 180rpx;
-    min-height: 70rpx;
-    margin-top: 24rpx;
-    border-radius: 8rpx;
-    background: #1f6b56;
-    color: #ffffff;
-    font-size: 26rpx;
-    line-height: 70rpx;
-  }
-
   &__content {
     position: relative;
     min-height: 260rpx;
-  }
-
-  &__footer {
-    padding: 8rpx 0 4rpx;
-    color: #8a9891;
-    font-size: 24rpx;
-    line-height: 1.4;
-    text-align: center;
   }
 }
 
