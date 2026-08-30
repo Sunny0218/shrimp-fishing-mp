@@ -17,6 +17,30 @@ function fail(code, message) {
   }
 }
 
+function hasDateValue(value) {
+  return !!value
+}
+
+function canDirectRefund(order) {
+  if (order.status !== 'paid') {
+    return false
+  }
+
+  if (!['package', 'metered'].includes(order.orderType || 'package')) {
+    return false
+  }
+
+  if (hasDateValue(order.checkedInAt) || hasDateValue(order.startedAt)) {
+    return false
+  }
+
+  if (hasDateValue(order.refundedAt) || order.refundNo || order.refundStatus === 'refunded') {
+    return false
+  }
+
+  return true
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -47,13 +71,17 @@ exports.main = async (event = {}) => {
         throw new Error('当前订单已核销或已完成，不能取消')
       }
 
+      if (order.status === 'paid' && !canDirectRefund(order)) {
+        throw new Error('当前订单已核销或已开始计时，不能直接退款')
+      }
+
       const now = new Date()
       const paidAmount = Math.max(
         Number(order.paidAmount || 0),
         Number(order.finalAmount || 0),
         Number(order.baseAmount || 0) - Number(order.discountAmount || 0),
       )
-      const isRefundOrder = order.status === 'paid' && paidAmount > 0
+      const isRefundOrder = canDirectRefund(order) && paidAmount > 0
       const refundAmount = isRefundOrder
         ? paidAmount
         : 0
@@ -64,7 +92,7 @@ exports.main = async (event = {}) => {
             orderId,
             openid,
             amount: refundAmount,
-            reason: '用户核销前取消预约',
+            reason: '用户未开始服务直接退款',
             now,
           })
         : null
@@ -75,7 +103,7 @@ exports.main = async (event = {}) => {
         refundAmount,
         refundNo: refundPayment?.refundNo || '',
         refundStatus: isRefundOrder ? 'refunded' : '',
-        refundReason: isRefundOrder ? '用户核销前取消预约' : '',
+        refundReason: isRefundOrder ? '用户未开始服务直接退款' : '',
         refundedAt: isRefundOrder ? now : null,
       }
 

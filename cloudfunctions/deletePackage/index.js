@@ -5,7 +5,7 @@ cloud.init({
 })
 
 const db = cloud.database()
-const editRoles = ['admin', 'super_admin']
+const editRoles = ['super_admin']
 
 function fail(code, message) {
   return {

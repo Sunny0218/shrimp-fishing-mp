@@ -5,7 +5,7 @@ cloud.init({
 })
 
 const db = cloud.database()
-const editRoles = ['admin', 'super_admin']
+const editRoles = ['super_admin']
 const validBookingModes = ['walk_in', 'slot']
 const validPaymentModes = ['mock_auto_paid', 'mock_pending_payment']
 const shopSettingsSeedKey = 'default-shop-settings'

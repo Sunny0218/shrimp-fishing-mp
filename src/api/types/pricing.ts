@@ -6,6 +6,7 @@ export interface ManagePricingRulesData {
   rows: PricingRule[]
   total: number
   canEdit: boolean
+  canToggleStatus?: boolean
   serverTime: string
 }
 

@@ -47,6 +47,7 @@ const statusOptions: Array<{ label: string, value: PricingRuleStatus }> = [
 
 const errorText = ref('')
 const canEdit = ref(false)
+const canToggleStatus = ref(false)
 const ruleList = ref<PricingRule[]>([])
 const hasFetched = ref(false)
 const showForm = ref(false)
@@ -69,6 +70,7 @@ async function fetchRules() {
       onSuccess: (res) => {
         ruleList.value = res.rows || []
         canEdit.value = !!res.canEdit
+        canToggleStatus.value = !!res.canToggleStatus
         hasFetched.value = true
       },
       onError: (error) => {
@@ -200,7 +202,7 @@ async function handleSave() {
 }
 
 async function handleToggleStatus(rule: PricingRule) {
-  if (!canEdit.value || updatingStatusId.value) {
+  if (!canToggleStatus.value || updatingStatusId.value) {
     return
   }
 
@@ -262,7 +264,7 @@ function formatPriceInput(price?: number) {
 }
 
 function showNoEditToast() {
-  showToast('服务员仅可查看计费规则')
+  showToast('当前角色无权编辑计费规则')
 }
 
 function showToast(title: string, icon: UniApp.ShowToastOptions['icon'] = 'none') {
@@ -289,7 +291,7 @@ onPullDownRefresh(() => {
           计费规则
         </view>
         <view class="pricing-toolbar__desc">
-          {{ canEdit ? '配置顾客现场开单后的按时计费标准' : '当前角色仅可查看计费规则' }}
+          {{ canEdit ? '配置顾客现场开单后的按时计费标准' : canToggleStatus ? '当前角色可查看并调整计费规则启停' : '当前角色仅可查看计费规则' }}
         </view>
       </view>
       <ActionButton
@@ -370,9 +372,10 @@ onPullDownRefresh(() => {
           show-status
           show-sort
         >
-          <template v-if="canEdit" #actions>
-            <ActionButton class="pricing-card__btn" label="编辑" variant="ghost" size="small" @click="handleEdit(rule)" />
+          <template v-if="canEdit || canToggleStatus" #actions>
+            <ActionButton v-if="canEdit" class="pricing-card__btn" label="编辑" variant="ghost" size="small" @click="handleEdit(rule)" />
             <ActionButton
+              v-if="canToggleStatus"
               class="pricing-card__btn"
               :variant="rule.status === 'active' ? 'warning' : 'primary'"
               size="small"

@@ -52,7 +52,8 @@ exports.main = async () => {
       data: {
         rows: packages,
         total: packages.length,
-        canEdit: ['admin', 'super_admin'].includes(user.role),
+        canEdit: user.role === 'super_admin',
+        canToggleStatus: ['admin', 'super_admin'].includes(user.role),
         serverTime: new Date().toISOString(),
       },
     }

@@ -16,6 +16,7 @@ export async function getManagePackages() {
     rows: [],
     total: 0,
     canEdit: false,
+    canToggleStatus: false,
     serverTime: new Date().toISOString(),
   }
 }

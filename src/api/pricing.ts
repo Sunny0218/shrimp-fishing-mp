@@ -16,6 +16,7 @@ export async function getManagePricingRules() {
     rows: [],
     total: 0,
     canEdit: false,
+    canToggleStatus: false,
     serverTime: new Date().toISOString(),
   }
 }

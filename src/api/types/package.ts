@@ -4,6 +4,7 @@ export interface ManagePackagesData {
   rows: ShrimpPackage[]
   total: number
   canEdit: boolean
+  canToggleStatus?: boolean
   serverTime: string
 }
 

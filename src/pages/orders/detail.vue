@@ -125,7 +125,7 @@ const cancelActionText = computed(() => isRefundCancel.value ? '申请退款' : 
 const cancelModalTitle = computed(() => isRefundCancel.value ? '申请退款' : '取消预约')
 const cancelModalContent = computed(() => {
   if (isRefundCancel.value) {
-    return `当前订单已支付且尚未核销，可申请退款 ${formatPrice(getRefundableAmount())}。确认后将模拟退款并关闭订单。`
+    return `当前订单已支付且尚未开始服务，可直接退款 ${formatPrice(getRefundableAmount())}。确认后将模拟退款并关闭订单。`
   }
 
   return '当前订单尚未支付，取消后会关闭订单。'

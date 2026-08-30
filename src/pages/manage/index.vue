@@ -12,7 +12,7 @@ definePage({
 const userStore = useUserStore()
 const { userInfo } = storeToRefs(userStore)
 const manageRoles = ['staff', 'admin', 'super_admin']
-const editRoles = ['admin', 'super_admin']
+const editRoles = ['super_admin']
 const canManage = computed(() => !!userInfo.value.role && manageRoles.includes(userInfo.value.role))
 const canEditShop = computed(() => !!userInfo.value.role && editRoles.includes(userInfo.value.role))
 const roleTextMap = {
@@ -50,7 +50,7 @@ function handleOpenPricing() {
 function handleOpenSettings() {
   if (!canEditShop.value) {
     uni.showToast({
-      title: '仅管理员可维护门店信息',
+      title: '仅超级管理员可维护门店信息',
       icon: 'none',
     })
     return
@@ -93,7 +93,7 @@ onLoad(() => {
       <ManageCard title="门店订单" description="按日期查看预约与进行中订单" accent="warning" @click="handleOpenTodayOrders" />
       <ManageCard title="到店计时" description="现场确认顾客订单并开始计时" @click="handleOpenCheckin('metered')" />
       <ManageCard title="套餐管理" description="配置固定套餐价格" accent="warning" @click="handleOpenPackages" />
-      <ManageCard title="门店信息" :description="canEditShop ? '维护首页展示和联系方式' : '仅管理员可维护'" :muted="!canEditShop" @click="handleOpenSettings" />
+      <ManageCard title="门店信息" :description="canEditShop ? '维护首页展示和联系方式' : '仅超级管理员可维护'" :muted="!canEditShop" @click="handleOpenSettings" />
       <ManageCard title="计费规则" description="配置首小时和续钟价格" accent="warning" @click="handleOpenPricing" />
     </view>
   </view>

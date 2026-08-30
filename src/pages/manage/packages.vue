@@ -46,6 +46,7 @@ const statusOptions: Array<{ label: string, value: PackageStatus }> = [
 
 const errorText = ref('')
 const canEdit = ref(false)
+const canToggleStatus = ref(false)
 const packageList = ref<ShrimpPackage[]>([])
 const hasFetched = ref(false)
 const showForm = ref(false)
@@ -69,6 +70,7 @@ async function fetchPackages() {
       onSuccess: (res) => {
         packageList.value = res.rows || []
         canEdit.value = !!res.canEdit
+        canToggleStatus.value = !!res.canToggleStatus
         hasFetched.value = true
       },
       onError: (error) => {
@@ -199,7 +201,7 @@ async function handleSave() {
 }
 
 async function handleToggleStatus(packageItem: ShrimpPackage) {
-  if (!canEdit.value || updatingStatusId.value) {
+  if (!canToggleStatus.value || updatingStatusId.value) {
     return
   }
 
@@ -305,7 +307,7 @@ function formatPriceInput(price?: number) {
 }
 
 function showNoEditToast() {
-  showToast('服务员仅可查看套餐')
+  showToast('当前角色无权编辑套餐')
 }
 
 function showToast(title: string, icon: UniApp.ShowToastOptions['icon'] = 'none') {
@@ -332,7 +334,7 @@ onPullDownRefresh(() => {
           套餐管理
         </view>
         <view class="package-toolbar__desc">
-          {{ canEdit ? '维护顾客可预约的固定套餐' : '当前角色仅可查看套餐' }}
+          {{ canEdit ? '维护顾客可预约的固定套餐' : canToggleStatus ? '当前角色可查看并调整套餐启停' : '当前角色仅可查看套餐' }}
         </view>
       </view>
       <ActionButton
@@ -410,9 +412,10 @@ onPullDownRefresh(() => {
           show-sort
         >
           <template #actions>
-            <view v-if="canEdit" class="package-card__actions">
-              <ActionButton class="package-card__btn" label="编辑" block variant="ghost" size="small" @click="handleEdit(packageItem)" />
+            <view v-if="canEdit || canToggleStatus" class="package-card__actions">
+              <ActionButton v-if="canEdit" class="package-card__btn" label="编辑" block variant="ghost" size="small" @click="handleEdit(packageItem)" />
               <ActionButton
+                v-if="canToggleStatus"
                 class="package-card__btn"
                 block
                 :variant="packageItem.status === 'active' ? 'warning' : 'primary'"
@@ -424,6 +427,7 @@ onPullDownRefresh(() => {
                 @click="handleToggleStatus(packageItem)"
               />
               <ActionButton
+                v-if="canEdit"
                 class="package-card__btn"
                 block
                 variant="danger-outline"
