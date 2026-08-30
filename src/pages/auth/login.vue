@@ -2,6 +2,7 @@
 import { storeToRefs } from 'pinia'
 import { bindWechatPhoneNumber } from '@/api/login'
 import ActionButton from '@/components/ActionButton.vue'
+import PageHero from '@/components/PageHero.vue'
 import { useUserStore } from '@/store'
 import { useTokenStore } from '@/store/token'
 import { isPageTabbar } from '@/tabbar/store'
@@ -155,15 +156,16 @@ onLoad((query) => {
 
 <template>
   <view class="login-page">
-    <view class="login-page__hero">
-      <image class="login-page__avatar" :src="avatarUrl" mode="aspectFill" />
-      <view class="login-page__title">
-        欢迎来到钓虾乐园
-      </view>
-      <view class="login-page__subtitle">
-        登录后可以预约场次、查看订单和出示核销码
-      </view>
-    </view>
+    <PageHero
+      title="欢迎来到钓虾乐园"
+      description="登录后可以预约场次、查看订单和出示核销码"
+      variant="plain"
+      align="center"
+    >
+      <template #media>
+        <image class="login-page__avatar" :src="avatarUrl" mode="aspectFill" />
+      </template>
+    </PageHero>
 
     <view class="login-card">
       <view class="login-card__title">
@@ -213,14 +215,6 @@ onLoad((query) => {
   padding: 56rpx 28rpx 40rpx;
   color: #17211d;
 
-  &__hero {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 42rpx 20rpx 30rpx;
-    text-align: center;
-  }
-
   &__avatar {
     width: 128rpx;
     height: 128rpx;
@@ -228,21 +222,6 @@ onLoad((query) => {
     border-radius: 50%;
     background: #ffffff;
     box-shadow: 0 12rpx 30rpx rgb(31 59 50 / 10%);
-  }
-
-  &__title {
-    margin-top: 28rpx;
-    color: #17211d;
-    font-size: 44rpx;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
-  &__subtitle {
-    margin-top: 16rpx;
-    color: #65756f;
-    font-size: 26rpx;
-    line-height: 1.5;
   }
 }
 

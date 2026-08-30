@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ActionButton from '@/components/ActionButton.vue'
+import PageHero from '@/components/PageHero.vue'
 import PricingRuleCard from '@/components/PricingRuleCard.vue'
 import type { HomeData } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
@@ -158,17 +159,12 @@ onPullDownRefresh(() => {
 
 <template>
   <view class="walk-in-page">
-    <view class="walk-in-hero">
-      <view class="walk-in-hero__tag">
-        到店现场开单
-      </view>
-      <view class="walk-in-hero__title">
-        按实际钓虾时长结算
-      </view>
-      <view class="walk-in-hero__desc">
-        开单后向服务员出示开始计时码，服务员确认后开始计时。
-      </view>
-    </view>
+    <PageHero
+      tag="到店现场开单"
+      title="按实际钓虾时长结算"
+      description="开单后向服务员出示开始计时码，服务员确认后开始计时。"
+      size="medium"
+    />
 
     <view v-if="loading" class="walk-in-placeholder">
       正在加载计费规则...
@@ -251,42 +247,11 @@ onPullDownRefresh(() => {
   color: #17211d;
 }
 
-.walk-in-hero,
 .walk-in-section,
 .walk-in-placeholder {
   border-radius: 8rpx;
   background: #ffffff;
   box-shadow: 0 10rpx 22rpx rgb(31 59 50 / 5%);
-}
-
-.walk-in-hero {
-  background: #163b32;
-  padding: 34rpx 28rpx;
-
-  &__tag {
-    width: fit-content;
-    border-radius: 8rpx;
-    background: #f6c453;
-    padding: 8rpx 14rpx;
-    color: #20312b;
-    font-size: 23rpx;
-    line-height: 1.2;
-  }
-
-  &__title {
-    margin-top: 26rpx;
-    color: #ffffff;
-    font-size: 40rpx;
-    font-weight: 700;
-    line-height: 1.25;
-  }
-
-  &__desc {
-    margin-top: 14rpx;
-    color: #dcebe3;
-    font-size: 26rpx;
-    line-height: 1.5;
-  }
 }
 
 .walk-in-content {

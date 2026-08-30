@@ -6,6 +6,7 @@ import { requestNotificationSubscription } from '@/api/notification'
 import { cancelOrder, checkInOrder, getOrderDetail, payCheckoutOrder, payOrder, updateRodSession } from '@/api/order'
 import ActionButton from '@/components/ActionButton.vue'
 import InfoRow from '@/components/InfoRow.vue'
+import PageHero from '@/components/PageHero.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { NotificationTemplateKey } from '@/config/notificationTemplates'
@@ -1112,22 +1113,30 @@ onUnload(() => {
     </view>
 
     <view v-else-if="order" class="order-detail">
-      <view class="order-detail__hero">
-        <view class="order-detail__hero-top">
+      <PageHero class="order-detail__hero" :title="orderTitle">
+        <template #header>
           <StatusBadge :text="getStatusText(order.status)" :variant="detailStatusVariant" size="medium" />
-          <view v-if="order.dailyNo" class="order-detail__daily-no">
-            沟通编号：{{ order.dailyNo }}
+        </template>
+
+        <template #meta>
+          <view class="order-detail__meta" :class="{ 'order-detail__meta--primary': !orderTitle }">
+            <view class="order-detail__order-no">
+              订单号：{{ order.orderNo }}
+            </view>
           </view>
-        </view>
-        <view v-if="orderTitle" class="order-detail__title">
-          {{ orderTitle }}
-        </view>
-        <view class="order-detail__meta" :class="{ 'order-detail__meta--primary': !orderTitle }">
-          <view class="order-detail__order-no">
-            订单号：{{ order.orderNo }}
+        </template>
+
+        <template v-if="order.dailyNo" #aside>
+          <view class="order-detail__daily-no">
+            <view class="order-detail__daily-label">
+              沟通编号
+            </view>
+            <view class="order-detail__daily-value">
+              {{ order.dailyNo }}
+            </view>
           </view>
-        </view>
-      </view>
+        </template>
+      </PageHero>
 
       <SectionCard v-if="canSubscribeOrderNotification" class="notify-card" layout="split">
         <view class="notify-card__content">
@@ -1443,37 +1452,16 @@ onUnload(() => {
 }
 
 .order-detail {
-  &__hero {
-    border-radius: 8rpx;
-    background: #163b32;
-    padding: 36rpx 28rpx;
-  }
-
-  &__hero-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 20rpx;
-  }
-
-  &__title {
-    margin-top: 28rpx;
-    color: #ffffff;
-    font-size: 44rpx;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
   &__meta {
     display: flex;
     min-width: 0;
     flex-direction: column;
     align-items: flex-start;
     gap: 12rpx;
-    margin-top: 18rpx;
+    margin-top: 0;
 
     &--primary {
-      margin-top: 28rpx;
+      margin-top: 10rpx;
 
       .order-detail__order-no {
         color: #ffffff;
@@ -1484,17 +1472,26 @@ onUnload(() => {
   }
 
   &__daily-no {
-    flex-shrink: 0;
-    max-width: 58%;
+    min-width: 128rpx;
     border-radius: 8rpx;
     background: rgb(246 196 83 / 18%);
-    padding: 10rpx 16rpx;
+    padding: 12rpx 16rpx;
     color: #f6c453;
-    font-size: 30rpx;
-    font-weight: 700;
     line-height: 1.25;
-    text-align: right;
-    word-break: break-all;
+    text-align: center;
+  }
+
+  &__daily-label {
+    font-size: 22rpx;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  &__daily-value {
+    margin-top: 6rpx;
+    font-size: 34rpx;
+    font-weight: 700;
+    white-space: nowrap;
   }
 
   &__order-no {

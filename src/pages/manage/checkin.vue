@@ -3,6 +3,7 @@ import type { CheckInOrderResult, OrderDateValue } from '@/api/types/order'
 import { checkInOrder } from '@/api/order'
 import ActionButton from '@/components/ActionButton.vue'
 import InfoRow from '@/components/InfoRow.vue'
+import PageHero from '@/components/PageHero.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import { getDateTimeValue } from '@/utils/orderDisplay'
 
@@ -294,17 +295,11 @@ onLoad((query) => {
 
 <template>
   <view class="checkin-page">
-    <view class="checkin-hero">
-      <view class="checkin-hero__label">
-        门店工作台
-      </view>
-      <view class="checkin-hero__title">
-        {{ hasCheckedIn ? '已开始计时' : pageCopy.heroTitle }}
-      </view>
-      <view class="checkin-hero__desc">
-        {{ hasCheckedIn ? pageCopy.resultDesc : pageCopy.heroDesc }}
-      </view>
-    </view>
+    <PageHero
+      tag="门店工作台"
+      :title="hasCheckedIn ? '已开始计时' : pageCopy.heroTitle"
+      :description="hasCheckedIn ? pageCopy.resultDesc : pageCopy.heroDesc"
+    />
 
     <SectionCard v-if="!hasCheckedIn" class="checkin-card">
       <ActionButton class="checkin-page__scan-btn" block size="large" :label="pageCopy.scanButton" :disabled="submitting" @click="handleScan" />
@@ -376,37 +371,6 @@ onLoad((query) => {
 
   &__submit-btn {
     margin-top: 28rpx;
-  }
-}
-
-.checkin-hero {
-  border-radius: 8rpx;
-  background: #163b32;
-  padding: 36rpx 28rpx;
-
-  &__label {
-    width: fit-content;
-    border-radius: 8rpx;
-    background: #f6c453;
-    padding: 8rpx 14rpx;
-    color: #20312b;
-    font-size: 22rpx;
-    line-height: 1.2;
-  }
-
-  &__title {
-    margin-top: 28rpx;
-    color: #ffffff;
-    font-size: 44rpx;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
-  &__desc {
-    margin-top: 12rpx;
-    color: #f5ead8;
-    font-size: 26rpx;
-    line-height: 1.4;
   }
 }
 

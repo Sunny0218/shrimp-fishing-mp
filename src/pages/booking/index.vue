@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ActionButton from '@/components/ActionButton.vue'
+import PageHero from '@/components/PageHero.vue'
 import PackageCard from '@/components/PackageCard.vue'
 import type { HomeData, ShrimpPackage, TimeSlot } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
@@ -187,14 +188,7 @@ onShow(() => {
 
 <template>
   <view class="booking-page">
-    <view class="booking-page__header">
-      <view class="booking-page__title">
-        预约钓虾
-      </view>
-      <view class="booking-page__subtitle">
-        选择套餐，到店核销后开始计时
-      </view>
-    </view>
+    <PageHero title="预约钓虾" description="选择套餐，到店核销后开始计时" />
 
     <view class="booking-section">
       <view class="booking-section__title">
@@ -316,26 +310,6 @@ onShow(() => {
   background: #f4f7f2;
   padding: 32rpx 28rpx 180rpx;
   color: #17211d;
-
-  &__header {
-    border-radius: 8rpx;
-    background: #163b32;
-    padding: 32rpx 28rpx;
-  }
-
-  &__title {
-    color: #ffffff;
-    font-size: 42rpx;
-    font-weight: 700;
-    line-height: 1.25;
-  }
-
-  &__subtitle {
-    margin-top: 12rpx;
-    color: #f5ead8;
-    font-size: 26rpx;
-    line-height: 1.45;
-  }
 
   &__placeholder {
     border-radius: 8rpx;
