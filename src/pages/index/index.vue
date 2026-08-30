@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import ActionButton from '@/components/ActionButton.vue'
+import PageHero from '@/components/PageHero.vue'
 import PackageCard from '@/components/PackageCard.vue'
 import type { HomeData, ShrimpPackage, TimeSlot } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
@@ -252,33 +253,41 @@ onPullDownRefresh(() => {
 
 <template>
   <view class="home-page">
-    <view class="home-page__hero">
-      <swiper
-        v-if="heroCoverImages.length"
-        class="home-page__hero-swiper"
-        :indicator-dots="heroCoverImages.length > 1"
-        :autoplay="heroCoverImages.length > 1"
-        :circular="heroCoverImages.length > 1"
-        indicator-color="rgba(255, 255, 255, 0.55)"
-        indicator-active-color="#f6c453"
-      >
-        <swiper-item v-for="imageUrl in heroCoverImages" :key="imageUrl">
-          <image class="home-page__hero-image" :src="imageUrl" mode="aspectFill" />
-        </swiper-item>
-      </swiper>
-      <view class="home-page__hero-content">
-        <view class="home-page__status">
-          {{ heroStatusText }}
-        </view>
-        <view class="home-page__title">
-          {{ shopInfo.shopName }}
-        </view>
-        <view class="home-page__desc">
-          {{ businessHourText }}
-        </view>
+    <PageHero
+      class="home-page__hero"
+      :title="shopInfo.shopName"
+      :description="businessHourText"
+      size="hero"
+      variant="image"
+      tag-variant="dark"
+    >
+      <template #background>
+        <swiper
+          v-if="heroCoverImages.length"
+          class="home-page__hero-swiper"
+          :indicator-dots="heroCoverImages.length > 1"
+          :autoplay="heroCoverImages.length > 1"
+          :circular="heroCoverImages.length > 1"
+          indicator-color="rgba(255, 255, 255, 0.55)"
+          indicator-active-color="#f6c453"
+        >
+          <swiper-item v-for="imageUrl in heroCoverImages" :key="imageUrl">
+            <image class="home-page__hero-image" :src="imageUrl" mode="aspectFill" />
+          </swiper-item>
+        </swiper>
+      </template>
+
+      <template #tag>
+        {{ heroStatusText }}
+      </template>
+
+      <template #meta>
         <view class="home-page__address">
           {{ shopInfo.address }}
         </view>
+      </template>
+
+      <template #extra>
         <view class="home-page__actions">
           <ActionButton
             class="home-page__ghost-btn"
@@ -297,8 +306,8 @@ onPullDownRefresh(() => {
             @click="handleWalkInOrder"
           />
         </view>
-      </view>
-    </view>
+      </template>
+    </PageHero>
 
     <view v-if="errorText" class="home-page__alert">
       <text>{{ errorText }}</text>
@@ -391,30 +400,10 @@ onPullDownRefresh(() => {
 .home-page {
   min-height: 100vh;
   background: #f4f7f2;
-  padding: 0 28rpx 40rpx;
+  padding: 0 0 40rpx;
   color: #17211d;
 
-  &__hero {
-    position: relative;
-    overflow: hidden;
-    margin: 0 -28rpx;
-    padding: calc(var(--status-bar-height) + 72rpx) 28rpx 38rpx;
-    background: linear-gradient(135deg, #133b32 0%, #1f6b56 58%, #c9472b 100%);
-
-    &::after {
-      position: absolute;
-      right: 0;
-      bottom: 0;
-      left: 0;
-      height: 72%;
-      background: linear-gradient(180deg, rgb(0 0 0 / 0%) 0%, rgb(0 0 0 / 42%) 48%, rgb(0 0 0 / 68%) 100%);
-      content: '';
-    }
-  }
-
   &__hero-swiper {
-    position: absolute;
-    inset: 0;
     width: 100%;
     height: 100%;
   }
@@ -424,44 +413,7 @@ onPullDownRefresh(() => {
     height: 100%;
   }
 
-  &__hero-content {
-    position: relative;
-    z-index: 1;
-    min-height: 420rpx;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-  }
-
-  &__status {
-    width: fit-content;
-    border-radius: 8rpx;
-    background: rgb(23 33 29 / 36%);
-    padding: 8rpx 16rpx;
-    color: #ffffff;
-    font-size: 24rpx;
-    line-height: 1.2;
-  }
-
-  &__title {
-    margin-top: 28rpx;
-    color: #ffffff;
-    font-size: 56rpx;
-    font-weight: 700;
-    line-height: 1.15;
-    text-shadow: 0 4rpx 14rpx rgb(0 0 0 / 35%);
-  }
-
-  &__desc {
-    margin-top: 20rpx;
-    color: #f5ead8;
-    font-size: 28rpx;
-    line-height: 1.5;
-    text-shadow: 0 3rpx 10rpx rgb(0 0 0 / 32%);
-  }
-
   &__address {
-    margin-top: 12rpx;
     color: rgb(255 255 255 / 88%);
     font-size: 24rpx;
     line-height: 1.4;
@@ -488,7 +440,7 @@ onPullDownRefresh(() => {
     align-items: center;
     justify-content: space-between;
     gap: 20rpx;
-    margin-top: 24rpx;
+    margin: 24rpx 28rpx 0;
     border-radius: 8rpx;
     background: #fff1ec;
     padding: 20rpx;
@@ -513,7 +465,7 @@ onPullDownRefresh(() => {
 }
 
 .home-section {
-  margin-top: 32rpx;
+  margin: 32rpx 28rpx 0;
 
   &__header {
     display: flex;
