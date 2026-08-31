@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import ActionButton from '@/components/ActionButton.vue'
+import PageState from '@/components/PageState.vue'
 import type { BookingMode, BusinessHour, NotificationSettings, PaymentMode, ShopSettings } from '@/api/types/home'
 import { defaultHomeData, getHomeData, saveShopSettings } from '@/api/home'
 import { defaultNotificationSettings, notificationTemplateConfig } from '@/config/notificationTemplates'
 import { uploadShopCoverImage } from '@/api/upload'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
+import { useUserStore } from '@/store'
 import { markHomeDataDirty } from '@/utils/homeDataRefresh'
+import { hasRole, shopEditRoles } from '@/utils/roles'
 
 definePage({
   style: {
@@ -63,11 +66,13 @@ const form = reactive<SettingsForm>({
   notificationSettings: getDefaultNotificationSettings(),
   businessHours: [{ ...defaultHour }],
 })
+const userStore = useUserStore()
 const loading = ref(false)
 const saving = ref(false)
 const uploadingCoverImage = ref(false)
 const errorText = ref('')
 const hasFetched = ref(false)
+const canEditSettings = computed(() => hasRole(userStore.userInfo.role, shopEditRoles))
 const bookingModeIndex = computed(() => Math.max(bookingModeOptions.findIndex(item => item.value === form.bookingMode), 0))
 const paymentModeIndex = computed(() => Math.max(paymentModeOptions.findIndex(item => item.value === form.paymentMode), 0))
 const showLoadingOverlay = computed(() => loading.value && hasFetched.value)
@@ -331,6 +336,11 @@ function handleRemoveCoverImage(index: number) {
 }
 
 async function handleSave() {
+  if (!canEditSettings.value) {
+    showToast('仅超级管理员可保存门店信息')
+    return
+  }
+
   if (saving.value) {
     return
   }
@@ -412,11 +422,21 @@ function showToast(title: string, icon: UniApp.ShowToastOptions['icon'] = 'none'
 }
 
 onLoad(() => {
+  if (!canEditSettings.value) {
+    hasFetched.value = true
+    return
+  }
+
   fillForm(defaultHomeData.settings)
   fetchSettings()
 })
 
 onPullDownRefresh(() => {
+  if (!canEditSettings.value) {
+    uni.stopPullDownRefresh()
+    return
+  }
+
   fetchSettings()
 })
 </script>
@@ -434,7 +454,9 @@ onPullDownRefresh(() => {
       </view>
     </view>
 
-    <view v-if="!hasFetched && loading" class="settings-placeholder">
+    <PageState v-if="!canEditSettings" text="仅超级管理员可维护门店信息" />
+
+    <view v-else-if="!hasFetched && loading" class="settings-placeholder">
       正在加载门店信息...
     </view>
 

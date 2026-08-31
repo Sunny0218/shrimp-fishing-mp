@@ -1,9 +1,11 @@
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia'
 import ActionButton from '@/components/ActionButton.vue'
+import { updateUserProfile } from '@/api/user'
 import { LOGIN_PAGE } from '@/router/config'
 import { useUserStore } from '@/store'
 import { useTokenStore } from '@/store/token'
+import { getRoleText, hasRole, manageRoles } from '@/utils/roles'
 
 definePage({
   style: {
@@ -15,9 +17,12 @@ const userStore = useUserStore()
 const tokenStore = useTokenStore()
 // 使用storeToRefs解构userInfo
 const { userInfo } = storeToRefs(userStore)
-const manageRoles = ['staff', 'admin', 'super_admin']
-const canEnterManage = computed(() => !!userInfo.value.role && manageRoles.includes(userInfo.value.role))
+const canEnterManage = computed(() => hasRole(userInfo.value.role, manageRoles))
 const loggingOut = ref(false)
+const editingNickname = ref(false)
+const savingNickname = ref(false)
+const nicknameInput = ref('')
+const maxNicknameLength = 20
 
 // 微信小程序下登录
 async function handleLogin() {
@@ -81,13 +86,69 @@ function handleEnterOrders() {
 
 const displayName = computed(() => userInfo.value.nickname || userInfo.value.username || '微信用户')
 const avatarUrl = computed(() => userInfo.value.avatar || userInfo.value.avatarUrl || '/static/images/default-avatar.png')
-const roleTextMap = {
-  customer: '顾客',
-  staff: '服务员',
-  admin: '管理员',
-  super_admin: '超级管理员',
+const roleText = computed(() => getRoleText(userInfo.value.role))
+const normalizedNicknameInput = computed(() => nicknameInput.value.trim())
+const canSaveNickname = computed(() => {
+  return !!normalizedNicknameInput.value
+    && normalizedNicknameInput.value !== (userInfo.value.nickname || '').trim()
+    && !savingNickname.value
+})
+
+function handleStartEditNickname() {
+  nicknameInput.value = userInfo.value.nickname || ''
+  editingNickname.value = true
 }
-const roleText = computed(() => roleTextMap[userInfo.value.role || 'customer'])
+
+function handleCancelEditNickname() {
+  if (savingNickname.value) {
+    return
+  }
+
+  editingNickname.value = false
+  nicknameInput.value = ''
+}
+
+async function handleSaveNickname() {
+  if (!canSaveNickname.value) {
+    return
+  }
+
+  if (normalizedNicknameInput.value.length > maxNicknameLength) {
+    uni.showToast({
+      title: `昵称不能超过 ${maxNicknameLength} 个字符`,
+      icon: 'none',
+    })
+    return
+  }
+
+  savingNickname.value = true
+
+  try {
+    const result = await updateUserProfile({
+      nickname: normalizedNicknameInput.value,
+    })
+
+    userStore.setUserInfo({
+      ...userInfo.value,
+      ...result.user,
+    })
+    editingNickname.value = false
+    nicknameInput.value = ''
+    uni.showToast({
+      title: '昵称已更新',
+      icon: 'success',
+    })
+  }
+  catch (error) {
+    uni.showToast({
+      title: error instanceof Error ? error.message : '昵称修改失败',
+      icon: 'none',
+    })
+  }
+  finally {
+    savingNickname.value = false
+  }
+}
 </script>
 
 <template>
@@ -103,6 +164,24 @@ const roleText = computed(() => roleTextMap[userInfo.value.role || 'customer'])
         </view>
       </view>
       <ActionButton v-if="!tokenStore.hasLogin" class="profile-card__login" label="登录" block variant="secondary" size="small" @click="handleLogin" />
+      <ActionButton v-else class="profile-card__edit" label="改昵称" variant="outline-light" size="small" @click="handleStartEditNickname" />
+    </view>
+
+    <view v-if="tokenStore.hasLogin && editingNickname" class="nickname-panel">
+      <view class="nickname-panel__header">
+        修改昵称
+      </view>
+      <input
+        v-model="nicknameInput"
+        class="nickname-panel__input"
+        type="nickname"
+        placeholder="请输入昵称"
+        :maxlength="maxNicknameLength"
+      >
+      <view class="nickname-panel__actions">
+        <ActionButton label="取消" variant="ghost" size="medium" :disabled="savingNickname" @click="handleCancelEditNickname" />
+        <ActionButton label="保存昵称" loading-text="保存中" variant="secondary" size="medium" :loading="savingNickname" :disabled="!canSaveNickname" @click="handleSaveNickname" />
+      </view>
     </view>
 
     <view class="profile-section">
@@ -209,6 +288,45 @@ const roleText = computed(() => roleTextMap[userInfo.value.role || 'customer'])
     min-height: 60rpx;
     flex-shrink: 0;
     font-size: 24rpx;
+  }
+
+  &__edit {
+    flex-shrink: 0;
+  }
+}
+
+.nickname-panel {
+  margin-top: 24rpx;
+  border-radius: 8rpx;
+  background: #ffffff;
+  padding: 28rpx;
+  box-shadow: 0 10rpx 22rpx rgb(31 59 50 / 5%);
+
+  &__header {
+    color: #17211d;
+    font-size: 28rpx;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  &__input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 76rpx;
+    margin-top: 20rpx;
+    border: 2rpx solid #e2ebe6;
+    border-radius: 8rpx;
+    background: #ffffff;
+    padding: 0 22rpx;
+    color: #17211d;
+    font-size: 26rpx;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 18rpx;
+    margin-top: 24rpx;
   }
 }
 

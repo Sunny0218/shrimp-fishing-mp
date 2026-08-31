@@ -2,6 +2,7 @@
 import { storeToRefs } from 'pinia'
 import ManageCard from '@/components/ManageCard.vue'
 import { useUserStore } from '@/store'
+import { getRoleText, hasRole, manageRoles, roleManageRoles, shopEditRoles } from '@/utils/roles'
 
 definePage({
   style: {
@@ -11,17 +12,10 @@ definePage({
 
 const userStore = useUserStore()
 const { userInfo } = storeToRefs(userStore)
-const manageRoles = ['staff', 'admin', 'super_admin']
-const editRoles = ['super_admin']
-const canManage = computed(() => !!userInfo.value.role && manageRoles.includes(userInfo.value.role))
-const canEditShop = computed(() => !!userInfo.value.role && editRoles.includes(userInfo.value.role))
-const roleTextMap = {
-  customer: '顾客',
-  staff: '服务员',
-  admin: '管理员',
-  super_admin: '超级管理员',
-}
-const roleText = computed(() => roleTextMap[userInfo.value.role || 'customer'])
+const canManage = computed(() => hasRole(userInfo.value.role, manageRoles))
+const canEditShop = computed(() => hasRole(userInfo.value.role, shopEditRoles))
+const canManageRoles = computed(() => hasRole(userInfo.value.role, roleManageRoles))
+const roleText = computed(() => getRoleText(userInfo.value.role))
 
 function handleOpenCheckin(scene: 'package' | 'metered') {
   uni.navigateTo({
@@ -61,6 +55,20 @@ function handleOpenSettings() {
   })
 }
 
+function handleOpenUsers() {
+  if (!canManageRoles.value) {
+    uni.showToast({
+      title: '仅超级管理员可管理角色',
+      icon: 'none',
+    })
+    return
+  }
+
+  uni.navigateTo({
+    url: '/pages/manage/users',
+  })
+}
+
 onLoad(() => {
   if (canManage.value) {
     return
@@ -95,6 +103,7 @@ onLoad(() => {
       <ManageCard title="套餐管理" description="配置固定套餐价格" accent="warning" @click="handleOpenPackages" />
       <ManageCard title="门店信息" :description="canEditShop ? '维护首页展示和联系方式' : '仅超级管理员可维护'" :muted="!canEditShop" @click="handleOpenSettings" />
       <ManageCard title="计费规则" description="配置首小时和续钟价格" accent="warning" @click="handleOpenPricing" />
+      <ManageCard title="员工角色" :description="canManageRoles ? '设置员工和管理员权限' : '仅超级管理员可管理'" :muted="!canManageRoles" @click="handleOpenUsers" />
     </view>
   </view>
 </template>
