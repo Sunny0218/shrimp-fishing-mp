@@ -319,3 +319,29 @@ export interface PayCheckoutOrderResult {
   order: Order
   payment: PaymentRecord
 }
+
+export interface OperationLog {
+  _id: string
+  orderId: string
+  orderNo: string
+  action: string
+  actionText: string
+  operatorType: 'staff' | 'customer' | string
+  operatorUserId: string
+  operatorOpenid: string
+  operatorRole: string
+  operatorName: string
+  payload: Record<string, unknown>
+  createdAt?: OrderDateValue
+}
+
+export interface GetOperationLogsParams {
+  orderId: string
+  limit?: number
+}
+
+export interface OperationLogsData {
+  rows: OperationLog[]
+  total: number
+  serverTime: string
+}

@@ -30,6 +30,10 @@ async function sendOrderNotification(orderId, eventType) {
   }
 }
 
+function getOperatorName(user, fallbackOpenid) {
+  return user.nickname || user.phone || fallbackOpenid || ''
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -120,6 +124,33 @@ exports.main = async (event = {}) => {
       await orderRef.update({
         data: updateData,
       })
+      let operationLogSaved = true
+
+      await transaction.collection('operation_logs').add({
+        data: {
+          orderId,
+          orderNo: order.orderNo,
+          action: 'pay_checkout_order',
+          actionText: '支付结算金额',
+          operatorType: 'customer',
+          operatorUserId: user._id,
+          operatorOpenid: openid,
+          operatorRole: user.role || 'customer',
+          operatorName: getOperatorName(user, openid),
+          payload: {
+            checkoutAmount,
+            checkoutType,
+            paymentId: payment._id,
+            paymentNo: payment.paymentNo,
+            paidAmount,
+            nextStatus: updateData.status,
+          },
+          createdAt: now,
+        },
+      }).catch((error) => {
+        operationLogSaved = false
+        console.warn('[payCheckoutOrder] save operation log failed', error)
+      })
 
       return {
         order: {
@@ -135,6 +166,7 @@ exports.main = async (event = {}) => {
           status: 'paid',
           paidAt: now,
         },
+        operationLogSaved,
       }
     })
 

@@ -51,6 +51,11 @@
       "permission": "adminOnly"
     },
     {
+      "name": "operation_logs",
+      "description": "关键业务操作日志",
+      "permission": "adminOnly"
+    },
+    {
       "name": "goods",
       "description": "现场商品",
       "permission": "adminOnly"

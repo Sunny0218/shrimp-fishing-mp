@@ -96,6 +96,10 @@ async function sendOrderNotification(orderId, eventType) {
   })
 }
 
+function getOperatorName(user, fallbackOpenid) {
+  return user.nickname || user.phone || fallbackOpenid || ''
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -212,9 +216,39 @@ exports.main = async (event = {}) => {
         },
       })
 
+      let operationLogSaved = true
+
+      await transaction.collection('operation_logs').add({
+        data: {
+          orderId: targetOrderId,
+          orderNo: latestOrder.orderNo,
+          action: 'check_in_order',
+          actionText: '核销并开始计时',
+          operatorType: 'staff',
+          operatorUserId: user._id,
+          operatorOpenid: openid,
+          operatorRole: user.role,
+          operatorName: getOperatorName(user, openid),
+          payload: {
+            checkinCode,
+            source: orderId ? 'scan' : 'manual',
+            customerOpenid: latestOrder.openid,
+            startedAt: now,
+            expectedEndedAt,
+          },
+          createdAt: now,
+        },
+      }).catch((error) => {
+        operationLogSaved = false
+        console.warn('[checkInOrder] save operation log failed', error)
+      })
+
       return {
-        ...latestOrder,
-        ...updateData,
+        order: {
+          ...latestOrder,
+          ...updateData,
+        },
+        operationLogSaved,
       }
     })
 
@@ -224,8 +258,9 @@ exports.main = async (event = {}) => {
       code: 0,
       message: 'ok',
       data: {
-        order: result,
+        order: result.order,
         checkedInAt: now.toISOString(),
+        operationLogSaved: result.operationLogSaved,
       },
     }
   }

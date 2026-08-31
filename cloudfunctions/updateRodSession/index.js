@@ -203,6 +203,10 @@ function getOrderSummary(rodSessions, order) {
   }
 }
 
+function getOperatorName(user, fallbackOpenid) {
+  return user.nickname || user.phone || fallbackOpenid || ''
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -297,9 +301,40 @@ exports.main = async (event = {}) => {
         },
       })
 
+      let operationLogSaved = true
+
+      await transaction.collection('operation_logs').add({
+        data: {
+          orderId,
+          orderNo: order.orderNo,
+          action: action === 'stop' ? 'stop_rod_session' : 'resume_rod_session',
+          actionText: action === 'stop' ? '单杆停杆' : '单杆续钟',
+          operatorType: 'staff',
+          operatorUserId: user._id,
+          operatorOpenid: openid,
+          operatorRole: user.role,
+          operatorName: getOperatorName(user, openid),
+          payload: {
+            rodSessionId,
+            rodLabel: calculatedRodSessions[targetIndex]?.label || '',
+            rodStatus: calculatedRodSessions[targetIndex]?.status || '',
+            actualDurationMinutes: calculatedRodSessions[targetIndex]?.actualDurationMinutes || 0,
+            finalAmount: summary.amount,
+            checkoutAmount: summary.checkoutAmount,
+          },
+          createdAt: now,
+        },
+      }).catch((error) => {
+        operationLogSaved = false
+        console.warn('[updateRodSession] save operation log failed', error)
+      })
+
       return {
-        ...order,
-        ...updateData,
+        order: {
+          ...order,
+          ...updateData,
+        },
+        operationLogSaved,
       }
     })
 
@@ -307,7 +342,8 @@ exports.main = async (event = {}) => {
       code: 0,
       message: 'ok',
       data: {
-        order: result,
+        order: result.order,
+        operationLogSaved: result.operationLogSaved,
       },
     }
   }

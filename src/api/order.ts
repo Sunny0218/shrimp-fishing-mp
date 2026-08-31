@@ -1,5 +1,5 @@
 import type { CloudFunctionResponse } from './types/home'
-import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, CreateWalkInOrderParams, CreateWalkInOrderResult, FinishTimingOrderParams, FinishTimingOrderResult, GetMyOrdersParams, GetOrdersParams, MyOrdersData, OrderDetailData, OrdersData, PayCheckoutOrderParams, PayCheckoutOrderResult, PayOrderParams, PayOrderResult, UpdateRodSessionParams, UpdateRodSessionResult } from './types/order'
+import type { CancelOrderParams, CancelOrderResult, CheckInOrderParams, CheckInOrderResult, CreateOrderParams, CreateOrderResult, CreateWalkInOrderParams, CreateWalkInOrderResult, FinishTimingOrderParams, FinishTimingOrderResult, GetMyOrdersParams, GetOperationLogsParams, GetOrdersParams, MyOrdersData, OperationLogsData, OrderDetailData, OrdersData, PayCheckoutOrderParams, PayCheckoutOrderResult, PayOrderParams, PayOrderResult, UpdateRodSessionParams, UpdateRodSessionResult } from './types/order'
 import { assertLogin, resolveCloudResponse } from './authGuard'
 import { callCloudFunction } from '@/cloud'
 
@@ -77,6 +77,35 @@ export async function getOrderDetail(orderId: string) {
   // #endif
 
   throw new Error('当前平台暂不支持查询订单详情')
+}
+
+export async function getOperationLogs(params: GetOperationLogsParams) {
+  assertLogin('请先登录后查看操作记录')
+
+  const orderId = params.orderId.trim()
+  const limit = Math.min(Math.max(Number(params.limit) || 50, 1), 50)
+
+  if (!orderId) {
+    throw new Error('缺少订单 ID')
+  }
+
+  // #ifdef MP-WEIXIN
+  const res = await callCloudFunction<CloudFunctionResponse<OperationLogsData>, Record<string, unknown>>(
+    'getOperationLogs',
+    {
+      orderId,
+      limit,
+    },
+  )
+
+  return resolveCloudResponse(res, '操作记录获取失败')
+  // #endif
+
+  return {
+    rows: [],
+    total: 0,
+    serverTime: new Date().toISOString(),
+  }
 }
 
 export async function getMyOrders(params: GetMyOrdersParams = {}) {

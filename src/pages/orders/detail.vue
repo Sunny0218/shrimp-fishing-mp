@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { Order, OrderDateValue, OrderDetailData, OrderStatus, PricingRuleSnapshot, RodSession } from '@/api/types/order'
+import type { UserRole } from '@/api/types/login'
+import type { OperationLog, Order, OrderDateValue, OrderDetailData, OrderStatus, PricingRuleSnapshot, RodSession } from '@/api/types/order'
 import qrcode from 'qrcode-generator'
 import { storeToRefs } from 'pinia'
 import { requestNotificationSubscription } from '@/api/notification'
-import { cancelOrder, checkInOrder, getOrderDetail, payCheckoutOrder, payOrder, updateRodSession } from '@/api/order'
+import { cancelOrder, checkInOrder, getOperationLogs, getOrderDetail, payCheckoutOrder, payOrder, updateRodSession } from '@/api/order'
 import ActionButton from '@/components/ActionButton.vue'
 import InfoRow from '@/components/InfoRow.vue'
 import PageHero from '@/components/PageHero.vue'
@@ -13,6 +14,7 @@ import type { NotificationTemplateKey } from '@/config/notificationTemplates'
 import { activeOrderNotificationTemplateIds, activeOrderNotificationTemplateKeys, notificationTemplateKeys } from '@/config/notificationTemplates'
 import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
 import { useUserStore } from '@/store'
+import { getRoleText } from '@/utils/roles'
 
 definePage({
   style: {
@@ -32,6 +34,9 @@ const notificationAuthorizationBlocked = ref(false)
 const optimisticNotificationTemplateKeys = ref<NotificationTemplateKey[]>([])
 const errorText = ref('')
 const orderDetail = ref<OrderDetailData>()
+const operationLogs = ref<OperationLog[]>([])
+const operationLogsLoading = ref(false)
+const operationLogsError = ref('')
 const orderId = ref('')
 const currentTime = ref(Date.now())
 const paymentTimeoutRefreshing = ref(false)
@@ -256,6 +261,7 @@ const expectedEndedAtTime = computed(() => {
 })
 const canShowTimingCard = computed(() => !!startedAtTime.value && ['in_progress', 'pending_checkout', 'completed'].includes(order.value?.status || ''))
 const canManageTiming = computed(() => ['staff', 'admin', 'super_admin'].includes(userInfo.value.role || ''))
+const canShowOperationLogs = computed(() => canManageTiming.value && !!order.value)
 const canDirectCheckIn = computed(() => canShowCheckinCode.value && canManageTiming.value)
 const directCheckInText = computed(() => order.value?.orderType === 'metered' ? '确认开始计时' : '确认核销')
 const canFinishTiming = computed(() => canManageTiming.value && order.value?.status === 'in_progress')
@@ -409,6 +415,7 @@ async function fetchOrderDetail(showLoading = true) {
     const detail = await getOrderDetail(orderId.value)
     orderDetail.value = detail
     syncOptimisticNotificationSubscription(detail)
+    await fetchOperationLogs(false)
     return true
   }
   catch (error) {
@@ -421,6 +428,38 @@ async function fetchOrderDetail(showLoading = true) {
   finally {
     if (showLoading) {
       loading.value = false
+    }
+  }
+}
+
+async function fetchOperationLogs(showLoading = true) {
+  if (!orderId.value || !canManageTiming.value) {
+    operationLogs.value = []
+    operationLogsError.value = ''
+    return
+  }
+
+  if (showLoading) {
+    operationLogsLoading.value = true
+  }
+
+  operationLogsError.value = ''
+
+  try {
+    const result = await getOperationLogs({
+      orderId: orderId.value,
+      limit: 50,
+    })
+
+    operationLogs.value = result.rows || []
+  }
+  catch (error) {
+    operationLogs.value = []
+    operationLogsError.value = error instanceof Error ? error.message : '操作记录获取失败'
+  }
+  finally {
+    if (showLoading) {
+      operationLogsLoading.value = false
     }
   }
 }
@@ -593,6 +632,28 @@ function formatDateTime(value?: OrderDateValue | number) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
+function formatShortDateTime(value?: OrderDateValue | number) {
+  if (!value) {
+    return '-'
+  }
+
+  const time = getDateTimeValue(value)
+
+  if (!time) {
+    return '-'
+  }
+
+  const date = new Date(time)
+
+  if (Number.isNaN(date.getTime())) {
+    return `${value}`
+  }
+
+  const pad = (num: number) => `${num}`.padStart(2, '0')
+
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
 function formatCountdown(milliseconds: number) {
   const totalSeconds = Math.ceil(milliseconds / 1000)
   const hours = Math.floor(totalSeconds / 3600)
@@ -707,6 +768,107 @@ function getRodSettlementText(session: RodSession) {
   }
 
   return `续钟 ${formatDuration(settlement.chargedExtraMinutes)} × ${formatPrice(settlement.extraPricePerHour)}/小时 = ${formatPrice(settlement.extraAmount)}`
+}
+
+function getPayloadText(payload: Record<string, unknown>, key: string) {
+  const value = payload[key]
+
+  return typeof value === 'string' ? value : ''
+}
+
+function getPayloadNumber(payload: Record<string, unknown>, key: string) {
+  const value = payload[key]
+  const numberValue = Number(value)
+
+  return Number.isFinite(numberValue) ? numberValue : 0
+}
+
+function getPayloadBoolean(payload: Record<string, unknown>, key: string) {
+  return payload[key] === true
+}
+
+function formatOperationRole(role: string) {
+  return getRoleText((role || 'customer') as UserRole)
+}
+
+function getOperationOperatorText(log: OperationLog) {
+  const name = log.operatorName || log.operatorOpenid || '未知操作人'
+  const role = log.operatorRole ? formatOperationRole(log.operatorRole) : log.operatorType === 'customer' ? '顾客' : ''
+
+  return role ? `${name} · ${role}` : name
+}
+
+function getOperationDetails(log: OperationLog) {
+  const payload = log.payload || {}
+  const details: string[] = []
+  const dailyNo = getPayloadText(payload, 'dailyNo')
+  const rodLabel = getPayloadText(payload, 'rodLabel')
+  const targetName = getPayloadText(payload, 'targetName')
+  const fromRole = getPayloadText(payload, 'fromRole')
+  const toRole = getPayloadText(payload, 'toRole')
+  const nextStatus = getPayloadText(payload, 'nextStatus')
+  const source = getPayloadText(payload, 'source')
+  const rodCount = getPayloadNumber(payload, 'rodCount')
+  const actualDurationMinutes = getPayloadNumber(payload, 'actualDurationMinutes')
+  const checkoutAmount = getPayloadNumber(payload, 'checkoutAmount')
+  const finalAmount = getPayloadNumber(payload, 'finalAmount')
+  const refundAmount = getPayloadNumber(payload, 'refundAmount')
+  const paidAmount = getPayloadNumber(payload, 'paidAmount')
+  const waivedOvertimeAmount = getPayloadNumber(payload, 'waivedOvertimeAmount')
+
+  if (dailyNo) {
+    details.push(`沟通编号：${dailyNo}`)
+  }
+
+  if (targetName && fromRole && toRole) {
+    details.push(`${targetName}：${formatOperationRole(fromRole)} -> ${formatOperationRole(toRole)}`)
+  }
+
+  if (rodLabel) {
+    details.push(`杆位：${rodLabel}`)
+  }
+
+  if (rodCount) {
+    details.push(`杆数：${rodCount} 支`)
+  }
+
+  if (actualDurationMinutes) {
+    details.push(`用时：${formatDuration(actualDurationMinutes)}`)
+  }
+
+  if (paidAmount) {
+    details.push(`已付：${formatPrice(paidAmount)}`)
+  }
+
+  if (checkoutAmount) {
+    details.push(`待付：${formatPrice(checkoutAmount)}`)
+  }
+
+  if (finalAmount) {
+    details.push(`金额：${formatPrice(finalAmount)}`)
+  }
+
+  if (refundAmount) {
+    details.push(`退款：${formatPrice(refundAmount)}`)
+  }
+
+  if (waivedOvertimeAmount) {
+    details.push(`免收：${formatPrice(waivedOvertimeAmount)}`)
+  }
+
+  if (nextStatus) {
+    details.push(`状态：${getStatusText(nextStatus as OrderStatus)}`)
+  }
+
+  if (source) {
+    details.push(`方式：${source === 'manual' ? '手动核销' : '扫码核销'}`)
+  }
+
+  if (getPayloadBoolean(payload, 'waiveOvertime')) {
+    details.push('已免收超时费')
+  }
+
+  return details
 }
 
 function canStopRodSession(session: RodSession) {
@@ -1394,6 +1556,38 @@ onUnload(() => {
         <InfoRow label="最终金额" :value="formatPrice(order.finalAmount)" variant="price" />
       </SectionCard>
 
+      <SectionCard v-if="canShowOperationLogs" title="操作记录">
+        <view v-if="operationLogsLoading" class="operation-log-state">
+          正在加载操作记录...
+        </view>
+        <view v-else-if="operationLogsError" class="operation-log-state operation-log-state--error">
+          {{ operationLogsError }}
+        </view>
+        <view v-else-if="!operationLogs.length" class="operation-log-state">
+          暂无操作记录
+        </view>
+        <view v-else class="operation-log-list">
+          <view v-for="log in operationLogs" :key="log._id" class="operation-log">
+            <view class="operation-log__line">
+              <view class="operation-log__action">
+                {{ log.actionText || log.action }}
+              </view>
+              <view class="operation-log__time">
+                {{ formatShortDateTime(log.createdAt) }}
+              </view>
+            </view>
+            <view class="operation-log__operator">
+              {{ getOperationOperatorText(log) }}
+            </view>
+            <view v-if="getOperationDetails(log).length" class="operation-log__details">
+              <view v-for="detail in getOperationDetails(log)" :key="detail" class="operation-log__detail">
+                {{ detail }}
+              </view>
+            </view>
+          </view>
+        </view>
+      </SectionCard>
+
       <view class="order-detail-actions">
         <ActionButton block label="返回首页" @click="handleBackHome" />
         <ActionButton
@@ -1529,6 +1723,81 @@ onUnload(() => {
   font-size: 24rpx;
   line-height: 1.5;
   text-align: center;
+}
+
+.operation-log-state {
+  border-radius: 8rpx;
+  background: #f6f8f6;
+  padding: 24rpx 20rpx;
+  color: #718079;
+  font-size: 24rpx;
+  line-height: 1.4;
+  text-align: center;
+
+  &--error {
+    color: #c9472b;
+  }
+}
+
+.operation-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.operation-log {
+  border-left: 6rpx solid #1f6b56;
+  border-radius: 8rpx;
+  background: #f8faf8;
+  padding: 18rpx 20rpx;
+
+  &__line {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18rpx;
+  }
+
+  &__action {
+    min-width: 0;
+    flex: 1;
+    color: #17211d;
+    font-size: 27rpx;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  &__time {
+    flex-shrink: 0;
+    color: #718079;
+    font-size: 22rpx;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  &__operator {
+    margin-top: 8rpx;
+    color: #718079;
+    font-size: 23rpx;
+    line-height: 1.4;
+    word-break: break-all;
+  }
+
+  &__details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10rpx;
+    margin-top: 14rpx;
+  }
+
+  &__detail {
+    border-radius: 8rpx;
+    background: #eef4f0;
+    padding: 8rpx 12rpx;
+    color: #1f6b56;
+    font-size: 22rpx;
+    line-height: 1.3;
+  }
 }
 
 .checkout-card {

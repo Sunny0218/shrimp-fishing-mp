@@ -127,6 +127,10 @@ async function createUniqueCheckinCode() {
   throw new Error('开始计时码生成失败，请重试')
 }
 
+function getOperatorName(user, fallbackOpenid) {
+  return user.nickname || user.phone || fallbackOpenid || ''
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -242,12 +246,42 @@ exports.main = async (event = {}) => {
       const orderRes = await transaction.collection('orders').add({
         data: orderDataWithDailyNo,
       })
+      let operationLogSaved = true
+
+      await transaction.collection('operation_logs').add({
+        data: {
+          orderId: orderRes._id,
+          orderNo: orderDataWithDailyNo.orderNo,
+          action: 'create_walk_in_order',
+          actionText: '现场开单',
+          operatorType: 'staff',
+          operatorUserId: user._id,
+          operatorOpenid: openid,
+          operatorRole: user.role,
+          operatorName: getOperatorName(user, openid),
+          payload: {
+            dailyNo: orderDataWithDailyNo.dailyNo,
+            customerPhone: orderDataWithDailyNo.customerPhone,
+            rodCount,
+            baseAmount,
+            paidAmount: orderDataWithDailyNo.paidAmount,
+            paymentMode: paymentSettings.paymentMode,
+            pricingRuleId: pricingRule._id,
+            remark,
+          },
+          createdAt: now,
+        },
+      }).catch((error) => {
+        operationLogSaved = false
+        console.warn('[createWalkInOrder] save operation log failed', error)
+      })
 
       if (isPendingPaymentMode) {
         return {
           orderRes,
           orderData: orderDataWithDailyNo,
           payment: null,
+          operationLogSaved,
         }
       }
 
@@ -265,6 +299,7 @@ exports.main = async (event = {}) => {
         orderRes,
         orderData: orderDataWithDailyNo,
         payment,
+        operationLogSaved,
       }
     })
 
@@ -302,7 +337,10 @@ exports.main = async (event = {}) => {
     return {
       code: 0,
       message: 'ok',
-      data: responseData,
+      data: {
+        ...responseData,
+        operationLogSaved: result.operationLogSaved,
+      },
     }
   }
   catch (error) {

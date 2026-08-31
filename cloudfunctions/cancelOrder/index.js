@@ -41,6 +41,10 @@ function canDirectRefund(order) {
   return true
 }
 
+function getOperatorName(user, fallbackOpenid) {
+  return user.nickname || user.phone || fallbackOpenid || ''
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -55,6 +59,13 @@ exports.main = async (event = {}) => {
   }
 
   try {
+    const userRes = await db.collection('users').where({ openid }).limit(1).get()
+    const user = userRes.data[0]
+
+    if (!user || user.status === 'disabled') {
+      return fail(403, '账号不可用，请联系门店')
+    }
+
     const result = await db.runTransaction(async (transaction) => {
       const orderRes = await transaction.collection('orders').doc(orderId).get()
       const order = orderRes.data
@@ -126,12 +137,39 @@ exports.main = async (event = {}) => {
           })
         }
       }
+      let operationLogSaved = true
+
+      await transaction.collection('operation_logs').add({
+        data: {
+          orderId,
+          orderNo: order.orderNo,
+          action: isRefundOrder ? 'direct_refund_order' : 'cancel_order',
+          actionText: isRefundOrder ? '未开始服务直接退款' : '取消订单',
+          operatorType: 'customer',
+          operatorUserId: user._id,
+          operatorOpenid: openid,
+          operatorRole: user.role || 'customer',
+          operatorName: getOperatorName(user, openid),
+          payload: {
+            fromStatus: order.status,
+            nextStatus,
+            refundAmount,
+            refundNo: refundPayment?.refundNo || '',
+            reason: isRefundOrder ? '用户未开始服务直接退款' : '用户取消预约',
+          },
+          createdAt: now,
+        },
+      }).catch((error) => {
+        operationLogSaved = false
+        console.warn('[cancelOrder] save operation log failed', error)
+      })
 
       return {
         orderId,
         status: nextStatus,
         refundAmount,
         refundNo: refundPayment?.refundNo || '',
+        operationLogSaved,
       }
     })
 

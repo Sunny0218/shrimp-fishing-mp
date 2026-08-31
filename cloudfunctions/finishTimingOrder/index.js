@@ -261,6 +261,10 @@ function getFinalAmount(order, overtimeAmount) {
     - Number(order.discountAmount || 0)
 }
 
+function getOperatorName(user, fallbackOpenid) {
+  return user.nickname || user.phone || fallbackOpenid || ''
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -421,6 +425,7 @@ exports.main = async (event = {}) => {
     })
 
     let logSaved = true
+    let operationLogSaved = true
 
     try {
       await db.collection('order_logs').add({
@@ -429,6 +434,37 @@ exports.main = async (event = {}) => {
     }
     catch {
       logSaved = false
+    }
+
+    try {
+      await db.collection('operation_logs').add({
+        data: {
+          orderId,
+          orderNo: result.order.orderNo,
+          action: 'finish_timing',
+          actionText: result.order.status === 'pending_checkout' ? '结束计时待结账' : '结束计时并完成',
+          operatorType: 'staff',
+          operatorUserId: user._id,
+          operatorOpenid: openid,
+          operatorRole: user.role,
+          operatorName: getOperatorName(user, openid),
+          payload: {
+            actualDurationMinutes: result.log.actualDurationMinutes,
+            overtimeMinutes: result.log.overtimeMinutes,
+            chargedOvertimeMinutes: result.log.chargedOvertimeMinutes,
+            checkoutAmount: result.order.checkoutAmount || 0,
+            finalAmount: result.order.finalAmount || 0,
+            nextStatus: result.order.status,
+            waiveOvertime: !!waiveOvertime,
+            waivedOvertimeAmount: result.log.waivedOvertimeAmount,
+          },
+          createdAt: result.log.createdAt,
+        },
+      })
+    }
+    catch (error) {
+      operationLogSaved = false
+      console.warn('[finishTimingOrder] save operation log failed', error)
     }
 
     if (result.order.status === 'pending_checkout') {
@@ -447,6 +483,7 @@ exports.main = async (event = {}) => {
       data: {
         order: result.order,
         logSaved,
+        operationLogSaved,
       },
     }
   }

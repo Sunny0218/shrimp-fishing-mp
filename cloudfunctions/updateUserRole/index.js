@@ -20,6 +20,16 @@ function normalizeString(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function getOperatorName(user, fallbackOpenid) {
+  return user.nickname || user.phone || fallbackOpenid || ''
+}
+
+async function saveOperationLog(data) {
+  await db.collection('operation_logs').add({
+    data,
+  })
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -79,12 +89,40 @@ exports.main = async (event = {}) => {
       roleUpdatedAt: now,
       roleUpdatedBy: openid,
     }
+    let operationLogSaved = true
+
+    try {
+      await saveOperationLog({
+        orderId: '',
+        orderNo: '',
+        action: 'update_user_role',
+        actionText: '调整员工角色',
+        operatorType: 'staff',
+        operatorUserId: operator._id,
+        operatorOpenid: openid,
+        operatorRole: operator.role,
+        operatorName: getOperatorName(operator, openid),
+        payload: {
+          targetUserId: targetUser._id,
+          targetOpenid: targetUser.openid || '',
+          targetName: getOperatorName(targetUser, targetUser.openid),
+          fromRole: targetUser.role || 'customer',
+          toRole: role,
+        },
+        createdAt: now,
+      })
+    }
+    catch (error) {
+      operationLogSaved = false
+      console.warn('[updateUserRole] save operation log failed', error)
+    }
 
     return {
       code: 0,
       message: 'ok',
       data: {
         user: result,
+        operationLogSaved,
       },
     }
   }
