@@ -5,7 +5,7 @@ cloud.init({
 })
 
 const db = cloud.database()
-const editRoles = ['admin', 'super_admin']
+const { statusToggleRoles } = require('../common/roles')
 const validStatuses = ['active', 'disabled']
 
 function fail(code, message) {
@@ -61,7 +61,7 @@ exports.main = async (event = {}) => {
       return fail(403, '账号不可用，请联系门店')
     }
 
-    if (!editRoles.includes(user.role)) {
+    if (!statusToggleRoles.includes(user.role)) {
       return fail(403, '无权限调整计费规则')
     }
 

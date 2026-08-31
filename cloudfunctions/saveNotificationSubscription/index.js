@@ -1,4 +1,5 @@
 const cloud = require('wx-server-sdk')
+const { manageRoles } = require('../common/roles')
 
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV,
@@ -79,7 +80,7 @@ exports.main = async (event = {}) => {
       return fail(403, '账号不可用，请联系门店')
     }
 
-    if (target === 'staff' && !['staff', 'admin', 'super_admin'].includes(user.role)) {
+    if (target === 'staff' && !manageRoles.includes(user.role)) {
       return fail(403, '无权限订阅门店提醒')
     }
 

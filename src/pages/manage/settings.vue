@@ -421,9 +421,21 @@ function showToast(title: string, icon: UniApp.ShowToastOptions['icon'] = 'none'
   })
 }
 
+function blockUnauthorizedAccess() {
+  hasFetched.value = true
+  uni.showToast({
+    title: '无权限访问',
+    icon: 'none',
+  })
+
+  setTimeout(() => {
+    uni.navigateBack()
+  }, 800)
+}
+
 onLoad(() => {
   if (!canEditSettings.value) {
-    hasFetched.value = true
+    blockUnauthorizedAccess()
     return
   }
 

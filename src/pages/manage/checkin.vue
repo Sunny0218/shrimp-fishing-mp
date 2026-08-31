@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import type { CheckInOrderResult, OrderDateValue } from '@/api/types/order'
 import { checkInOrder } from '@/api/order'
 import ActionButton from '@/components/ActionButton.vue'
 import InfoRow from '@/components/InfoRow.vue'
 import PageHero from '@/components/PageHero.vue'
 import SectionCard from '@/components/SectionCard.vue'
+import { useUserStore } from '@/store'
 import { getDateTimeValue } from '@/utils/orderDisplay'
+import { hasRole, manageRoles } from '@/utils/roles'
 
 definePage({
   style: {
@@ -27,6 +30,9 @@ const manualCode = ref('')
 const scanPayload = ref<ParsedCheckinPayload>()
 const result = ref<CheckInOrderResult>()
 const scene = ref<CheckinScene>('package')
+const userStore = useUserStore()
+const { userInfo } = storeToRefs(userStore)
+const canAccessManage = computed(() => hasRole(userInfo.value.role, manageRoles))
 const hasCheckedIn = computed(() => !!result.value?.order)
 const isMeteredScene = computed(() => scene.value === 'metered')
 const pageCopy = computed(() => {
@@ -284,7 +290,23 @@ function handleNextCheckin() {
   result.value = undefined
 }
 
+function blockUnauthorizedAccess() {
+  uni.showToast({
+    title: '无权限访问',
+    icon: 'none',
+  })
+
+  setTimeout(() => {
+    uni.navigateBack()
+  }, 800)
+}
+
 onLoad((query) => {
+  if (!canAccessManage.value) {
+    blockUnauthorizedAccess()
+    return
+  }
+
   scene.value = query?.scene === 'metered' ? 'metered' : 'package'
 
   uni.setNavigationBarTitle({

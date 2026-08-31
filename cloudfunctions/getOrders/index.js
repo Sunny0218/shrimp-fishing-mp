@@ -6,7 +6,7 @@ cloud.init({
 
 const db = cloud.database()
 const command = db.command
-const manageRoles = ['staff', 'admin', 'super_admin']
+const { manageRoles } = require('../common/roles')
 const activeStatuses = ['paid', 'in_progress', 'pending_checkout']
 const supportedStatuses = [
   'pending_payment',

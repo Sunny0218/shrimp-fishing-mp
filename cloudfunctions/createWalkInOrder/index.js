@@ -5,6 +5,7 @@ cloud.init({
 })
 
 const db = cloud.database()
+const { manageRoles } = require('../common/roles')
 const { createMockPaidPayment } = require('./paymentService')
 
 function fail(code, message) {
@@ -156,6 +157,10 @@ exports.main = async (event = {}) => {
 
     if (!user || user.status === 'disabled') {
       return fail(403, '账号不可用，请联系门店')
+    }
+
+    if (!manageRoles.includes(user.role)) {
+      return fail(403, '无权限现场开单')
     }
 
     if (!pricingRule) {

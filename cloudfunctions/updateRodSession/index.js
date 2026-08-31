@@ -5,7 +5,7 @@ cloud.init({
 })
 
 const db = cloud.database()
-const manageRoles = ['staff', 'admin', 'super_admin']
+const { manageRoles } = require('../common/roles')
 
 function fail(code, message) {
   return {

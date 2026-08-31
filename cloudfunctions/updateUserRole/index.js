@@ -5,8 +5,7 @@ cloud.init({
 })
 
 const db = cloud.database()
-const superAdminRole = 'super_admin'
-const validRoles = ['customer', 'staff', 'admin', 'super_admin']
+const { SUPER_ADMIN_ROLE, validRoles } = require('../common/roles')
 
 function fail(code, message) {
   return {
@@ -56,7 +55,7 @@ exports.main = async (event = {}) => {
       return fail(403, '账号不可用，请联系门店')
     }
 
-    if (operator.role !== superAdminRole) {
+    if (operator.role !== SUPER_ADMIN_ROLE) {
       return fail(403, '仅超级管理员可调整角色')
     }
 
@@ -67,7 +66,7 @@ exports.main = async (event = {}) => {
       return fail(404, '用户不存在')
     }
 
-    if (targetUser.openid === openid && role !== superAdminRole) {
+    if (targetUser.openid === openid && role !== SUPER_ADMIN_ROLE) {
       return fail(400, '不能移除自己的超级管理员权限')
     }
 

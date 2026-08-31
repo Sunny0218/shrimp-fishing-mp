@@ -6,7 +6,7 @@ cloud.init({
 
 const db = cloud.database()
 const command = db.command
-const manageRoles = ['staff', 'admin', 'super_admin']
+const { manageRoles, statusToggleRoles, shopEditRoles } = require('../common/roles')
 
 function fail(code, message) {
   return {
@@ -52,8 +52,8 @@ exports.main = async () => {
       data: {
         rows,
         total: rows.length,
-        canEdit: user.role === 'super_admin',
-        canToggleStatus: ['admin', 'super_admin'].includes(user.role),
+        canEdit: shopEditRoles.includes(user.role),
+        canToggleStatus: statusToggleRoles.includes(user.role),
         serverTime: new Date().toISOString(),
       },
     }

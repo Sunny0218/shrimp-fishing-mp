@@ -11,6 +11,7 @@ import { useLatestRequest } from '@/hooks/useLatestRequest'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
 import { useUserStore } from '@/store'
 import { getOrderExpectedEndedAtTime, getOrderTimeItems } from '@/utils/orderDisplay'
+import { hasRole, manageRoles, statusToggleRoles } from '@/utils/roles'
 
 definePage({
   style: {
@@ -78,6 +79,7 @@ let timer: ReturnType<typeof setInterval> | undefined
 const userStore = useUserStore()
 const { userInfo } = storeToRefs(userStore)
 const { loading: requestLoading, runLatest } = useLatestRequest()
+const canAccessManage = computed(() => hasRole(userInfo.value.role, manageRoles))
 
 const orderList = computed(() => ordersData.value?.rows || [])
 const summary = computed(() => ordersData.value?.summary)
@@ -112,8 +114,8 @@ const currentDateLabel = computed(() => {
 
   return `${selectedStartDate.value} 至 ${selectedEndDate.value}`
 })
-const canWaiveOvertime = computed(() => ['admin', 'super_admin'].includes(userInfo.value.role || ''))
-const canManageCheckin = computed(() => ['staff', 'admin', 'super_admin'].includes(userInfo.value.role || ''))
+const canWaiveOvertime = computed(() => hasRole(userInfo.value.role, statusToggleRoles))
+const canManageCheckin = computed(() => hasRole(userInfo.value.role, manageRoles))
 const showInitialLoading = computed(() => requestLoading.value && !ordersData.value)
 const showLoadingOverlay = computed(() => requestLoading.value && !!ordersData.value)
 useNativeLoading(showLoadingOverlay, '切换中')
@@ -124,6 +126,12 @@ const { finishingOrderId, handleFinishTiming } = useFinishTimingOrder({
 })
 
 async function fetchOrders(status: ManageOrderStatusFilter = activeStatus.value) {
+  if (!canAccessManage.value) {
+    errorText.value = '无权限查看门店订单'
+    uni.stopPullDownRefresh()
+    return
+  }
+
   errorText.value = ''
 
   await runLatest(
@@ -386,6 +394,18 @@ function addDays(dateText: string, days: number) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
+function blockUnauthorizedAccess() {
+  errorText.value = '无权限查看门店订单'
+  uni.showToast({
+    title: '无权限访问',
+    icon: 'none',
+  })
+
+  setTimeout(() => {
+    uni.navigateBack()
+  }, 800)
+}
+
 function getExpectedEndedAtTime(order: Order) {
   return getOrderExpectedEndedAtTime(order)
 }
@@ -507,12 +527,17 @@ function stopTimer() {
 }
 
 onLoad(() => {
+  if (!canAccessManage.value) {
+    blockUnauthorizedAccess()
+    return
+  }
+
   startTimer()
   fetchOrders()
 })
 
 onShow(() => {
-  if (ordersData.value) {
+  if (canAccessManage.value && ordersData.value) {
     fetchOrders()
   }
 })

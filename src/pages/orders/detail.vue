@@ -14,7 +14,7 @@ import type { NotificationTemplateKey } from '@/config/notificationTemplates'
 import { activeOrderNotificationTemplateIds, activeOrderNotificationTemplateKeys, notificationTemplateKeys } from '@/config/notificationTemplates'
 import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
 import { useUserStore } from '@/store'
-import { getRoleText } from '@/utils/roles'
+import { getRoleText, hasRole, manageRoles, statusToggleRoles } from '@/utils/roles'
 
 definePage({
   style: {
@@ -260,12 +260,12 @@ const expectedEndedAtTime = computed(() => {
   return startedAtTime.value + durationMinutes * 60 * 1000
 })
 const canShowTimingCard = computed(() => !!startedAtTime.value && ['in_progress', 'pending_checkout', 'completed'].includes(order.value?.status || ''))
-const canManageTiming = computed(() => ['staff', 'admin', 'super_admin'].includes(userInfo.value.role || ''))
+const canManageTiming = computed(() => hasRole(userInfo.value.role, manageRoles))
 const canShowOperationLogs = computed(() => canManageTiming.value && !!order.value)
 const canDirectCheckIn = computed(() => canShowCheckinCode.value && canManageTiming.value)
 const directCheckInText = computed(() => order.value?.orderType === 'metered' ? '确认开始计时' : '确认核销')
 const canFinishTiming = computed(() => canManageTiming.value && order.value?.status === 'in_progress')
-const canWaiveOvertime = computed(() => ['admin', 'super_admin'].includes(userInfo.value.role || ''))
+const canWaiveOvertime = computed(() => hasRole(userInfo.value.role, statusToggleRoles))
 const meteredRodSessions = computed<RodSession[]>(() => {
   if (order.value?.orderType !== 'metered') {
     return []

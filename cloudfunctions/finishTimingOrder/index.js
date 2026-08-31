@@ -5,8 +5,7 @@ cloud.init({
 })
 
 const db = cloud.database()
-const manageRoles = ['staff', 'admin', 'super_admin']
-const waiverRoles = ['admin', 'super_admin']
+const { manageRoles, statusToggleRoles: waiverRoles } = require('../common/roles')
 const staffEarlyFinishLimitMinutes = 10
 
 function fail(code, message) {

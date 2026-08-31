@@ -6,7 +6,7 @@ cloud.init({
 
 const db = cloud.database()
 const command = db.command
-const manageRoles = ['staff', 'admin', 'super_admin']
+const { manageRoles } = require('../common/roles')
 const shopSettingsSeedKey = 'default-shop-settings'
 const notificationTemplateConfig = {
   reservationNotice: {

@@ -5,7 +5,7 @@ cloud.init({
 })
 
 const db = cloud.database()
-const editRoles = ['super_admin']
+const { shopEditRoles } = require('../common/roles')
 const validBookingModes = ['walk_in', 'slot']
 const validPaymentModes = ['mock_auto_paid', 'mock_pending_payment']
 const shopSettingsSeedKey = 'default-shop-settings'
@@ -211,7 +211,7 @@ exports.main = async (event = {}) => {
       return fail(403, '账号不可用，请联系门店')
     }
 
-    if (!editRoles.includes(user.role)) {
+    if (!shopEditRoles.includes(user.role)) {
       return fail(403, '无权限保存门店信息')
     }
 

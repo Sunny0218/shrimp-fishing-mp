@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import ActionButton from '@/components/ActionButton.vue'
 import FormField from '@/components/FormField.vue'
 import FormSection from '@/components/FormSection.vue'
@@ -8,7 +9,9 @@ import type { PricingRuleStatus } from '@/api/types/pricing'
 import { getManagePricingRules, savePricingRule, updatePricingRuleStatus } from '@/api/pricing'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
+import { useUserStore } from '@/store'
 import { markHomeDataDirty } from '@/utils/homeDataRefresh'
+import { hasRole, manageRoles } from '@/utils/roles'
 
 definePage({
   style: {
@@ -54,7 +57,10 @@ const showForm = ref(false)
 const saving = ref(false)
 const updatingStatusId = ref('')
 const form = reactive<PricingForm>({ ...defaultForm })
+const userStore = useUserStore()
+const { userInfo } = storeToRefs(userStore)
 const { loading: requestLoading, runLatest } = useLatestRequest()
+const canAccessManage = computed(() => hasRole(userInfo.value.role, manageRoles))
 const showInitialLoading = computed(() => requestLoading.value && !hasFetched.value)
 const showLoadingOverlay = computed(() => requestLoading.value && hasFetched.value)
 const statusIndex = computed(() => Math.max(statusOptions.findIndex(item => item.value === form.status), 0))
@@ -62,6 +68,13 @@ const formTitle = computed(() => form.pricingRuleId ? '编辑计费规则' : '�
 useNativeLoading(showLoadingOverlay, '加载中')
 
 async function fetchRules() {
+  if (!canAccessManage.value) {
+    errorText.value = '无权限查看计费规则'
+    hasFetched.value = true
+    uni.stopPullDownRefresh()
+    return
+  }
+
   errorText.value = ''
 
   await runLatest(
@@ -274,7 +287,25 @@ function showToast(title: string, icon: UniApp.ShowToastOptions['icon'] = 'none'
   })
 }
 
+function blockUnauthorizedAccess() {
+  errorText.value = '无权限查看计费规则'
+  hasFetched.value = true
+  uni.showToast({
+    title: '无权限访问',
+    icon: 'none',
+  })
+
+  setTimeout(() => {
+    uni.navigateBack()
+  }, 800)
+}
+
 onLoad(() => {
+  if (!canAccessManage.value) {
+    blockUnauthorizedAccess()
+    return
+  }
+
   fetchRules()
 })
 

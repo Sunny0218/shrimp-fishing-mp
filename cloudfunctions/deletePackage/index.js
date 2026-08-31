@@ -5,7 +5,7 @@ cloud.init({
 })
 
 const db = cloud.database()
-const editRoles = ['super_admin']
+const { shopEditRoles } = require('../common/roles')
 
 function fail(code, message) {
   return {
@@ -40,7 +40,7 @@ exports.main = async (event = {}) => {
       return fail(403, '账号不可用，请联系门店')
     }
 
-    if (!editRoles.includes(user.role)) {
+    if (!shopEditRoles.includes(user.role)) {
       return fail(403, '无权限删除套餐')
     }
 

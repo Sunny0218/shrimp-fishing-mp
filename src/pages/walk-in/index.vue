@@ -5,7 +5,9 @@ import PricingRuleCard from '@/components/PricingRuleCard.vue'
 import type { HomeData } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
 import { createWalkInOrder } from '@/api/order'
-import { useTokenStore } from '@/store'
+import { storeToRefs } from 'pinia'
+import { useTokenStore, useUserStore } from '@/store'
+import { hasRole, manageRoles } from '@/utils/roles'
 
 definePage({
   style: {
@@ -22,12 +24,19 @@ const loading = ref(false)
 const submitting = ref(false)
 const errorText = ref('')
 const tokenStore = useTokenStore()
+const userStore = useUserStore()
+const { userInfo } = storeToRefs(userStore)
 const pricingRule = computed(() => homeData.value.pricingRule)
 const isLoggedIn = computed(() => tokenStore.hasLogin)
+const canCreateWalkInOrder = computed(() => hasRole(userInfo.value.role, manageRoles))
 const prepaidAmount = computed(() => getFirstHourAmount() * rodCount.value)
 const submitText = computed(() => {
   if (!isLoggedIn.value) {
     return '去登录'
+  }
+
+  if (!canCreateWalkInOrder.value) {
+    return '无权限开单'
   }
 
   return submitting.value ? '开单中...' : '确认开单'
@@ -56,6 +65,11 @@ async function handleSubmit() {
 
   if (!isLoggedIn.value) {
     goLogin()
+    return
+  }
+
+  if (!canCreateWalkInOrder.value) {
+    showToast('无权限现场开单')
     return
   }
 
@@ -143,8 +157,29 @@ function showToast(title: string, icon: UniApp.ShowToastOptions['icon'] = 'none'
   })
 }
 
+function blockUnauthorizedAccess() {
+  errorText.value = '无权限现场开单'
+
+  showToast('无权限访问')
+
+  setTimeout(() => {
+    uni.navigateBack()
+  }, 800)
+}
+
 onLoad(() => {
   tokenStore.updateNowTime()
+
+  if (!isLoggedIn.value) {
+    goLogin()
+    return
+  }
+
+  if (!canCreateWalkInOrder.value) {
+    blockUnauthorizedAccess()
+    return
+  }
+
   fetchData()
 })
 
@@ -232,7 +267,7 @@ onPullDownRefresh(() => {
         variant="secondary"
         size="large"
         :label="submitText"
-        :disabled="submitting || (isLoggedIn && !pricingRule)"
+        :disabled="submitting || !canCreateWalkInOrder || (isLoggedIn && !pricingRule)"
         @click="handleSubmit"
       />
     </view>

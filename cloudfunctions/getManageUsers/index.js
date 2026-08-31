@@ -5,14 +5,7 @@ cloud.init({
 })
 
 const db = cloud.database()
-const superAdminRole = 'super_admin'
-const roleWeightMap = {
-  super_admin: 3,
-  admin: 2,
-  staff: 1,
-  customer: 0,
-}
-const validRoles = Object.keys(roleWeightMap)
+const { CUSTOMER_ROLE, SUPER_ADMIN_ROLE, roleWeightMap, validRoles } = require('../common/roles')
 const maxPageSize = 50
 const maxFetchCount = 1000
 
@@ -46,7 +39,7 @@ function normalizeUser(user) {
     avatarUrl: user.avatarUrl || '',
     phone: user.phone || '',
     countryCode: user.countryCode || '',
-    role: user.role || 'customer',
+    role: user.role || CUSTOMER_ROLE,
     status: user.status || 'active',
     createdAt: user.createdAt || null,
     updatedAt: user.updatedAt || null,
@@ -66,7 +59,7 @@ function getTimeValue(value) {
 }
 
 function getRoleWeight(role) {
-  return roleWeightMap[role || 'customer'] || 0
+  return roleWeightMap[role || CUSTOMER_ROLE] || 0
 }
 
 function compareUsers(a, b) {
@@ -133,7 +126,7 @@ exports.main = async (event = {}) => {
       return fail(403, '账号不可用，请联系门店')
     }
 
-    if (operator.role !== superAdminRole) {
+    if (operator.role !== SUPER_ADMIN_ROLE) {
       return fail(403, '仅超级管理员可管理角色')
     }
 

@@ -120,6 +120,19 @@ function handleRetry() {
   fetchUsers({ reset: true })
 }
 
+function blockUnauthorizedAccess() {
+  errorText.value = '仅超级管理员可管理角色'
+  hasFetched.value = true
+  uni.showToast({
+    title: '无权限访问',
+    icon: 'none',
+  })
+
+  setTimeout(() => {
+    uni.navigateBack()
+  }, 800)
+}
+
 function syncSelectedRoles() {
   for (const user of userList.value) {
     if (user._id) {
@@ -243,6 +256,11 @@ function getRoleBadgeVariant(role?: UserRole): 'success' | 'warning' | 'danger' 
 }
 
 onLoad(() => {
+  if (!canManageRoles.value) {
+    blockUnauthorizedAccess()
+    return
+  }
+
   fetchUsers({ reset: true })
 })
 
