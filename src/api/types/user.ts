@@ -13,6 +13,7 @@ export interface GetManageUsersParams {
   page?: number
   pageSize?: number
   keyword?: string
+  roleFilter?: UserRole | 'all'
 }
 
 export interface UpdateUserRoleParams {

@@ -27,6 +27,7 @@ const updatingUserId = ref('')
 const hasFetched = ref(false)
 const keywordInput = ref('')
 const activeKeyword = ref('')
+const activeRoleFilter = ref<UserRole | 'all'>('all')
 const page = ref(1)
 const pageSize = 20
 const total = ref(0)
@@ -35,7 +36,15 @@ const { loading, runLatest } = useLatestRequest()
 const canManageRoles = computed(() => hasRole(userInfo.value.role, roleManageRoles))
 const showInitialLoading = computed(() => loading.value && !hasFetched.value)
 const showLoadingOverlay = computed(() => loading.value && hasFetched.value)
-const footerDoneText = computed(() => activeKeyword.value ? '没有更多匹配用户' : '没有更多用户')
+const hasActiveFilter = computed(() => !!activeKeyword.value || activeRoleFilter.value !== 'all')
+const footerDoneText = computed(() => hasActiveFilter.value ? '没有更多匹配用户' : '没有更多用户')
+const roleFilterOptions: Array<{ label: string, value: UserRole | 'all' }> = [
+  { label: '全部', value: 'all' },
+  { label: '店主', value: 'super_admin' },
+  { label: '店长', value: 'admin' },
+  { label: '员工', value: 'staff' },
+  { label: '顾客', value: 'customer' },
+]
 useNativeLoading(showLoadingOverlay, '加载中')
 
 async function fetchUsers(options: { reset?: boolean } = {}) {
@@ -59,6 +68,7 @@ async function fetchUsers(options: { reset?: boolean } = {}) {
       page: nextPage,
       pageSize,
       keyword: activeKeyword.value,
+      roleFilter: activeRoleFilter.value,
     }),
     {
       onSuccess: (res) => {
@@ -94,6 +104,19 @@ function handleClearSearch() {
 
   keywordInput.value = ''
   activeKeyword.value = ''
+  fetchUsers({ reset: true })
+}
+
+function handleRoleFilterChange(role: UserRole | 'all') {
+  if (activeRoleFilter.value === role || loading.value) {
+    return
+  }
+
+  activeRoleFilter.value = role
+  fetchUsers({ reset: true })
+}
+
+function handleRetry() {
   fetchUsers({ reset: true })
 }
 
@@ -259,13 +282,27 @@ onReachBottom(() => {
       </view>
     </view>
 
+    <scroll-view v-if="canManageRoles" class="role-filter" scroll-x :show-scrollbar="false">
+      <view class="role-filter__inner">
+        <view
+          v-for="item in roleFilterOptions"
+          :key="item.value"
+          class="role-filter__item"
+          :class="{ 'role-filter__item--active': activeRoleFilter === item.value }"
+          @click="handleRoleFilterChange(item.value)"
+        >
+          {{ item.label }}
+        </view>
+      </view>
+    </scroll-view>
+
     <view v-if="hasFetched && !errorText && canManageRoles" class="user-summary">
-      {{ activeKeyword ? `找到 ${total} 个匹配用户` : `共 ${total} 个用户，门店角色优先显示` }}
+      {{ hasActiveFilter ? `找到 ${total} 个匹配用户` : `共 ${total} 个用户，门店角色优先显示` }}
     </view>
 
     <PageState v-if="showInitialLoading" text="正在加载用户..." />
-    <PageState v-else-if="errorText" :text="errorText" button-text="重试" variant="error" @action="fetchUsers" />
-    <PageState v-else-if="!userList.length" :text="activeKeyword ? '没有匹配用户' : '暂无用户'" />
+    <PageState v-else-if="errorText" :text="errorText" button-text="重试" variant="error" @action="handleRetry" />
+    <PageState v-else-if="!userList.length" :text="hasActiveFilter ? '没有匹配用户' : '暂无用户'" />
 
     <view v-else class="user-list">
       <view v-for="user in userList" :key="user._id || user.openid" class="user-card">
@@ -374,6 +411,37 @@ onReachBottom(() => {
   font-size: 24rpx;
   line-height: 1.4;
   text-align: center;
+}
+
+.role-filter {
+  width: 100%;
+  margin-top: 18rpx;
+  white-space: nowrap;
+
+  &__inner {
+    display: inline-flex;
+    gap: 16rpx;
+    min-width: 100%;
+  }
+
+  &__item {
+    box-sizing: border-box;
+    min-width: 104rpx;
+    border-radius: 8rpx;
+    background: #ffffff;
+    padding: 16rpx 22rpx;
+    color: #718079;
+    font-size: 25rpx;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+    box-shadow: 0 8rpx 18rpx rgb(31 59 50 / 4%);
+
+    &--active {
+      background: #1f6b56;
+      color: #ffffff;
+    }
+  }
 }
 
 .user-list {

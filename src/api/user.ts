@@ -9,6 +9,7 @@ export async function getManageUsers(params: GetManageUsersParams = {}) {
   const page = Math.max(Number(params.page) || 1, 1)
   const pageSize = Math.min(Math.max(Number(params.pageSize) || 20, 1), 50)
   const keyword = params.keyword?.trim() || ''
+  const roleFilter = params.roleFilter || 'all'
 
   // #ifdef MP-WEIXIN
   const res = await callCloudFunction<CloudFunctionResponse<ManageUsersData>, Record<string, unknown>>(
@@ -17,6 +18,7 @@ export async function getManageUsers(params: GetManageUsersParams = {}) {
       page,
       pageSize,
       keyword,
+      roleFilter,
     },
   )
 

@@ -12,6 +12,7 @@ const roleWeightMap = {
   staff: 1,
   customer: 0,
 }
+const validRoles = Object.keys(roleWeightMap)
 const maxPageSize = 50
 const maxFetchCount = 1000
 
@@ -99,6 +100,14 @@ function matchKeyword(user, keyword) {
   return searchableText.includes(lowerKeyword)
 }
 
+function matchRole(user, roleFilter) {
+  if (!roleFilter || roleFilter === 'all') {
+    return true
+  }
+
+  return (user.role || 'customer') === roleFilter
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -106,9 +115,14 @@ exports.main = async (event = {}) => {
   const rawPageSize = normalizePositiveInteger(event.pageSize, 20)
   const pageSize = Math.min(rawPageSize, maxPageSize)
   const keyword = normalizeString(event.keyword)
+  const roleFilter = normalizeString(event.roleFilter)
 
   if (!openid) {
     return fail(401, '请先登录后再管理角色')
+  }
+
+  if (roleFilter && roleFilter !== 'all' && !validRoles.includes(roleFilter)) {
+    return fail(400, '筛选角色不正确')
   }
 
   try {
@@ -131,6 +145,7 @@ exports.main = async (event = {}) => {
     const matchedRows = usersRes.data
       .map(normalizeUser)
       .filter(user => matchKeyword(user, keyword))
+      .filter(user => matchRole(user, roleFilter))
       .sort(compareUsers)
     const start = (page - 1) * pageSize
     const rows = matchedRows.slice(start, start + pageSize)
