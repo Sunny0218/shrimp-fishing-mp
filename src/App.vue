@@ -5,18 +5,30 @@ import { initWechatCloud } from '@/cloud'
 import { navigateToInterceptor } from '@/router/interceptor'
 import { tabbarStore } from '@/tabbar/store'
 import { permission } from '@/router/permission'
+import { useTokenStore } from '@/store'
 
 const { proxy } = (getCurrentInstance() || {}) as any
 const router = proxy?.$router
 
 router && permission.install(router)
 
+async function refreshCurrentUserInfo() {
+  const tokenStore = useTokenStore()
+  const userInfo = await tokenStore.refreshUserInfoIfLoggedIn()
+
+  if (userInfo) {
+    tabbarStore.syncCurIdxByCurrentPageAsync()
+  }
+}
+
 onLaunch((options) => {
   console.log('App.vue onLaunch', options)
   initWechatCloud()
+  void refreshCurrentUserInfo()
 })
 onShow((options) => {
   console.log('App.vue onShow', options)
+  void refreshCurrentUserInfo()
   // 处理直接进入页面路由的情况：如h5直接输入路由、微信小程序分享后进入等
   // https://github.com/unibest-tech/unibest/issues/192
   if (options?.path) {

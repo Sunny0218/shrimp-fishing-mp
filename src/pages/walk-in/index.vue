@@ -167,13 +167,15 @@ function blockUnauthorizedAccess() {
   }, 800)
 }
 
-onLoad(() => {
+onLoad(async () => {
   tokenStore.updateNowTime()
 
   if (!isLoggedIn.value) {
     goLogin()
     return
   }
+
+  await tokenStore.refreshUserInfoIfLoggedIn()
 
   if (!canCreateWalkInOrder.value) {
     blockUnauthorizedAccess()

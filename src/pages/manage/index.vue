@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import ManageCard from '@/components/ManageCard.vue'
-import { useUserStore } from '@/store'
+import { useTokenStore, useUserStore } from '@/store'
 import { getRoleText, hasRole, manageRoles, roleManageRoles, shopEditRoles } from '@/utils/roles'
 
 definePage({
@@ -11,6 +11,7 @@ definePage({
 })
 
 const userStore = useUserStore()
+const tokenStore = useTokenStore()
 const { userInfo } = storeToRefs(userStore)
 const canManage = computed(() => hasRole(userInfo.value.role, manageRoles))
 const canEditShop = computed(() => hasRole(userInfo.value.role, shopEditRoles))
@@ -69,7 +70,9 @@ function handleOpenUsers() {
   })
 }
 
-onLoad(() => {
+onLoad(async () => {
+  await tokenStore.refreshUserInfoIfLoggedIn()
+
   if (canManage.value) {
     return
   }

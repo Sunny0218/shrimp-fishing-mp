@@ -256,6 +256,31 @@ export const useTokenStore = defineStore(
       }
     }
 
+    let refreshingUserInfo = false
+
+    /**
+     * 已登录时刷新用户信息，用于同步后台调整后的角色和账号状态。
+     */
+    const refreshUserInfoIfLoggedIn = async () => {
+      if (!updateNowTime().hasLogin || refreshingUserInfo) {
+        return null
+      }
+
+      refreshingUserInfo = true
+
+      try {
+        const userStore = useUserStore()
+        return await userStore.fetchUserInfo()
+      }
+      catch (error) {
+        console.warn('刷新用户信息失败:', error)
+        return null
+      }
+      finally {
+        refreshingUserInfo = false
+      }
+    }
+
     /**
      * 获取有效的token
      * 注意：在computed中不直接调用异步函数，只做状态判断
@@ -331,6 +356,7 @@ export const useTokenStore = defineStore(
       // 内部系统使用的方法
       refreshToken,
       tryGetValidToken,
+      refreshUserInfoIfLoggedIn,
       validToken: getValidToken,
 
       // 调试或特殊场景可能需要直接访问的信息
