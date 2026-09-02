@@ -4,10 +4,8 @@ import PageHero from '@/components/PageHero.vue'
 import PackageCard from '@/components/PackageCard.vue'
 import type { HomeData, ShrimpPackage, TimeSlot } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
-import { storeToRefs } from 'pinia'
-import { useTokenStore, useUserStore } from '@/store'
+import { useTokenStore } from '@/store'
 import { consumeHomeDataDirty } from '@/utils/homeDataRefresh'
-import { hasRole, manageRoles } from '@/utils/roles'
 
 defineOptions({
   name: 'Home',
@@ -27,15 +25,11 @@ const loading = ref(false)
 const errorText = ref('')
 const currentTime = ref(new Date())
 const tokenStore = useTokenStore()
-const userStore = useUserStore()
-const { userInfo } = storeToRefs(userStore)
 
 const shopInfo = computed(() => homeData.value.settings)
 const packageList = computed(() => homeData.value.packages)
 const timeSlotList = computed(() => homeData.value.timeSlots)
 const isLoggedIn = computed(() => tokenStore.hasLogin)
-const canCreateWalkInOrder = computed(() => hasRole(userInfo.value.role, manageRoles))
-const showWalkInAction = computed(() => !isLoggedIn.value || canCreateWalkInOrder.value)
 const heroCoverImages = computed(() => shopInfo.value.coverImages?.filter(Boolean) || [])
 const isSlotBookingMode = computed(() => shopInfo.value.bookingMode === 'slot')
 const hasOpenTimeSlot = computed(() => timeSlotList.value.some(slot => slot.status !== 'closed' && getSlotRemaining(slot) > 0))
@@ -191,14 +185,6 @@ function handleBooking(packageItem: ShrimpPackage) {
     return
   }
 
-  if (!canCreateWalkInOrder.value) {
-    uni.showToast({
-      title: '无权限现场开单',
-      icon: 'none',
-    })
-    return
-  }
-
   uni.navigateTo({
     url: targetUrl,
   })
@@ -302,7 +288,7 @@ onPullDownRefresh(() => {
       </template>
 
       <template #extra>
-        <view class="home-page__actions" :class="{ 'home-page__actions--single': !showWalkInAction }">
+        <view class="home-page__actions">
           <ActionButton
             class="home-page__ghost-btn"
             label="联系门店"
@@ -312,7 +298,6 @@ onPullDownRefresh(() => {
             @click="handleCallShop"
           />
           <ActionButton
-            v-if="showWalkInAction"
             class="home-page__primary-btn"
             :label="isLoggedIn ? '现场开单' : '去登录'"
             block

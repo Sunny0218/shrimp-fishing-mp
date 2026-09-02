@@ -5,7 +5,6 @@ cloud.init({
 })
 
 const db = cloud.database()
-const { manageRoles } = require('../common/roles')
 const { createMockPaidPayment } = require('./paymentService')
 
 function fail(code, message) {
@@ -159,10 +158,6 @@ exports.main = async (event = {}) => {
       return fail(403, '账号不可用，请联系门店')
     }
 
-    if (!manageRoles.includes(user.role)) {
-      return fail(403, '无权限现场开单')
-    }
-
     if (!pricingRule) {
       return fail(404, '门店暂未配置现场计费规则')
     }
@@ -259,7 +254,7 @@ exports.main = async (event = {}) => {
           orderNo: orderDataWithDailyNo.orderNo,
           action: 'create_walk_in_order',
           actionText: '现场开单',
-          operatorType: 'staff',
+          operatorType: user.role === 'customer' ? 'customer' : 'staff',
           operatorUserId: user._id,
           operatorOpenid: openid,
           operatorRole: user.role,
