@@ -1,4 +1,5 @@
 import type { UserRole } from '@/api/types/login'
+import type { AssignableUserRole } from '@/api/types/user'
 
 export const manageRoles: UserRole[] = ['staff', 'admin', 'super_admin']
 export const shopEditRoles: UserRole[] = ['super_admin']
@@ -17,6 +18,12 @@ export const roleOptions: Array<{ label: string, value: UserRole }> = [
   { label: roleTextMap.staff, value: 'staff' },
   { label: roleTextMap.admin, value: 'admin' },
   { label: roleTextMap.super_admin, value: 'super_admin' },
+]
+
+export const assignableRoleOptions: Array<{ label: string, value: AssignableUserRole }> = [
+  { label: roleTextMap.customer, value: 'customer' },
+  { label: roleTextMap.staff, value: 'staff' },
+  { label: roleTextMap.admin, value: 'admin' },
 ]
 
 export function getRoleText(role?: UserRole) {

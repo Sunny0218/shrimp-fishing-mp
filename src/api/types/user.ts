@@ -1,5 +1,7 @@
 import type { IUserInfoRes, UserRole } from './login'
 
+export type AssignableUserRole = Exclude<UserRole, 'super_admin'>
+
 export interface ManageUsersData {
   rows: IUserInfoRes[]
   total: number
@@ -18,7 +20,7 @@ export interface GetManageUsersParams {
 
 export interface UpdateUserRoleParams {
   userId: string
-  role: UserRole
+  role: AssignableUserRole
 }
 
 export interface UpdateUserRoleResult {

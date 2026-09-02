@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getRoleText, hasRole, manageRoles, roleManageRoles, shopEditRoles, statusToggleRoles } from './roles'
+import { assignableRoleOptions, getRoleText, hasRole, manageRoles, roleManageRoles, shopEditRoles, statusToggleRoles } from './roles'
 
 describe('roles', () => {
   it('管理角色包含普通员工、管理员和店主', () => {
@@ -25,5 +25,9 @@ describe('roles', () => {
   it('角色文案有默认兜底', () => {
     expect(getRoleText('staff')).toBe('普通员工')
     expect(getRoleText()).toBe('顾客')
+  })
+
+  it('可分配角色不包含店主', () => {
+    expect(assignableRoleOptions.map(item => item.value)).toEqual(['customer', 'staff', 'admin'])
   })
 })

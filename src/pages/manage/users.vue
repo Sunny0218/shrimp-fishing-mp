@@ -4,12 +4,13 @@ import ActionButton from '@/components/ActionButton.vue'
 import ListFooter from '@/components/ListFooter.vue'
 import PageState from '@/components/PageState.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import type { AssignableUserRole } from '@/api/types/user'
 import type { IUserInfoRes, UserRole } from '@/api/types/login'
 import { getManageUsers, updateUserRole } from '@/api/user'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
 import { useUserStore } from '@/store'
-import { getRoleText, hasRole, roleManageRoles, roleOptions } from '@/utils/roles'
+import { assignableRoleOptions, getRoleText, hasRole, roleManageRoles } from '@/utils/roles'
 
 definePage({
   style: {
@@ -145,16 +146,30 @@ function getSelectedRole(user: IUserInfoRes) {
   return selectedRoleMap[user._id || ''] || user.role || 'customer'
 }
 
-function getRoleIndex(user: IUserInfoRes) {
+function getSelectedAssignableRole(user: IUserInfoRes): AssignableUserRole | null {
   const role = getSelectedRole(user)
 
-  return Math.max(roleOptions.findIndex(item => item.value === role), 0)
+  if (role === 'customer' || role === 'staff' || role === 'admin') {
+    return role
+  }
+
+  return null
+}
+
+function getRoleIndex(user: IUserInfoRes) {
+  if (isSuperAdminUser(user)) {
+    return 0
+  }
+
+  const role = getSelectedRole(user)
+
+  return Math.max(assignableRoleOptions.findIndex(item => item.value === role), 0)
 }
 
 function handleRoleChange(user: IUserInfoRes, event: { detail: { value: number | string } }) {
   const userId = user._id || ''
   const index = Number(event.detail.value)
-  const option = roleOptions[index]
+  const option = assignableRoleOptions[index]
 
   if (!userId || !option) {
     return
@@ -168,7 +183,7 @@ function hasRoleChanged(user: IUserInfoRes) {
 }
 
 function canUpdateUser(user: IUserInfoRes) {
-  return canManageRoles.value && !!user._id && hasRoleChanged(user) && updatingUserId.value !== user._id
+  return canManageRoles.value && !isSuperAdminUser(user) && !!user._id && hasRoleChanged(user) && updatingUserId.value !== user._id
 }
 
 async function handleUpdateRole(user: IUserInfoRes) {
@@ -178,7 +193,15 @@ async function handleUpdateRole(user: IUserInfoRes) {
     return
   }
 
-  const nextRole = getSelectedRole(user)
+  const nextRole = getSelectedAssignableRole(user)
+
+  if (!nextRole) {
+    uni.showToast({
+      title: '店主角色不可在此设置',
+      icon: 'none',
+    })
+    return
+  }
 
   uni.showModal({
     title: '调整角色',
@@ -237,6 +260,10 @@ function formatUserMeta(user: IUserInfoRes) {
   ]
 
   return items.filter(Boolean).join(' · ') || '暂无联系方式'
+}
+
+function isSuperAdminUser(user: IUserInfoRes) {
+  return user.role === 'super_admin'
 }
 
 function getRoleBadgeVariant(role?: UserRole): 'success' | 'warning' | 'danger' | 'info' | 'neutral' {
@@ -336,26 +363,36 @@ onReachBottom(() => {
           <StatusBadge :text="getRoleText(user.role)" :variant="getRoleBadgeVariant(user.role)" />
         </view>
 
-        <view class="user-card__role-row">
+        <view v-if="isSuperAdminUser(user)" class="user-card__role-row">
+          <view class="user-card__label">
+            当前角色
+          </view>
+          <view class="user-card__picker user-card__picker--readonly">
+            店主
+          </view>
+        </view>
+
+        <view v-else class="user-card__role-row">
           <view class="user-card__label">
             调整角色
           </view>
-          <picker :value="getRoleIndex(user)" :range="roleOptions" range-key="label" @change="handleRoleChange(user, $event)">
+          <picker :value="getRoleIndex(user)" :range="assignableRoleOptions" range-key="label" @change="handleRoleChange(user, $event)">
             <view class="user-card__picker">
               {{ getRoleText(getSelectedRole(user)) }}
             </view>
           </picker>
         </view>
 
-        <ActionButton
-          class="user-card__btn"
-          block
-          label="保存角色"
-          loading-text="保存中"
-          :loading="updatingUserId === user._id"
-          :disabled="!canUpdateUser(user)"
-          @click="handleUpdateRole(user)"
-        />
+        <view class="user-card__actions">
+          <ActionButton
+            block
+            label="保存角色"
+            loading-text="保存中"
+            :loading="updatingUserId === user._id"
+            :disabled="!canUpdateUser(user)"
+            @click="handleUpdateRole(user)"
+          />
+        </view>
       </view>
 
       <ListFooter :loading="loading && hasFetched" :has-more="hasMore" :done-text="footerDoneText" />
@@ -525,10 +562,15 @@ onReachBottom(() => {
     font-weight: 600;
     line-height: 1.3;
     text-align: center;
+
+    &--readonly {
+      background: #f4f7f2;
+      color: #8a9a92;
+    }
   }
 
-  &__btn {
-    margin-top: 22rpx;
+  &__actions {
+    margin-top: 24rpx;
   }
 }
 </style>

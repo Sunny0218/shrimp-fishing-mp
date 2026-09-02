@@ -5,7 +5,7 @@ cloud.init({
 })
 
 const db = cloud.database()
-const { SUPER_ADMIN_ROLE, validRoles } = require('../common/roles')
+const { SUPER_ADMIN_ROLE, assignableRoles } = require('../common/roles')
 
 function fail(code, message) {
   return {
@@ -43,7 +43,11 @@ exports.main = async (event = {}) => {
     return fail(400, '缺少用户 ID')
   }
 
-  if (!validRoles.includes(role)) {
+  if (role === SUPER_ADMIN_ROLE) {
+    return fail(400, '不能通过员工角色页面设置店主')
+  }
+
+  if (!assignableRoles.includes(role)) {
     return fail(400, '角色不正确')
   }
 

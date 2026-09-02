@@ -8,6 +8,7 @@ const statusToggleRoles = [ADMIN_ROLE, SUPER_ADMIN_ROLE]
 const shopEditRoles = [SUPER_ADMIN_ROLE]
 const roleManageRoles = [SUPER_ADMIN_ROLE]
 const validRoles = [CUSTOMER_ROLE, STAFF_ROLE, ADMIN_ROLE, SUPER_ADMIN_ROLE]
+const assignableRoles = [CUSTOMER_ROLE, STAFF_ROLE, ADMIN_ROLE]
 const roleWeightMap = {
   [SUPER_ADMIN_ROLE]: 3,
   [ADMIN_ROLE]: 2,
@@ -29,6 +30,7 @@ module.exports = {
   shopEditRoles,
   roleManageRoles,
   validRoles,
+  assignableRoles,
   roleWeightMap,
   hasRole,
 }
