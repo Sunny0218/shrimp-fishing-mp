@@ -10,6 +10,7 @@ withDefaults(defineProps<{
   statusText: string
   timeText?: string
   timeItems?: OrderTimeItem[]
+  recordItems?: OrderTimeItem[]
   metaText: string
   orderNo: string
   dailyNo?: string
@@ -24,6 +25,7 @@ withDefaults(defineProps<{
 }>(), {
   timeText: '',
   timeItems: () => [],
+  recordItems: () => [],
   typeLabel: '',
   typeVariant: '',
   dailyNo: '',
@@ -98,6 +100,21 @@ const statusVariantMap: Partial<Record<OrderStatus, 'success' | 'warning' | 'inf
 
     <view class="order-card__meta">
       {{ metaText }}
+    </view>
+
+    <view v-if="recordItems.length" class="order-card__record-list">
+      <view
+        v-for="item in recordItems"
+        :key="`${item.label}-${item.value}`"
+        class="order-card__record-item"
+      >
+        <text class="order-card__record-label">
+          {{ item.label }}
+        </text>
+        <text class="order-card__record-value">
+          {{ item.value }}
+        </text>
+      </view>
     </view>
 
     <view class="order-card__footer">
@@ -196,6 +213,36 @@ const statusVariantMap: Partial<Record<OrderStatus, 'success' | 'warning' | 'inf
     color: #718079;
     font-size: 25rpx;
     line-height: 1.4;
+  }
+
+  &__record-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+    margin-top: 18rpx;
+    border-radius: 8rpx;
+    background: #f8faf8;
+    padding: 16rpx 18rpx;
+  }
+
+  &__record-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18rpx;
+    font-size: 23rpx;
+    line-height: 1.35;
+  }
+
+  &__record-label {
+    flex-shrink: 0;
+    color: #89938f;
+  }
+
+  &__record-value {
+    min-width: 0;
+    color: #4f5f58;
+    text-align: right;
   }
 
   &__time-list {

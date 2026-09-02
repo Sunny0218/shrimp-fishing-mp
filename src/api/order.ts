@@ -167,6 +167,8 @@ export async function getOrders(params: GetOrdersParams = {}) {
       pendingCheckout: 0,
       completed: 0,
       cancelled: 0,
+      refundPending: 0,
+      refunded: 0,
     },
     date: '',
     startDate: '',

@@ -111,6 +111,7 @@ exports.main = async (event = {}) => {
         status: nextStatus,
         updatedAt: now,
         cancelledAt: now,
+        cancelReason: isRefundOrder ? '用户未开始服务直接退款' : '用户取消预约',
         refundAmount,
         refundNo: refundPayment?.refundNo || '',
         refundStatus: isRefundOrder ? 'refunded' : '',

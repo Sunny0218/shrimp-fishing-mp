@@ -236,3 +236,38 @@ export function getOrderDisplayTime(order: Order) {
 
   return item ? `${item.label} ${item.value}` : '到店后安排'
 }
+
+function formatPriceText(price?: number) {
+  return `¥${((price || 0) / 100).toFixed(0)}`
+}
+
+export function getOrderRecordItems(order: Order): OrderTimeItem[] {
+  const items: Array<OrderTimeItem | undefined> = []
+  const refundAmountText = Number(order.refundAmount || 0) > 0
+    ? formatPriceText(order.refundAmount)
+    : ''
+
+  if (order.status === 'refund_pending') {
+    items.push(
+      createItem('退款状态', '处理中'),
+      createItem('申请时间', formatDateTimeText(order.refundAt || order.updatedAt)),
+      createItem('退款原因', order.refundReason),
+    )
+  }
+  else if (order.status === 'refunded' || order.refundAmount || order.refundNo || order.refundedAt) {
+    items.push(
+      createItem('退款金额', refundAmountText),
+      createItem('退款时间', formatDateTimeText(order.refundedAt || order.refundAt || order.updatedAt)),
+      createItem('退款单号', order.refundNo),
+      createItem('退款原因', order.refundReason),
+    )
+  }
+  else if (order.status === 'cancelled') {
+    items.push(
+      createItem('取消时间', formatDateTimeText(order.cancelledAt || order.updatedAt)),
+      createItem('取消原因', order.cancelReason || '用户取消预约'),
+    )
+  }
+
+  return items.filter((item): item is OrderTimeItem => !!item)
+}

@@ -113,6 +113,7 @@ export interface Order {
   refundNo?: string
   refundStatus?: 'pending' | 'refunded' | string
   refundReason?: string
+  cancelReason?: string
   paidAmount: number
   finalAmount: number
   remark: string
@@ -222,6 +223,8 @@ export interface ManageOrderSummary {
   pendingCheckout: number
   completed: number
   cancelled: number
+  refundPending: number
+  refunded: number
 }
 
 export interface GetOrdersParams extends PaginationParams {

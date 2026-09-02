@@ -394,6 +394,20 @@ const checkoutDesc = computed(() => {
 })
 const checkoutPayText = computed(() => order.value?.orderType === 'metered' ? '支付结算金额' : '支付补款')
 const canShowMeteredSettlement = computed(() => !!order.value && ['pending_checkout', 'completed'].includes(order.value.status))
+const canShowRefundInfo = computed(() => {
+  if (!order.value) {
+    return false
+  }
+
+  return ['refunded', 'refund_pending'].includes(order.value.status)
+    || !!order.value.refundAmount
+    || !!order.value.refundNo
+    || !!order.value.refundedAt
+    || !!order.value.refundAt
+})
+const canShowCancelInfo = computed(() => {
+  return !!order.value && order.value.status === 'cancelled' && !canShowRefundInfo.value
+})
 const { finishingOrderId, handleFinishTiming } = useFinishTimingOrder({
   currentTime,
   canWaiveOvertime,
@@ -547,6 +561,30 @@ function getPaidAmount(orderData = order.value) {
   }
 
   return 0
+}
+
+function getRefundStatusText(orderData = order.value) {
+  if (!orderData) {
+    return '-'
+  }
+
+  if (orderData.status === 'refund_pending' || orderData.refundStatus === 'pending') {
+    return '处理中'
+  }
+
+  if (orderData.status === 'refunded' || orderData.refundStatus === 'refunded') {
+    return '已退款'
+  }
+
+  return orderData.refundStatus || '已记录'
+}
+
+function getRefundTimeLabel(orderData = order.value) {
+  return orderData?.status === 'refund_pending' ? '申请时间' : '退款时间'
+}
+
+function getRefundTime(orderData = order.value) {
+  return formatDateTime(orderData?.refundedAt || orderData?.refundAt || orderData?.updatedAt)
 }
 
 function getRefundableAmount(orderData = order.value) {
@@ -787,6 +825,10 @@ function getPayloadBoolean(payload: Record<string, unknown>, key: string) {
   return payload[key] === true
 }
 
+function formatPayloadStatus(status: string) {
+  return status ? statusTextMap[status as OrderStatus] || status : ''
+}
+
 function formatOperationRole(role: string) {
   return getRoleText((role || 'customer') as UserRole)
 }
@@ -806,8 +848,11 @@ function getOperationDetails(log: OperationLog) {
   const targetName = getPayloadText(payload, 'targetName')
   const fromRole = getPayloadText(payload, 'fromRole')
   const toRole = getPayloadText(payload, 'toRole')
+  const fromStatus = getPayloadText(payload, 'fromStatus')
   const nextStatus = getPayloadText(payload, 'nextStatus')
   const source = getPayloadText(payload, 'source')
+  const reason = getPayloadText(payload, 'reason')
+  const refundNo = getPayloadText(payload, 'refundNo')
   const rodCount = getPayloadNumber(payload, 'rodCount')
   const actualDurationMinutes = getPayloadNumber(payload, 'actualDurationMinutes')
   const checkoutAmount = getPayloadNumber(payload, 'checkoutAmount')
@@ -822,6 +867,13 @@ function getOperationDetails(log: OperationLog) {
 
   if (targetName && fromRole && toRole) {
     details.push(`${targetName}：${formatOperationRole(fromRole)} -> ${formatOperationRole(toRole)}`)
+  }
+
+  if (fromStatus && nextStatus) {
+    details.push(`状态：${formatPayloadStatus(fromStatus)} -> ${formatPayloadStatus(nextStatus)}`)
+  }
+  else if (nextStatus) {
+    details.push(`状态：${formatPayloadStatus(nextStatus)}`)
   }
 
   if (rodLabel) {
@@ -852,16 +904,20 @@ function getOperationDetails(log: OperationLog) {
     details.push(`退款：${formatPrice(refundAmount)}`)
   }
 
+  if (refundNo) {
+    details.push(`退款单号：${refundNo}`)
+  }
+
   if (waivedOvertimeAmount) {
     details.push(`免收：${formatPrice(waivedOvertimeAmount)}`)
   }
 
-  if (nextStatus) {
-    details.push(`状态：${getStatusText(nextStatus as OrderStatus)}`)
-  }
-
   if (source) {
     details.push(`方式：${source === 'manual' ? '手动核销' : '扫码核销'}`)
+  }
+
+  if (reason) {
+    details.push(`原因：${reason}`)
   }
 
   if (getPayloadBoolean(payload, 'waiveOvertime')) {
@@ -1491,6 +1547,19 @@ onUnload(() => {
         </template>
       </SectionCard>
 
+      <SectionCard v-if="canShowRefundInfo" title="退款信息">
+        <InfoRow label="退款状态" :value="getRefundStatusText(order)" />
+        <InfoRow v-if="order.refundAmount" label="退款金额" :value="formatPrice(order.refundAmount)" variant="price" />
+        <InfoRow :label="getRefundTimeLabel(order)" :value="getRefundTime(order)" />
+        <InfoRow v-if="order.refundNo" label="退款单号" :value="order.refundNo" />
+        <InfoRow v-if="order.refundReason" label="退款原因" :value="order.refundReason" />
+      </SectionCard>
+
+      <SectionCard v-if="canShowCancelInfo" title="取消信息">
+        <InfoRow label="取消时间" :value="formatDateTime(order.cancelledAt || order.updatedAt)" />
+        <InfoRow label="取消原因" :value="order.cancelReason || '用户取消预约'" />
+      </SectionCard>
+
       <SectionCard title="到店开始计时">
         <template #action>
           <view class="order-card__tag" :class="{ 'order-card__tag--disabled': !canShowCheckinCode }">
@@ -1544,11 +1613,6 @@ onUnload(() => {
           <InfoRow v-if="order.checkoutAmount" label="待补款" :value="formatPrice(order.checkoutAmount)" variant="price" />
           <InfoRow v-if="order.checkoutPaidAmount" label="已补款" :value="formatPrice(order.checkoutPaidAmount)" />
           <InfoRow v-if="order.checkoutPaidAt" label="补款时间" :value="formatDateTime(order.checkoutPaidAt)" />
-        </template>
-        <template v-if="order.refundAmount || order.refundedAt || order.refundNo">
-          <InfoRow v-if="order.refundAmount" label="退款金额" :value="formatPrice(order.refundAmount)" variant="price" />
-          <InfoRow v-if="order.refundedAt" label="退款时间" :value="formatDateTime(order.refundedAt)" />
-          <InfoRow v-if="order.refundNo" label="退款单号" :value="order.refundNo" />
         </template>
         <InfoRow label="已支付" :value="formatPrice(getPaidAmount(order))" />
         <InfoRow v-if="order.adjustAmount" label="调整金额" :value="formatPrice(order.adjustAmount)" />

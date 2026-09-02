@@ -202,6 +202,8 @@ function createSummary(orders) {
     pendingCheckout: 0,
     completed: 0,
     cancelled: 0,
+    refundPending: 0,
+    refunded: 0,
   }
 
   orders.forEach((order) => {
@@ -227,6 +229,14 @@ function createSummary(orders) {
 
     if (order.status === 'cancelled') {
       summary.cancelled += 1
+    }
+
+    if (order.status === 'refund_pending') {
+      summary.refundPending += 1
+    }
+
+    if (order.status === 'refunded') {
+      summary.refunded += 1
     }
   })
 

@@ -8,7 +8,7 @@ import { getMyOrders } from '@/api/order'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
 import { useTokenStore } from '@/store'
-import { getOrderTimeItems } from '@/utils/orderDisplay'
+import { getOrderRecordItems, getOrderTimeItems } from '@/utils/orderDisplay'
 
 definePage({
   style: {
@@ -187,6 +187,10 @@ function getOrderTimes(order: Order) {
   return getOrderTimeItems(order)
 }
 
+function getOrderRecords(order: Order) {
+  return getOrderRecordItems(order)
+}
+
 function getOrderMeta(order: Order) {
   return `${order.rodCount} 支杆`
 }
@@ -270,6 +274,7 @@ onReachBottom(() => {
           :type-label="getOrderTypeLabel(order)"
           :type-variant="order.orderType"
           :time-items="getOrderTimes(order)"
+          :record-items="getOrderRecords(order)"
           :timer-text="getCheckoutText(order)"
           :timer-level="order.status === 'pending_checkout' ? 'warning' : ''"
           :meta-text="getOrderMeta(order)"

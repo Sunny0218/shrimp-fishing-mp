@@ -10,7 +10,7 @@ import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
 import { useUserStore } from '@/store'
-import { getOrderExpectedEndedAtTime, getOrderTimeItems } from '@/utils/orderDisplay'
+import { getOrderExpectedEndedAtTime, getOrderRecordItems, getOrderTimeItems } from '@/utils/orderDisplay'
 import { hasRole, manageRoles, statusToggleRoles } from '@/utils/roles'
 
 definePage({
@@ -40,6 +40,9 @@ const statusTabs: StatusTab[] = [
   { label: '进行中', value: 'in_progress' },
   { label: '待结账', value: 'pending_checkout' },
   { label: '已完成', value: 'completed' },
+  { label: '退款中', value: 'refund_pending' },
+  { label: '已退款', value: 'refunded' },
+  { label: '已取消', value: 'cancelled' },
   { label: '全部', value: 'all' },
 ]
 const futureDateFilterOptions: DateFilterOption[] = [
@@ -498,6 +501,10 @@ function getOrderTimes(order: Order) {
   return getOrderTimeItems(order)
 }
 
+function getOrderRecords(order: Order) {
+  return getOrderRecordItems(order)
+}
+
 function getOrderMeta(order: Order) {
   return `${order.rodCount} 支杆`
 }
@@ -646,6 +653,30 @@ onUnload(() => {
             待结账
           </view>
         </view>
+        <view class="summary-item">
+          <view class="summary-item__value">
+            {{ summary?.refundPending || 0 }}
+          </view>
+          <view class="summary-item__label">
+            退款中
+          </view>
+        </view>
+        <view class="summary-item">
+          <view class="summary-item__value">
+            {{ summary?.refunded || 0 }}
+          </view>
+          <view class="summary-item__label">
+            已退款
+          </view>
+        </view>
+        <view class="summary-item">
+          <view class="summary-item__value">
+            {{ summary?.cancelled || 0 }}
+          </view>
+          <view class="summary-item__label">
+            已取消
+          </view>
+        </view>
       </view>
     </view>
 
@@ -681,6 +712,7 @@ onUnload(() => {
           :type-label="getOrderTypeLabel(order)"
           :type-variant="order.orderType"
           :time-items="getOrderTimes(order)"
+          :record-items="getOrderRecords(order)"
           :timer-text="getTimingText(order)"
           :timer-level="order.status === 'pending_checkout' ? 'warning' : getTimingLevel(order)"
           :meta-text="getOrderMeta(order)"
