@@ -53,6 +53,7 @@ const page = ref(1)
 const pageSize = 20
 const total = ref(0)
 const loadingMore = ref(false)
+const detailNavigating = ref(false)
 const tokenStore = useTokenStore()
 const { loading: requestLoading, runLatest } = useLatestRequest()
 const isLoggedIn = computed(() => tokenStore.hasLogin)
@@ -156,8 +157,19 @@ function handleGoLogin() {
 }
 
 function handleViewDetail(order: Order) {
+  if (detailNavigating.value) {
+    return
+  }
+
+  detailNavigating.value = true
+
   uni.navigateTo({
     url: `/pages/orders/detail?id=${order._id}`,
+    complete: () => {
+      setTimeout(() => {
+        detailNavigating.value = false
+      }, 500)
+    },
   })
 }
 
@@ -301,7 +313,7 @@ onReachBottom(() => {
           :order-no="order.orderNo"
           :daily-no="order.dailyNo"
           :price-text="formatPrice(order.finalAmount)"
-          @tap="handleViewDetail(order)"
+          @select="handleViewDetail(order)"
         />
 
         <ListFooter v-if="showListFooter" :loading="loadingMore" :has-more="hasMore" done-text="没有更多订单了" />

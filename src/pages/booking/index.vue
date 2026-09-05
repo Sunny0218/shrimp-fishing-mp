@@ -215,7 +215,7 @@ onShow(() => {
           :selected="selectedPackageId === packageItem._id"
           :show-description="false"
           :show-people="false"
-          @tap="handleSelectPackage(packageItem)"
+          @select="handleSelectPackage(packageItem)"
         />
       </view>
     </view>

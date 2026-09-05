@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  tap: [packageItem: ShrimpPackage]
+  select: [packageItem: ShrimpPackage]
 }>()
 
 const statusText = computed(() => props.packageItem.status === 'active' ? '启用' : '停用')
@@ -58,8 +58,8 @@ function formatDuration(minutes: number) {
   return restMinutes ? `${hours}小时${restMinutes}分钟` : `${hours}小时`
 }
 
-function handleClick() {
-  emit('tap', props.packageItem)
+function handleSelect() {
+  emit('select', props.packageItem)
 }
 </script>
 
@@ -70,7 +70,7 @@ function handleClick() {
       `package-card--${mode}`,
       { 'package-card--selected': selected },
     ]"
-    @tap="handleClick"
+    @tap="handleSelect"
   >
     <view class="package-card__body">
       <view class="package-card__header">

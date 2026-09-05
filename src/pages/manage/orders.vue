@@ -78,6 +78,7 @@ const pageSize = 20
 const loadingMore = ref(false)
 const currentTime = ref(Date.now())
 const checkingInOrderId = ref('')
+const detailNavigating = ref(false)
 let timer: ReturnType<typeof setInterval> | undefined
 const userStore = useUserStore()
 const { userInfo } = storeToRefs(userStore)
@@ -284,8 +285,19 @@ function handleChangeStatus(statusValue: string) {
 }
 
 function handleViewDetail(order: Order) {
+  if (detailNavigating.value) {
+    return
+  }
+
+  detailNavigating.value = true
+
   uni.navigateTo({
     url: `/pages/orders/detail?id=${order._id}`,
+    complete: () => {
+      setTimeout(() => {
+        detailNavigating.value = false
+      }, 500)
+    },
   })
 }
 
@@ -722,7 +734,7 @@ onUnload(() => {
           :action-label="getOrderActionLabel(order)"
           :action-loading="isOrderActionLoading(order)"
           :action-disabled="isOrderActionDisabled()"
-          @tap="handleViewDetail(order)"
+          @select="handleViewDetail(order)"
           @action="handleOrderAction(order)"
         />
 

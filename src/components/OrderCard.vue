@@ -37,7 +37,7 @@ withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  tap: []
+  select: []
   action: []
 }>()
 
@@ -51,7 +51,7 @@ const statusVariantMap: Partial<Record<OrderStatus, 'success' | 'warning' | 'inf
 </script>
 
 <template>
-  <view class="order-card" @tap="emit('tap')">
+  <view class="order-card" @tap="emit('select')">
     <view class="order-card__header">
       <view class="order-card__main">
         <view class="order-card__title">

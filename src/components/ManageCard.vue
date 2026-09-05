@@ -10,7 +10,7 @@ withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  tap: []
+  select: []
 }>()
 </script>
 
@@ -18,7 +18,7 @@ const emit = defineEmits<{
   <view
     class="manage-card"
     :class="[`manage-card--${accent}`, { 'manage-card--muted': muted }]"
-    @tap="emit('tap')"
+    @tap="emit('select')"
   >
     <view class="manage-card__title">
       {{ title }}

@@ -364,7 +364,7 @@ onPullDownRefresh(() => {
           :key="packageItem._id"
           :package-item="packageItem"
           mode="home"
-          @tap="handleBooking"
+          @select="handleBooking"
         >
           <template #actions>
             <ActionButton class="package-card__btn" block size="small" :label="isLoggedIn ? '预约' : '去登录'" :disabled="loading" @tap="handleBooking(packageItem)" />
