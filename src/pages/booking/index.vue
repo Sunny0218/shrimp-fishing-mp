@@ -125,7 +125,7 @@ async function handleSubmit() {
 
     setTimeout(() => {
       uni.redirectTo({
-        url: `/pages/orders/detail?id=${res.orderId}`,
+        url: `/pages/orders/detail?id=${res.orderId}&from=my_orders`,
       })
     }, 600)
   }

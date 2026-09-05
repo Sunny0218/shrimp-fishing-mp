@@ -383,6 +383,7 @@ async function writeNotificationLog(logData) {
 async function sendToRecipient(order, eventType, config, recipientOpenid) {
   const template = notificationTemplateConfig[config.templateKey]
   const subscription = await getSubscription(recipientOpenid, template.templateId, config.target, order._id, eventType)
+  const detailSource = config.target === 'staff' ? 'manage_orders' : 'my_orders'
 
   if (!subscription) {
     const result = {
@@ -415,7 +416,7 @@ async function sendToRecipient(order, eventType, config, recipientOpenid) {
         sendRes = await cloud.openapi.subscribeMessage.send({
           touser: recipientOpenid,
           templateId: template.templateId,
-          page: `pages/orders/detail?id=${order._id}`,
+          page: `pages/orders/detail?id=${order._id}&from=${detailSource}`,
           data: buildMessageData(order, config),
           miniprogramState: 'developer',
           lang: 'zh_CN',

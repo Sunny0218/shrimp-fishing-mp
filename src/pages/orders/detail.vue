@@ -40,6 +40,8 @@ const operationLogs = ref<OperationLog[]>([])
 const operationLogsLoading = ref(false)
 const operationLogsError = ref('')
 const orderId = ref('')
+type OrderDetailSource = 'my_orders' | 'manage_orders' | ''
+const detailSource = ref<OrderDetailSource>('')
 const currentTime = ref(Date.now())
 const paymentTimeoutRefreshing = ref(false)
 const refreshedPaymentTimeoutOrderId = ref('')
@@ -126,7 +128,12 @@ const overtimePricingRule = computed(() => {
   }
 })
 const slotSnapshot = computed(() => order.value?.slotSnapshot)
-const canCancel = computed(() => order.value ? ['pending_payment', 'paid'].includes(order.value.status) : false)
+const isManageView = computed(() => {
+  return detailSource.value === 'manage_orders'
+    || (!detailSource.value && hasRole(userInfo.value.role, manageRoles))
+})
+const isCustomerView = computed(() => !isManageView.value)
+const canCancel = computed(() => isCustomerView.value && order.value ? ['pending_payment', 'paid'].includes(order.value.status) : false)
 const isRefundCancel = computed(() => order.value?.status === 'paid' && getRefundableAmount() > 0)
 const cancelActionText = computed(() => isRefundCancel.value ? '申请退款' : '取消预约')
 const cancelModalTitle = computed(() => isRefundCancel.value ? '申请退款' : '取消预约')
@@ -138,7 +145,7 @@ const cancelModalContent = computed(() => {
   return '当前订单尚未支付，取消后会关闭订单。'
 })
 const cancelSuccessText = computed(() => isRefundCancel.value ? '退款成功' : '已取消预约')
-const canPayOrder = computed(() => order.value?.status === 'pending_payment')
+const canPayOrder = computed(() => isCustomerView.value && order.value?.status === 'pending_payment')
 const paymentExpiredAtTime = computed(() => getDateTimeValue(order.value?.paymentExpiredAt))
 const paymentRemainingMilliseconds = computed(() => {
   if (!paymentExpiredAtTime.value) {
@@ -158,8 +165,8 @@ const paymentCountdownText = computed(() => {
 
   return formatCountdown(paymentRemainingMilliseconds.value)
 })
-const canPayCheckout = computed(() => order.value?.status === 'pending_checkout' && Number(order.value.checkoutAmount || 0) > 0)
-const canSubscribeOrderNotification = computed(() => !!order.value && !['completed', 'cancelled', 'refunded'].includes(order.value.status))
+const canPayCheckout = computed(() => isCustomerView.value && order.value?.status === 'pending_checkout' && Number(order.value.checkoutAmount || 0) > 0)
+const canSubscribeOrderNotification = computed(() => isCustomerView.value && !!order.value && !['completed', 'cancelled', 'refunded'].includes(order.value.status))
 const requiredNotificationTemplateKeys = computed<NotificationTemplateKey[]>(() => activeOrderNotificationTemplateKeys)
 const availableNotificationTemplateKeys = computed<NotificationTemplateKey[]>(() => {
   const customerStatus = orderDetail.value?.notificationStatus?.customer
@@ -283,6 +290,8 @@ const subscribeOrderNotificationText = computed(() => {
   return notificationScenario.value.subscribeText
 })
 const canShowCheckinCode = computed(() => order.value?.status === 'paid' && !!order.value.checkinCode)
+const canShowCustomerCheckinCode = computed(() => isCustomerView.value && canShowCheckinCode.value)
+const canShowManageCheckinCode = computed(() => isManageView.value && canShowCheckinCode.value)
 const checkinQrCodeUrl = computed(() => {
   if (!order.value?.checkinCode) {
     return ''
@@ -353,10 +362,10 @@ const expectedEndedAtTime = computed(() => {
 })
 const canShowTimingCard = computed(() => !!startedAtTime.value && ['in_progress', 'pending_checkout', 'completed'].includes(order.value?.status || ''))
 const canManageTiming = computed(() => hasRole(userInfo.value.role, manageRoles))
-const canShowOperationLogs = computed(() => canManageTiming.value && !!order.value)
-const canDirectCheckIn = computed(() => canShowCheckinCode.value && canManageTiming.value)
+const canShowOperationLogs = computed(() => isManageView.value && canManageTiming.value && !!order.value)
+const canDirectCheckIn = computed(() => isManageView.value && canShowCheckinCode.value && canManageTiming.value)
 const directCheckInText = computed(() => order.value?.orderType === 'metered' ? '确认开始计时' : '确认核销')
-const canFinishTiming = computed(() => canManageTiming.value && order.value?.status === 'in_progress')
+const canFinishTiming = computed(() => isManageView.value && canManageTiming.value && order.value?.status === 'in_progress')
 const canWaiveOvertime = computed(() => hasRole(userInfo.value.role, statusToggleRoles))
 const meteredRodSessions = computed<RodSession[]>(() => {
   if (order.value?.orderType !== 'metered') {
@@ -375,7 +384,7 @@ const meteredRodSessions = computed<RodSession[]>(() => {
     paidAmount: getFirstHourAmount(),
   }))
 })
-const canShowRodSessions = computed(() => order.value?.orderType === 'metered' && meteredRodSessions.value.length > 0)
+const canShowRodSessions = computed(() => isManageView.value && order.value?.orderType === 'metered' && meteredRodSessions.value.length > 0)
 const remainingMilliseconds = computed(() => {
   if (!expectedEndedAtTime.value) {
     return 0
@@ -1129,6 +1138,18 @@ function handleRetry() {
   fetchOrderDetail()
 }
 
+function normalizeDetailSource(value: unknown): OrderDetailSource {
+  if (value === 'manage_orders' || value === 'manage') {
+    return 'manage_orders'
+  }
+
+  if (value === 'my_orders' || value === 'customer') {
+    return 'my_orders'
+  }
+
+  return ''
+}
+
 function handleBackHome() {
   uni.switchTab({
     url: '/pages/index/index',
@@ -1402,6 +1423,7 @@ async function handleSubscribeOrderNotification() {
 
 onLoad((query) => {
   orderId.value = typeof query?.id === 'string' ? query.id : ''
+  detailSource.value = normalizeDetailSource(query?.from || query?.source)
   optimisticNotificationTemplateKeys.value = []
   optimisticNotificationEventTypes.value = []
   startCountdownTimer()
@@ -1675,12 +1697,20 @@ onUnload(() => {
             {{ canShowCheckinCode ? '可开始' : '不可开始' }}
           </view>
         </template>
-        <view v-if="canShowCheckinCode" class="checkin-code">
+        <view v-if="canShowCustomerCheckinCode" class="checkin-code">
           <image class="checkin-code__qr" :src="checkinQrCodeUrl" mode="aspectFit" />
           <view class="checkin-code__value">
             {{ order.checkinCode }}
           </view>
           <ActionButton class="checkin-code__copy" label="复制号码" block @tap="handleCopyCheckinCode" />
+        </view>
+        <view v-else-if="canShowManageCheckinCode" class="checkin-code checkin-code--weak">
+          <view class="checkin-code__label">
+            顾客核销码
+          </view>
+          <view class="checkin-code__value">
+            {{ order.checkinCode }}
+          </view>
         </view>
         <view v-else class="checkin-code checkin-code--disabled">
           <view class="checkin-code__value">
@@ -2250,6 +2280,28 @@ onUnload(() => {
   &--disabled {
     background: #f0f2ef;
     color: #89938f;
+  }
+
+  &--weak {
+    background: #f6f8f6;
+    padding: 24rpx 20rpx;
+    color: #718079;
+    font-weight: 500;
+
+    .checkin-code__value {
+      margin-top: 10rpx;
+      color: #20312b;
+      font-size: 34rpx;
+      letter-spacing: 4rpx;
+    }
+  }
+
+  &__label {
+    color: #718079;
+    font-size: 23rpx;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1.3;
   }
 
   &__qr {

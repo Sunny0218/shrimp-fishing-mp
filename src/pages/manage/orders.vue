@@ -292,7 +292,7 @@ function handleViewDetail(order: Order) {
   detailNavigating.value = true
 
   uni.navigateTo({
-    url: `/pages/orders/detail?id=${order._id}`,
+    url: `/pages/orders/detail?id=${order._id}&from=manage_orders`,
     complete: () => {
       setTimeout(() => {
         detailNavigating.value = false
