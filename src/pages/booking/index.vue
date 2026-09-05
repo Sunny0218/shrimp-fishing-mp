@@ -209,7 +209,7 @@ onShow(() => {
           :selected="selectedPackageId === packageItem._id"
           :show-description="false"
           :show-people="false"
-          @click="handleSelectPackage(packageItem)"
+          @tap="handleSelectPackage(packageItem)"
         />
       </view>
     </view>
@@ -230,7 +230,7 @@ onShow(() => {
           :key="slot._id"
           class="slot-card"
           :class="{ 'slot-card--active': selectedSlotId === slot._id }"
-          @click="selectedSlotId = slot._id"
+          @tap="selectedSlotId = slot._id"
         >
           <view class="slot-card__date">
             {{ slot.date }}
@@ -299,7 +299,7 @@ onShow(() => {
           {{ selectedPackage ? formatPrice(selectedPackage.price) : '待选择' }}
         </view>
       </view>
-      <ActionButton class="booking-page__submit" block :label="submitText" :disabled="loading || submitting" @click="handleSubmit" />
+      <ActionButton class="booking-page__submit" block :label="submitText" :disabled="loading || submitting" @tap="handleSubmit" />
     </view>
   </view>
 </template>

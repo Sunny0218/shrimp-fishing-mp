@@ -332,7 +332,7 @@ onPullDownRefresh(() => {
         block
         size="small"
         :disabled="saving"
-        @click="handleCreate"
+        @tap="handleCreate"
       />
     </view>
 
@@ -342,7 +342,7 @@ onPullDownRefresh(() => {
 
     <FormSection v-if="showForm" :title="formTitle">
       <template #action>
-        <ActionButton class="pricing-form__close" label="取消" block variant="ghost" size="small" :disabled="saving" @click="handleCancelForm" />
+        <ActionButton class="pricing-form__close" label="取消" block variant="ghost" size="small" :disabled="saving" @tap="handleCancelForm" />
       </template>
 
       <FormField label="规则名称">
@@ -379,7 +379,7 @@ onPullDownRefresh(() => {
       </view>
 
       <template #actions>
-        <ActionButton class="pricing-form__submit" block label="保存计费规则" loading-text="保存中..." :loading="saving" variant="secondary" size="large" @click="handleSave" />
+        <ActionButton class="pricing-form__submit" block label="保存计费规则" loading-text="保存中..." :loading="saving" variant="secondary" size="large" @tap="handleSave" />
       </template>
     </FormSection>
 
@@ -389,7 +389,7 @@ onPullDownRefresh(() => {
       </view>
       <view v-else-if="errorText" class="pricing-placeholder pricing-placeholder--error">
         <text>{{ errorText }}</text>
-        <ActionButton class="pricing-placeholder__btn" label="重试" @click="fetchRules" />
+        <ActionButton class="pricing-placeholder__btn" label="重试" @tap="fetchRules" />
       </view>
       <view v-else-if="!ruleList.length" class="pricing-placeholder">
         暂无计费规则
@@ -404,7 +404,7 @@ onPullDownRefresh(() => {
           show-sort
         >
           <template v-if="canEdit || canToggleStatus" #actions>
-            <ActionButton v-if="canEdit" class="pricing-card__btn" label="编辑" variant="ghost" size="small" @click="handleEdit(rule)" />
+            <ActionButton v-if="canEdit" class="pricing-card__btn" label="编辑" variant="ghost" size="small" @tap="handleEdit(rule)" />
             <ActionButton
               v-if="canToggleStatus"
               class="pricing-card__btn"
@@ -414,7 +414,7 @@ onPullDownRefresh(() => {
               loading-text="处理中"
               :loading="updatingStatusId === rule._id"
               :disabled="updatingStatusId === rule._id"
-              @click="handleToggleStatus(rule)"
+              @tap="handleToggleStatus(rule)"
             />
           </template>
         </PricingRuleCard>

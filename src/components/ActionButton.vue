@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  click: [event: unknown]
+  tap: [event: unknown]
 }>()
 
 function handleClick(event: unknown) {
@@ -31,7 +31,7 @@ function handleClick(event: unknown) {
     return
   }
 
-  emit('click', event)
+  emit('tap', event)
 }
 </script>
 
@@ -44,7 +44,7 @@ function handleClick(event: unknown) {
       { 'action-button--block': block },
     ]"
     :disabled="disabled || loading"
-    @click="handleClick"
+    @tap.stop="handleClick"
   >
     {{ loading ? loadingText : label }}
   </button>

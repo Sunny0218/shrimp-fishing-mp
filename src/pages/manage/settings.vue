@@ -474,7 +474,7 @@ onPullDownRefresh(() => {
 
     <view v-else-if="errorText" class="settings-placeholder settings-placeholder--error">
       <text>{{ errorText }}</text>
-      <ActionButton class="settings-placeholder__btn" label="重试" @click="fetchSettings" />
+      <ActionButton class="settings-placeholder__btn" label="重试" @tap="fetchSettings" />
     </view>
 
     <view v-else class="settings-form">
@@ -504,7 +504,7 @@ onPullDownRefresh(() => {
           <view class="settings-section__title">
             首页封面图
           </view>
-          <ActionButton class="settings-section__btn settings-section__btn--wide" label="上传" block loading-text="上传中" size="small" :loading="uploadingCoverImage" :disabled="saving || uploadingCoverImage" @click="handleUploadCoverImage" />
+          <ActionButton class="settings-section__btn settings-section__btn--wide" label="上传" block loading-text="上传中" size="small" :loading="uploadingCoverImage" :disabled="saving || uploadingCoverImage" @tap="handleUploadCoverImage" />
         </view>
 
         <view v-if="!form.coverImages.length" class="settings-empty">
@@ -523,7 +523,7 @@ onPullDownRefresh(() => {
               <input v-model.trim="form.coverImages[index]" class="form-field__input" :maxlength="300" placeholder="上传后自动填入 cloud:// 地址">
             </view>
             <view class="cover-card__actions">
-              <ActionButton class="cover-card__remove" label="删除" block variant="danger-outline" size="small" :disabled="saving" @click="handleRemoveCoverImage(index)" />
+              <ActionButton class="cover-card__remove" label="删除" block variant="danger-outline" size="small" :disabled="saving" @tap="handleRemoveCoverImage(index)" />
             </view>
           </view>
         </view>
@@ -626,7 +626,7 @@ onPullDownRefresh(() => {
           <view class="settings-section__title">
             营业时间
           </view>
-          <ActionButton class="settings-section__btn" label="新增" block size="small" :disabled="saving" @click="handleAddHour" />
+          <ActionButton class="settings-section__btn" label="新增" block size="small" :disabled="saving" @tap="handleAddHour" />
         </view>
 
         <view v-for="(hour, index) in form.businessHours" :key="index" class="hour-card">
@@ -666,7 +666,7 @@ onPullDownRefresh(() => {
               variant="danger-outline"
               size="small"
               :disabled="saving"
-              @click="handleRemoveHour(index)"
+              @tap="handleRemoveHour(index)"
             />
           </view>
         </view>
@@ -680,7 +680,7 @@ onPullDownRefresh(() => {
       </view>
 
       <view class="settings-form__actions">
-        <ActionButton class="settings-form__submit" block label="保存门店信息" loading-text="保存中..." :loading="saving" variant="secondary" size="large" @click="handleSave" />
+        <ActionButton class="settings-form__submit" block label="保存门店信息" loading-text="保存中..." :loading="saving" variant="secondary" size="large" @tap="handleSave" />
       </view>
     </view>
   </view>

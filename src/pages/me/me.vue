@@ -196,8 +196,8 @@ async function handleSaveNickname() {
           {{ tokenStore.hasLogin ? roleText : '登录后查看预约、订单和核销码' }}
         </view>
       </view>
-      <ActionButton v-if="!tokenStore.hasLogin" class="profile-card__login" label="登录" block variant="secondary" size="small" @click="handleLogin" />
-      <ActionButton v-else class="profile-card__edit" label="改昵称" variant="outline-light" size="small" @click="handleStartEditNickname" />
+      <ActionButton v-if="!tokenStore.hasLogin" class="profile-card__login" label="登录" block variant="secondary" size="small" @tap="handleLogin" />
+      <ActionButton v-else class="profile-card__edit" label="改昵称" variant="outline-light" size="small" @tap="handleStartEditNickname" />
     </view>
 
     <view v-if="tokenStore.hasLogin && editingNickname" class="nickname-panel">
@@ -212,8 +212,8 @@ async function handleSaveNickname() {
         :maxlength="maxNicknameLength"
       >
       <view class="nickname-panel__actions">
-        <ActionButton label="取消" variant="ghost" size="medium" :disabled="savingNickname" @click="handleCancelEditNickname" />
-        <ActionButton label="保存昵称" loading-text="保存中" variant="secondary" size="medium" :loading="savingNickname" :disabled="!canSaveNickname" @click="handleSaveNickname" />
+        <ActionButton label="取消" variant="ghost" size="medium" :disabled="savingNickname" @tap="handleCancelEditNickname" />
+        <ActionButton label="保存昵称" loading-text="保存中" variant="secondary" size="medium" :loading="savingNickname" :disabled="!canSaveNickname" @tap="handleSaveNickname" />
       </view>
     </view>
 
@@ -222,7 +222,7 @@ async function handleSaveNickname() {
         我的服务
       </view>
       <view class="menu-list">
-        <view class="menu-item" @click="handleEnterOrders">
+        <view class="menu-item" @tap="handleEnterOrders">
           <view>
             <view class="menu-item__title">
               我的订单
@@ -243,7 +243,7 @@ async function handleSaveNickname() {
         门店常用
       </view>
       <view class="menu-list">
-        <view class="menu-item" @click="handleEnterCheckin">
+        <view class="menu-item" @tap="handleEnterCheckin">
           <view>
             <view class="menu-item__title">
               核销/开始计时
@@ -256,7 +256,7 @@ async function handleSaveNickname() {
             ›
           </text>
         </view>
-        <view class="menu-item" @click="handleEnterShopOrders">
+        <view class="menu-item" @tap="handleEnterShopOrders">
           <view>
             <view class="menu-item__title">
               店单
@@ -277,7 +277,7 @@ async function handleSaveNickname() {
         门店管理
       </view>
       <view class="menu-list">
-        <view v-if="canManageConfig" class="menu-item" @click="handleEnterPackages">
+        <view v-if="canManageConfig" class="menu-item" @tap="handleEnterPackages">
           <view>
             <view class="menu-item__title">
               套餐管理
@@ -290,7 +290,7 @@ async function handleSaveNickname() {
             ›
           </text>
         </view>
-        <view v-if="canManageConfig" class="menu-item" @click="handleEnterPricing">
+        <view v-if="canManageConfig" class="menu-item" @tap="handleEnterPricing">
           <view>
             <view class="menu-item__title">
               计费规则
@@ -303,7 +303,7 @@ async function handleSaveNickname() {
             ›
           </text>
         </view>
-        <view v-if="canEditShop" class="menu-item" @click="handleEnterSettings">
+        <view v-if="canEditShop" class="menu-item" @tap="handleEnterSettings">
           <view>
             <view class="menu-item__title">
               门店信息
@@ -316,7 +316,7 @@ async function handleSaveNickname() {
             ›
           </text>
         </view>
-        <view v-if="canManageRoles" class="menu-item" @click="handleEnterUsers">
+        <view v-if="canManageRoles" class="menu-item" @tap="handleEnterUsers">
           <view>
             <view class="menu-item__title">
               员工角色
@@ -333,7 +333,7 @@ async function handleSaveNickname() {
     </view>
 
     <view v-if="tokenStore.hasLogin" class="profile-page__footer">
-      <ActionButton class="profile-page__logout" block label="退出登录" loading-text="退出中..." :loading="loggingOut" variant="danger-outline" size="large" @click="handleLogout" />
+      <ActionButton class="profile-page__logout" block label="退出登录" loading-text="退出中..." :loading="loggingOut" variant="danger-outline" size="large" @tap="handleLogout" />
     </view>
   </view>
 </template>

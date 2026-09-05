@@ -110,7 +110,7 @@ watch(
           v-for="(item, index) in tabbarList" :key="index"
           class="flex flex-1 flex-col items-center justify-center"
           :style="{ color: getColorByIndex(index) }"
-          @click="handleClick(index)"
+          @tap="handleClick(index)"
         >
           <view v-if="item.isBulge" class="relative">
             <!-- 中间一个鼓包tabbarItem的处理 -->

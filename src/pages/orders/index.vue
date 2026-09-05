@@ -281,7 +281,7 @@ onReachBottom(() => {
           :order-no="order.orderNo"
           :daily-no="order.dailyNo"
           :price-text="formatPrice(order.finalAmount)"
-          @click="handleViewDetail(order)"
+          @tap="handleViewDetail(order)"
         />
 
         <ListFooter v-if="showListFooter" :loading="loadingMore" :has-more="hasMore" done-text="没有更多订单了" />

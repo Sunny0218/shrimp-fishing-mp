@@ -375,13 +375,13 @@ onPullDownRefresh(() => {
         block
         size="small"
         :disabled="saving"
-        @click="handleCreate"
+        @tap="handleCreate"
       />
     </view>
 
     <FormSection v-if="showForm" :title="formTitle">
       <template #action>
-        <ActionButton class="package-form__close" label="取消" block variant="ghost" size="small" :disabled="saving" @click="handleCancelForm" />
+        <ActionButton class="package-form__close" label="取消" block variant="ghost" size="small" :disabled="saving" @tap="handleCancelForm" />
       </template>
 
       <FormField label="套餐名称">
@@ -418,7 +418,7 @@ onPullDownRefresh(() => {
       </view>
 
       <template #actions>
-        <ActionButton class="package-form__submit" block label="保存套餐" loading-text="保存中..." :loading="saving" variant="secondary" size="large" @click="handleSave" />
+        <ActionButton class="package-form__submit" block label="保存套餐" loading-text="保存中..." :loading="saving" variant="secondary" size="large" @tap="handleSave" />
       </template>
     </FormSection>
 
@@ -428,7 +428,7 @@ onPullDownRefresh(() => {
       </view>
       <view v-else-if="errorText" class="package-placeholder package-placeholder--error">
         <text>{{ errorText }}</text>
-        <ActionButton class="package-placeholder__btn" label="重试" @click="fetchPackages" />
+        <ActionButton class="package-placeholder__btn" label="重试" @tap="fetchPackages" />
       </view>
       <view v-else-if="!packageList.length" class="package-placeholder">
         暂无套餐
@@ -444,7 +444,7 @@ onPullDownRefresh(() => {
         >
           <template #actions>
             <view v-if="canEdit || canToggleStatus" class="package-card__actions">
-              <ActionButton v-if="canEdit" class="package-card__btn" label="编辑" block variant="ghost" size="small" @click="handleEdit(packageItem)" />
+              <ActionButton v-if="canEdit" class="package-card__btn" label="编辑" block variant="ghost" size="small" @tap="handleEdit(packageItem)" />
               <ActionButton
                 v-if="canToggleStatus"
                 class="package-card__btn"
@@ -455,7 +455,7 @@ onPullDownRefresh(() => {
                 loading-text="处理中"
                 :loading="updatingStatusId === packageItem._id"
                 :disabled="updatingStatusId === packageItem._id"
-                @click="handleToggleStatus(packageItem)"
+                @tap="handleToggleStatus(packageItem)"
               />
               <ActionButton
                 v-if="canEdit"
@@ -467,7 +467,7 @@ onPullDownRefresh(() => {
                 loading-text="删除中"
                 :loading="deletingPackageId === packageItem._id"
                 :disabled="deletingPackageId === packageItem._id"
-                @click="handleDelete(packageItem)"
+                @tap="handleDelete(packageItem)"
               />
             </view>
           </template>

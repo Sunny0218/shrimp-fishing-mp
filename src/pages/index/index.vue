@@ -24,6 +24,7 @@ const homeData = ref<HomeData>({ ...defaultHomeData })
 const loading = ref(false)
 const errorText = ref('')
 const currentTime = ref(new Date())
+const bookingNavigating = ref(false)
 const tokenStore = useTokenStore()
 
 const shopInfo = computed(() => homeData.value.settings)
@@ -177,8 +178,14 @@ function getTodayBusinessStatus() {
 }
 
 function handleBooking(packageItem: ShrimpPackage) {
+  if (bookingNavigating.value) {
+    return
+  }
+
   const query = packageItem._id ? `?packageId=${packageItem._id}` : ''
   const targetUrl = `/pages/booking/index${query}`
+
+  bookingNavigating.value = true
 
   if (!isLoggedIn.value) {
     goLogin(targetUrl)
@@ -187,6 +194,11 @@ function handleBooking(packageItem: ShrimpPackage) {
 
   uni.navigateTo({
     url: targetUrl,
+    complete: () => {
+      setTimeout(() => {
+        bookingNavigating.value = false
+      }, 500)
+    },
   })
 }
 
@@ -206,6 +218,11 @@ function handleWalkInOrder() {
 function goLogin(redirectUrl: string) {
   uni.navigateTo({
     url: `/pages/auth/login?redirect=${encodeURIComponent(redirectUrl)}`,
+    complete: () => {
+      setTimeout(() => {
+        bookingNavigating.value = false
+      }, 500)
+    },
   })
 }
 
@@ -295,7 +312,7 @@ onPullDownRefresh(() => {
             block
             variant="outline-light"
             :disabled="loading"
-            @click="handleCallShop"
+            @tap="handleCallShop"
           />
           <ActionButton
             class="home-page__primary-btn"
@@ -303,7 +320,7 @@ onPullDownRefresh(() => {
             block
             variant="secondary"
             :disabled="loading"
-            @click="handleWalkInOrder"
+            @tap="handleWalkInOrder"
           />
         </view>
       </template>
@@ -311,7 +328,7 @@ onPullDownRefresh(() => {
 
     <view v-if="errorText" class="home-page__alert">
       <text>{{ errorText }}</text>
-      <ActionButton class="home-page__retry-btn" label="重试" block size="small" variant="danger-solid" :disabled="loading" @click="fetchHomeData" />
+      <ActionButton class="home-page__retry-btn" label="重试" block size="small" variant="danger-solid" :disabled="loading" @tap="fetchHomeData" />
     </view>
 
     <view class="home-section home-section--notice">
@@ -347,10 +364,10 @@ onPullDownRefresh(() => {
           :key="packageItem._id"
           :package-item="packageItem"
           mode="home"
-          @click="handleBooking"
+          @tap="handleBooking"
         >
           <template #actions>
-            <ActionButton class="package-card__btn" block size="small" :label="isLoggedIn ? '预约' : '去登录'" :disabled="loading" @click="handleBooking(packageItem)" />
+            <ActionButton class="package-card__btn" block size="small" :label="isLoggedIn ? '预约' : '去登录'" :disabled="loading" @tap="handleBooking(packageItem)" />
           </template>
         </PackageCard>
       </view>

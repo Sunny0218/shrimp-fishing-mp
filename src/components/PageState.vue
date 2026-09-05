@@ -20,7 +20,7 @@ const emit = defineEmits<{
 <template>
   <view class="page-state" :class="`page-state--${variant}`">
     <text>{{ text }}</text>
-    <ActionButton v-if="buttonText" class="page-state__btn" :label="buttonText" @click="emit('action')" />
+    <ActionButton v-if="buttonText" class="page-state__btn" :label="buttonText" @tap="emit('action')" />
   </view>
 </template>
 

@@ -189,7 +189,7 @@ onLoad((query) => {
         block
         variant="ghost"
         :disabled="logging"
-        @click="handleWechatLogin"
+        @tap="handleWechatLogin"
       />
       <!-- #endif -->
       <!-- #ifndef MP-WEIXIN -->
@@ -198,7 +198,7 @@ onLoad((query) => {
         block
         :label="logging ? '登录中...' : '登录'"
         :disabled="logging"
-        @click="handleWechatLogin"
+        @tap="handleWechatLogin"
       />
       <!-- #endif -->
       <view v-if="tokenStore.hasLogin" class="login-card__tip">

@@ -180,7 +180,7 @@ onPullDownRefresh(() => {
 
     <view v-else-if="errorText" class="walk-in-placeholder walk-in-placeholder--error">
       <text>{{ errorText }}</text>
-      <ActionButton class="walk-in-placeholder__btn" label="重试" @click="fetchData" />
+      <ActionButton class="walk-in-placeholder__btn" label="重试" @tap="fetchData" />
     </view>
 
     <view v-else class="walk-in-content">
@@ -210,11 +210,11 @@ onPullDownRefresh(() => {
             杆数
           </view>
           <view class="rod-stepper">
-            <ActionButton class="rod-stepper__btn" label="-" variant="ghost" size="small" :disabled="rodCount <= 1" @click="handleChangeRodCount(-1)" />
+            <ActionButton class="rod-stepper__btn" label="-" variant="ghost" size="small" :disabled="rodCount <= 1" @tap="handleChangeRodCount(-1)" />
             <view class="rod-stepper__value">
               {{ rodCount }} 支
             </view>
-            <ActionButton class="rod-stepper__btn" label="+" variant="ghost" size="small" :disabled="rodCount >= 20" @click="handleChangeRodCount(1)" />
+            <ActionButton class="rod-stepper__btn" label="+" variant="ghost" size="small" :disabled="rodCount >= 20" @tap="handleChangeRodCount(1)" />
           </view>
           <view class="form-field__hint">
             后续可在同一订单内支持单支杆独立停杆和续钟。
@@ -241,7 +241,7 @@ onPullDownRefresh(() => {
         size="large"
         :label="submitText"
         :disabled="submitting || (isLoggedIn && !pricingRule)"
-        @click="handleSubmit"
+        @tap="handleSubmit"
       />
     </view>
   </view>

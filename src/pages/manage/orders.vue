@@ -580,7 +580,7 @@ onUnload(() => {
             :key="option.value"
             class="date-filter__item"
             :class="{ 'date-filter__item--active': activeDateFilter === option.value }"
-            @click="handleChangeDateFilter(option)"
+            @tap="handleChangeDateFilter(option)"
           >
             {{ option.label }}
           </view>
@@ -596,7 +596,7 @@ onUnload(() => {
             :key="option.value"
             class="date-filter__item"
             :class="{ 'date-filter__item--active': activeDateFilter === option.value }"
-            @click="handleChangeDateFilter(option)"
+            @tap="handleChangeDateFilter(option)"
           >
             {{ option.label }}
           </view>
@@ -722,7 +722,7 @@ onUnload(() => {
           :action-label="getOrderActionLabel(order)"
           :action-loading="isOrderActionLoading(order)"
           :action-disabled="isOrderActionDisabled()"
-          @click="handleViewDetail(order)"
+          @tap="handleViewDetail(order)"
           @action="handleOrderAction(order)"
         />
 

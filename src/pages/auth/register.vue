@@ -24,7 +24,7 @@ function doRegister() {
     <view class="text-center">
       注册页
     </view>
-    <ActionButton class="mt-4 w-40 text-center" label="点击模拟注册" @click="doRegister" />
+    <ActionButton class="mt-4 w-40 text-center" label="点击模拟注册" @tap="doRegister" />
   </view>
 </template>
 

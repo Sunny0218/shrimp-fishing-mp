@@ -322,8 +322,8 @@ onReachBottom(() => {
         @confirm="handleSearch"
       >
       <view class="user-search__actions">
-        <ActionButton v-if="activeKeyword || keywordInput" label="清空" variant="ghost" size="small" :disabled="loading" @click="handleClearSearch" />
-        <ActionButton label="搜索" size="small" :loading="loading" loading-text="搜索中" @click="handleSearch" />
+        <ActionButton v-if="activeKeyword || keywordInput" label="清空" variant="ghost" size="small" :disabled="loading" @tap="handleClearSearch" />
+        <ActionButton label="搜索" size="small" :loading="loading" loading-text="搜索中" @tap="handleSearch" />
       </view>
     </view>
 
@@ -334,7 +334,7 @@ onReachBottom(() => {
           :key="item.value"
           class="role-filter__item"
           :class="{ 'role-filter__item--active': activeRoleFilter === item.value }"
-          @click="handleRoleFilterChange(item.value)"
+          @tap="handleRoleFilterChange(item.value)"
         >
           {{ item.label }}
         </view>
@@ -345,9 +345,15 @@ onReachBottom(() => {
       {{ hasActiveFilter ? `找到 ${total} 个匹配用户` : `共 ${total} 个用户，门店角色优先显示` }}
     </view>
 
-    <PageState v-if="showInitialLoading" text="正在加载用户..." />
-    <PageState v-else-if="errorText" :text="errorText" button-text="重试" variant="error" @action="handleRetry" />
-    <PageState v-else-if="!userList.length" :text="hasActiveFilter ? '没有匹配用户' : '暂无用户'" />
+    <view v-if="showInitialLoading" class="user-role-page__state">
+      <PageState text="正在加载用户..." />
+    </view>
+    <view v-else-if="errorText" class="user-role-page__state">
+      <PageState :text="errorText" button-text="重试" variant="error" @action="handleRetry" />
+    </view>
+    <view v-else-if="!userList.length" class="user-role-page__state">
+      <PageState :text="hasActiveFilter ? '没有匹配用户' : '暂无用户'" />
+    </view>
 
     <view v-else class="user-list">
       <view v-for="user in userList" :key="user._id || user.openid" class="user-card">
@@ -390,7 +396,7 @@ onReachBottom(() => {
             loading-text="保存中"
             :loading="updatingUserId === user._id"
             :disabled="!canUpdateUser(user)"
-            @click="handleUpdateRole(user)"
+            @tap="handleUpdateRole(user)"
           />
         </view>
       </view>
@@ -406,6 +412,10 @@ onReachBottom(() => {
   background: #f4f7f2;
   padding: 24rpx 28rpx 48rpx;
   color: #17211d;
+
+  &__state {
+    margin-top: 20rpx;
+  }
 }
 
 .user-role-toolbar,
@@ -434,6 +444,9 @@ onReachBottom(() => {
 }
 
 .user-search {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
   margin-top: 20rpx;
   border-radius: 8rpx;
   background: #ffffff;
@@ -441,8 +454,9 @@ onReachBottom(() => {
   box-shadow: 0 10rpx 22rpx rgb(31 59 50 / 5%);
 
   &__input {
+    min-width: 0;
+    flex: 1;
     box-sizing: border-box;
-    width: 100%;
     height: 72rpx;
     border: 2rpx solid #e2ebe6;
     border-radius: 8rpx;
@@ -454,9 +468,9 @@ onReachBottom(() => {
 
   &__actions {
     display: flex;
+    flex-shrink: 0;
     justify-content: flex-end;
-    gap: 16rpx;
-    margin-top: 18rpx;
+    gap: 12rpx;
   }
 }
 
@@ -470,11 +484,14 @@ onReachBottom(() => {
 
 .role-filter {
   width: 100%;
+  height: 76rpx;
   margin-top: 18rpx;
+  margin-bottom: 20rpx;
   white-space: nowrap;
 
   &__inner {
     display: inline-flex;
+    align-items: flex-start;
     gap: 16rpx;
     min-width: 100%;
   }

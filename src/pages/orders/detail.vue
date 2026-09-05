@@ -1327,7 +1327,7 @@ onUnload(() => {
 
     <view v-else-if="errorText" class="order-detail-page__error">
       <text>{{ errorText }}</text>
-      <ActionButton class="order-detail-page__retry" label="重试" @click="handleRetry" />
+      <ActionButton class="order-detail-page__retry" label="重试" @tap="handleRetry" />
     </view>
 
     <view v-else-if="order" class="order-detail">
@@ -1374,7 +1374,7 @@ onUnload(() => {
           :disabled="subscribingNotification || hasSubscribedOrderNotification"
           :loading="subscribingNotification"
           loading-text="订阅中..."
-          @click="handleSubscribeOrderNotification"
+          @tap="handleSubscribeOrderNotification"
         />
       </SectionCard>
 
@@ -1419,7 +1419,7 @@ onUnload(() => {
             loading-text="处理中..."
             :loading="finishingOrderId === order._id"
             :disabled="!!finishingOrderId"
-            @click="handleFinishCurrentOrder"
+            @tap="handleFinishCurrentOrder"
           />
         </view>
       </SectionCard>
@@ -1480,7 +1480,7 @@ onUnload(() => {
                 loading-text="处理中..."
                 :loading="operatingRodSessionId === session.id"
                 :disabled="operatingRodSessionId === session.id"
-                @click="handleUpdateRodSession(session, 'stop')"
+                @tap="handleUpdateRodSession(session, 'stop')"
               />
               <ActionButton
                 v-if="canResumeRodSession(session)"
@@ -1492,7 +1492,7 @@ onUnload(() => {
                 loading-text="处理中..."
                 :loading="operatingRodSessionId === session.id"
                 :disabled="operatingRodSessionId === session.id"
-                @click="handleUpdateRodSession(session, 'resume')"
+                @tap="handleUpdateRodSession(session, 'resume')"
               />
             </view>
           </view>
@@ -1518,7 +1518,7 @@ onUnload(() => {
           loading-text="支付中..."
           :loading="payingCheckout"
           :disabled="payingCheckout"
-          @click="handlePayCheckout"
+          @tap="handlePayCheckout"
         />
       </SectionCard>
 
@@ -1571,7 +1571,7 @@ onUnload(() => {
           <view class="checkin-code__value">
             {{ order.checkinCode }}
           </view>
-          <ActionButton class="checkin-code__copy" label="复制号码" block @click="handleCopyCheckinCode" />
+          <ActionButton class="checkin-code__copy" label="复制号码" block @tap="handleCopyCheckinCode" />
         </view>
         <view v-else class="checkin-code checkin-code--disabled">
           <view class="checkin-code__value">
@@ -1592,7 +1592,7 @@ onUnload(() => {
           loading-text="处理中..."
           :loading="checkingInOrder"
           :disabled="checkingInOrder"
-          @click="handleDirectCheckIn"
+          @tap="handleDirectCheckIn"
         />
       </SectionCard>
 
@@ -1653,7 +1653,7 @@ onUnload(() => {
       </SectionCard>
 
       <view class="order-detail-actions">
-        <ActionButton block label="返回首页" @click="handleBackHome" />
+        <ActionButton block label="返回首页" @tap="handleBackHome" />
         <ActionButton
           v-if="canPayOrder"
           block
@@ -1662,7 +1662,7 @@ onUnload(() => {
           :loading="payingOrder"
           variant="secondary"
           :disabled="payingOrder"
-          @click="handlePayOrder"
+          @tap="handlePayOrder"
         />
         <ActionButton
           v-if="canCancel"
@@ -1672,7 +1672,7 @@ onUnload(() => {
           :loading="cancelling"
           variant="danger-outline"
           :disabled="cancelling"
-          @click="handleCancelOrder"
+          @tap="handleCancelOrder"
         />
       </view>
     </view>

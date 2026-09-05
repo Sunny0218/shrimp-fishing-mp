@@ -37,7 +37,7 @@ withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  click: []
+  tap: []
   action: []
 }>()
 
@@ -51,7 +51,7 @@ const statusVariantMap: Partial<Record<OrderStatus, 'success' | 'warning' | 'inf
 </script>
 
 <template>
-  <view class="order-card" @click="emit('click')">
+  <view class="order-card" @tap="emit('tap')">
     <view class="order-card__header">
       <view class="order-card__main">
         <view class="order-card__title">
@@ -139,7 +139,7 @@ const statusVariantMap: Partial<Record<OrderStatus, 'success' | 'warning' | 'inf
         :label="actionLabel"
         :loading="actionLoading"
         :disabled="actionDisabled"
-        @click.stop="emit('action')"
+        @tap.stop="emit('action')"
       />
     </view>
   </view>

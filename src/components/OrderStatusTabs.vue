@@ -32,7 +32,7 @@ function handleSelect(value: string) {
       :key="tab.value"
       class="order-status-tabs__item"
       :class="{ 'order-status-tabs__item--active': active === tab.value }"
-      @click="handleSelect(tab.value)"
+      @tap="handleSelect(tab.value)"
     >
       {{ tab.label }}
     </view>

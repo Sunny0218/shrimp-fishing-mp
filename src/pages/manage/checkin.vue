@@ -317,7 +317,7 @@ onLoad(() => {
     />
 
     <SectionCard v-if="!hasCheckedIn" class="checkin-card">
-      <ActionButton class="checkin-page__scan-btn" block size="large" :label="pageCopy.scanButton" :disabled="submitting" @click="handleScan" />
+      <ActionButton class="checkin-page__scan-btn" block size="large" :label="pageCopy.scanButton" :disabled="submitting" @tap="handleScan" />
 
       <view class="manual-field">
         <view class="manual-field__label">
@@ -351,7 +351,7 @@ onLoad(() => {
         :loading="submitting"
         :loading-text="pageCopy.submittingText"
         :disabled="!canSubmit"
-        @click="handleSubmit"
+        @tap="handleSubmit"
       />
     </SectionCard>
 
@@ -369,7 +369,7 @@ onLoad(() => {
       <InfoRow label="开始时间" :value="formatDateTime(result.order.startedAt || result.checkedInAt)" />
       <InfoRow :label="result.order.orderType === 'metered' ? '计费说明' : '预计结束'" :value="getExpectedEndedAtText(result.order)" />
 
-      <ActionButton class="result-card__next-btn" block size="large" :label="pageCopy.resultNextText" @click="handleNextCheckin" />
+      <ActionButton class="result-card__next-btn" block size="large" :label="pageCopy.resultNextText" @tap="handleNextCheckin" />
     </SectionCard>
   </view>
 </template>
