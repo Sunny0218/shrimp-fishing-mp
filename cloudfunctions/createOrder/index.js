@@ -7,12 +7,13 @@ cloud.init({
 const db = cloud.database()
 const command = db.command
 const { createMockPaidPayment } = require('./paymentService')
+const { ensureCustomerCanCreateOrder } = require('../common/paymentGuard')
 
-function fail(code, message) {
+function fail(code, message, data = null) {
   return {
     code,
     message,
-    data: null,
+    data,
   }
 }
 
@@ -146,6 +147,18 @@ exports.main = async (event = {}) => {
 
     if (!user || user.status === 'disabled') {
       return fail(403, '账号不可用，请联系门店')
+    }
+
+    const customerPaymentGuard = await ensureCustomerCanCreateOrder(db, command, user, openid)
+
+    if (!customerPaymentGuard.ok) {
+      return fail(409, customerPaymentGuard.message, {
+        reason: 'blocking_payment_order',
+        orderId: customerPaymentGuard.blockingOrder._id,
+        orderNo: customerPaymentGuard.blockingOrder.orderNo || '',
+        dailyNo: customerPaymentGuard.blockingOrder.dailyNo || '',
+        status: customerPaymentGuard.blockingOrder.status,
+      })
     }
 
     const packageRes = await db.collection('packages').doc(packageId).get()

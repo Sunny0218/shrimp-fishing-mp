@@ -6,6 +6,7 @@ import type { HomeData } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
 import { createWalkInOrder } from '@/api/order'
 import { useTokenStore } from '@/store'
+import { isBlockingPaymentOrderError, showBlockingPaymentOrderModal } from '@/utils/blockingPaymentOrder'
 
 definePage({
   style: {
@@ -92,6 +93,11 @@ async function handleSubmit() {
     }, 600)
   }
   catch (error) {
+    if (isBlockingPaymentOrderError(error)) {
+      showBlockingPaymentOrderModal(error)
+      return
+    }
+
     showToast(error instanceof Error ? error.message : '现场开单失败')
   }
   finally {

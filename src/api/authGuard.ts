@@ -10,6 +10,18 @@ export class LoginRequiredError extends Error {
   }
 }
 
+export class CloudBusinessError<T = unknown> extends Error {
+  code: number
+  data: T | null
+
+  constructor(code: number, message: string, data: T | null = null) {
+    super(message)
+    this.name = 'CloudBusinessError'
+    this.code = code
+    this.data = data
+  }
+}
+
 export function assertLogin(message = '请先登录后继续操作') {
   const tokenStore = useTokenStore()
 
@@ -25,7 +37,7 @@ export function resolveCloudResponse<T>(res: CloudFunctionResponse<T>, fallbackM
   }
 
   if (res.code !== 0) {
-    throw new Error(res.message || fallbackMessage)
+    throw new CloudBusinessError(res.code, res.message || fallbackMessage, res.data)
   }
 
   return res.data

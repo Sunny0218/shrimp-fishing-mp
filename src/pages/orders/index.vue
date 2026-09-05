@@ -8,6 +8,7 @@ import { getMyOrders } from '@/api/order'
 import { useLatestRequest } from '@/hooks/useLatestRequest'
 import { useNativeLoading } from '@/hooks/useNativeLoading'
 import { useTokenStore } from '@/store'
+import { consumeOrdersStatusFilter } from '@/utils/blockingPaymentOrder'
 import { getOrderRecordItems, getOrderTimeItems } from '@/utils/orderDisplay'
 
 definePage({
@@ -24,6 +25,7 @@ interface StatusTab {
 
 const statusTabs: StatusTab[] = [
   { label: '全部', value: 'all' },
+  { label: '待支付', value: 'pending_payment' },
   { label: '待到店', value: 'paid' },
   { label: '进行中', value: 'in_progress' },
   { label: '待结账', value: 'pending_checkout' },
@@ -205,17 +207,35 @@ function getCheckoutText(order: Order) {
     : `待补款 ${formatPrice(order.checkoutAmount)}`
 }
 
+function consumeTargetStatus() {
+  return consumeOrdersStatusFilter()
+}
+
 onLoad(() => {
   tokenStore.updateNowTime()
-  fetchOrders()
+  const targetStatus = consumeTargetStatus()
+
+  if (targetStatus) {
+    activeStatus.value = targetStatus
+  }
+
+  fetchOrders(activeStatus.value)
 })
 
 onShow(() => {
   tokenStore.updateNowTime()
 
+  const targetStatus = consumeTargetStatus()
+
   if (!isLoggedIn.value) {
     orderList.value = []
     hasFetchedOrders.value = true
+    return
+  }
+
+  if (targetStatus) {
+    activeStatus.value = targetStatus
+    fetchOrders(targetStatus)
     return
   }
 

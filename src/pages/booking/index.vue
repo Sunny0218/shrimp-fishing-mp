@@ -6,6 +6,7 @@ import type { HomeData, ShrimpPackage, TimeSlot } from '@/api/types/home'
 import { defaultHomeData, getHomeData } from '@/api/home'
 import { createOrder } from '@/api/order'
 import { useTokenStore } from '@/store'
+import { isBlockingPaymentOrderError, showBlockingPaymentOrderModal } from '@/utils/blockingPaymentOrder'
 
 definePage({
   style: {
@@ -129,6 +130,11 @@ async function handleSubmit() {
     }, 600)
   }
   catch (error) {
+    if (isBlockingPaymentOrderError(error)) {
+      showBlockingPaymentOrderModal(error)
+      return
+    }
+
     const title = error instanceof Error ? error.message : '预约创建失败'
     uni.showToast({
       title,

@@ -162,6 +162,14 @@ export interface CreateOrderResult {
   payment?: PaymentRecord
 }
 
+export interface BlockingPaymentOrderData {
+  reason: 'blocking_payment_order'
+  orderId: string
+  orderNo?: string
+  dailyNo?: string
+  status: Extract<OrderStatus, 'pending_payment' | 'pending_checkout'>
+}
+
 export interface CreateWalkInOrderParams {
   customerPhone?: string
   rodCount: number
