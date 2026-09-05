@@ -12,7 +12,7 @@ import { hasRole, manageRoles } from '@/utils/roles'
 
 definePage({
   style: {
-    navigationBarTitleText: '开始计时',
+    navigationBarTitleText: '核销与开始计时',
   },
 })
 
@@ -23,61 +23,56 @@ interface ParsedCheckinPayload {
   checkinCode: string
 }
 
-type CheckinScene = 'package' | 'metered'
-
 const submitting = ref(false)
 const manualCode = ref('')
 const scanPayload = ref<ParsedCheckinPayload>()
 const result = ref<CheckInOrderResult>()
-const scene = ref<CheckinScene>('package')
 const userStore = useUserStore()
 const { userInfo } = storeToRefs(userStore)
 const canAccessManage = computed(() => hasRole(userInfo.value.role, manageRoles))
 const hasCheckedIn = computed(() => !!result.value?.order)
-const isMeteredScene = computed(() => scene.value === 'metered')
-const pageCopy = computed(() => {
-  if (isMeteredScene.value) {
-    return {
-      navigationTitle: '开始计时',
-      heroTitle: '确认开始计时',
-      heroDesc: '扫码或输入顾客出示的开始计时码',
-      scanButton: '扫码开始计时',
-      manualLabel: '手输开始计时码',
-      pendingTitle: '待开始计时信息',
-      codeLabel: '开始计时码',
-      submitText: '确认开始计时',
-      submittingText: '确认中...',
-      modalTitle: '确认开始计时',
-      modalCodeName: '开始计时码',
-      modalConfirm: '开始计时',
-      successTitle: '已开始计时',
-      errorTitle: '开始计时失败',
-      emptyError: '未识别到开始计时信息',
-      resultDesc: '订单已开始计时，后续在门店订单处理结束计时',
-      resultNextText: '继续处理下一单',
-    }
+const resultTitle = computed(() => {
+  if (!result.value?.order) {
+    return '处理成功'
   }
 
-  return {
-    navigationTitle: '套餐核销',
-    heroTitle: '套餐核销',
-    heroDesc: '扫码或输入顾客出示的套餐核销码',
-    scanButton: '扫码核销',
-    manualLabel: '手输套餐核销码',
-    pendingTitle: '待核销信息',
-    codeLabel: '套餐核销码',
-    submitText: '确认核销',
-    submittingText: '核销中...',
-    modalTitle: '确认核销',
-    modalCodeName: '核销码',
-    modalConfirm: '确认核销',
-    successTitle: '核销成功',
-    errorTitle: '订单核销失败',
-    emptyError: '未识别到核销信息',
-    resultDesc: '套餐已核销，订单已开始计时，后续在门店订单处理结束计时',
-    resultNextText: '继续核销下一单',
-  }
+  return result.value.actionText || (result.value.order.orderType === 'metered' ? '现场开单已开始计时' : '套餐已核销并开始计时')
 })
+const resultDesc = computed(() => {
+  if (!result.value?.order) {
+    return '系统已识别订单类型并完成处理'
+  }
+
+  return result.value.order.orderType === 'metered'
+    ? '这是现场开单订单，后续在门店订单处理结束计时和结算。'
+    : '这是套餐预约订单，后续在门店订单处理结束计时。'
+})
+const pageCopy = {
+  navigationTitle: '核销与开始计时',
+  heroTitle: '核销与开始计时',
+  heroDesc: '套餐订单扫码核销后开始计时；现场开单订单确认后开始计时。',
+  scanButton: '扫码识别订单',
+  manualLabel: '手输核销码或开始计时码',
+  pendingTitle: '待处理订单信息',
+  codeLabel: '订单号码',
+  submitText: '确认处理',
+  submittingText: '处理中...',
+  modalTitle: '确认处理',
+  modalCodeName: '订单号码',
+  modalConfirm: '确认处理',
+  successTitle: '处理成功',
+  errorTitle: '处理失败',
+  emptyError: '未识别到订单号码',
+  resultNextText: '继续处理下一单',
+}
+
+function getOrderTypeText(order: CheckInOrderResult['order']) {
+  return order.orderType === 'metered' ? '现场开单' : '套餐预约'
+}
+
+function getOrderTypeActionText(order: CheckInOrderResult['order']) {
+  return order.orderType === 'metered' ? '已开始计时' : '已核销并开始计时'
+}
 
 const displayPayload = computed<ParsedCheckinPayload | undefined>(() => {
   const safeManualCode = manualCode.value.trim()
@@ -120,7 +115,7 @@ function parseCheckinPayload(text: string): ParsedCheckinPayload {
   const rawText = text.trim()
 
   if (!rawText) {
-    throw new Error(pageCopy.value.emptyError)
+    throw new Error(pageCopy.emptyError)
   }
 
   try {
@@ -202,13 +197,13 @@ async function submitCheckin(payload: ParsedCheckinPayload) {
       checkinCode: payload.checkinCode,
     })
     uni.showToast({
-      title: pageCopy.value.successTitle,
+      title: pageCopy.successTitle,
       icon: 'success',
     })
   }
   catch (error) {
     uni.showToast({
-      title: error instanceof Error ? error.message : pageCopy.value.errorTitle,
+      title: error instanceof Error ? error.message : pageCopy.errorTitle,
       icon: 'none',
     })
   }
@@ -225,11 +220,11 @@ function handleSubmit() {
   }
 
   uni.showModal({
-    title: pageCopy.value.modalTitle,
+    title: pageCopy.modalTitle,
     content: payload.dailyNo || payload.orderNo
       ? `订单 ${payload.dailyNo || payload.orderNo} 确认后将开始计时。`
-      : `${pageCopy.value.modalCodeName} ${payload.checkinCode} 确认后将开始计时。`,
-    confirmText: pageCopy.value.modalConfirm,
+      : `${pageCopy.modalCodeName} ${payload.checkinCode} 确认后将开始计时。`,
+    confirmText: pageCopy.modalConfirm,
     confirmColor: '#1f6b56',
     success: (res) => {
       if (res.confirm) {
@@ -301,16 +296,14 @@ function blockUnauthorizedAccess() {
   }, 800)
 }
 
-onLoad((query) => {
+onLoad(() => {
   if (!canAccessManage.value) {
     blockUnauthorizedAccess()
     return
   }
 
-  scene.value = query?.scene === 'metered' ? 'metered' : 'package'
-
   uni.setNavigationBarTitle({
-    title: pageCopy.value.navigationTitle,
+    title: pageCopy.navigationTitle,
   })
 })
 </script>
@@ -318,9 +311,9 @@ onLoad((query) => {
 <template>
   <view class="checkin-page">
     <PageHero
-      tag="门店工作台"
-      :title="hasCheckedIn ? '已开始计时' : pageCopy.heroTitle"
-      :description="hasCheckedIn ? pageCopy.resultDesc : pageCopy.heroDesc"
+      tag="门店操作"
+      :title="hasCheckedIn ? resultTitle : pageCopy.heroTitle"
+      :description="hasCheckedIn ? resultDesc : pageCopy.heroDesc"
     />
 
     <SectionCard v-if="!hasCheckedIn" class="checkin-card">
@@ -362,9 +355,11 @@ onLoad((query) => {
       />
     </SectionCard>
 
-    <SectionCard v-if="result?.order" class="result-card" title="已开始计时" title-variant="success">
+    <SectionCard v-if="result?.order" class="result-card" :title="resultTitle" title-variant="success">
       <InfoRow v-if="result.order.dailyNo" label="沟通编号" :value="result.order.dailyNo" variant="code" />
       <InfoRow label="订单号" :value="result.order.orderNo" />
+      <InfoRow label="订单类型" :value="getOrderTypeText(result.order)" />
+      <InfoRow label="处理结果" :value="getOrderTypeActionText(result.order)" variant="muted" />
       <InfoRow :label="result.order.orderType === 'metered' ? '计费规则' : '套餐'" :value="getOrderName(result.order)" />
       <InfoRow
         :label="result.order.orderType === 'metered' ? '结算方式' : '金额'"

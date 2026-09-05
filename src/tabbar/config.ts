@@ -39,8 +39,14 @@ export const nativeTabbarList: NativeTabBarItem[] = [
   {
     iconPath: 'static/tabbar/personal.png',
     selectedIconPath: 'static/tabbar/personalHL.png',
-    pagePath: 'pages/manage/index',
-    text: '门店',
+    pagePath: 'pages/manage/checkin',
+    text: '核销',
+  },
+  {
+    iconPath: 'static/tabbar/personal.png',
+    selectedIconPath: 'static/tabbar/personalHL.png',
+    pagePath: 'pages/manage/orders',
+    text: '店单',
   },
   {
     iconPath: 'static/tabbar/personal.png',
@@ -83,8 +89,17 @@ export const customTabbarList: CustomTabBarItem[] = [
     icon: 'i-carbon-list-boxes',
   },
   {
-    pagePath: 'pages/manage/index',
-    text: '门店',
+    pagePath: 'pages/manage/checkin',
+    text: '核销',
+    // 1）在fg-tabbar.vue页面上引入一下并注释掉（见tabbar/index.vue代码第2行）
+    // 2）配置到 unocss.config.ts 的 safelist 中
+    iconType: 'unocss',
+    icon: 'i-carbon-qr-code',
+    roles: ['staff', 'admin', 'super_admin'],
+  },
+  {
+    pagePath: 'pages/manage/orders',
+    text: '店单',
     // 1）在fg-tabbar.vue页面上引入一下并注释掉（见tabbar/index.vue代码第2行）
     // 2）配置到 unocss.config.ts 的 safelist 中
     iconType: 'unocss',

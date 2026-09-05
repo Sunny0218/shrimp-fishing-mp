@@ -5,7 +5,7 @@ import { updateUserProfile } from '@/api/user'
 import { LOGIN_PAGE } from '@/router/config'
 import { useUserStore } from '@/store'
 import { useTokenStore } from '@/store/token'
-import { getRoleText, hasRole, manageRoles } from '@/utils/roles'
+import { getRoleText, hasRole, manageRoles, roleManageRoles, shopEditRoles, statusToggleRoles } from '@/utils/roles'
 
 definePage({
   style: {
@@ -18,6 +18,9 @@ const tokenStore = useTokenStore()
 // 使用storeToRefs解构userInfo
 const { userInfo } = storeToRefs(userStore)
 const canEnterManage = computed(() => hasRole(userInfo.value.role, manageRoles))
+const canManageConfig = computed(() => hasRole(userInfo.value.role, statusToggleRoles))
+const canEditShop = computed(() => hasRole(userInfo.value.role, shopEditRoles))
+const canManageRoles = computed(() => hasRole(userInfo.value.role, roleManageRoles))
 const loggingOut = ref(false)
 const editingNickname = ref(false)
 const savingNickname = ref(false)
@@ -65,9 +68,15 @@ function handleLogout() {
   })
 }
 
-function handleEnterManage() {
+function handleEnterCheckin() {
   uni.switchTab({
-    url: '/pages/manage/index',
+    url: '/pages/manage/checkin',
+  })
+}
+
+function handleEnterShopOrders() {
+  uni.switchTab({
+    url: '/pages/manage/orders',
   })
 }
 
@@ -81,6 +90,30 @@ function handleEnterOrders() {
 
   uni.switchTab({
     url: '/pages/orders/index',
+  })
+}
+
+function handleEnterPackages() {
+  uni.navigateTo({
+    url: '/pages/manage/packages',
+  })
+}
+
+function handleEnterPricing() {
+  uni.navigateTo({
+    url: '/pages/manage/pricing',
+  })
+}
+
+function handleEnterSettings() {
+  uni.navigateTo({
+    url: '/pages/manage/settings',
+  })
+}
+
+function handleEnterUsers() {
+  uni.navigateTo({
+    url: '/pages/manage/users',
   })
 }
 
@@ -207,16 +240,89 @@ async function handleSaveNickname() {
 
     <view v-if="canEnterManage" class="profile-section">
       <view class="profile-section__title">
-        门店工作台
+        门店常用
       </view>
       <view class="menu-list">
-        <view class="menu-item" @click="handleEnterManage">
+        <view class="menu-item" @click="handleEnterCheckin">
           <view>
             <view class="menu-item__title">
-              门店管理
+              核销/开始计时
             </view>
             <view class="menu-item__desc">
-              处理订单、核销和现场开单
+              扫码或输入套餐核销码、现场开单码
+            </view>
+          </view>
+          <text class="menu-item__arrow">
+            ›
+          </text>
+        </view>
+        <view class="menu-item" @click="handleEnterShopOrders">
+          <view>
+            <view class="menu-item__title">
+              店单
+            </view>
+            <view class="menu-item__desc">
+              按日期查看预约、计时和结账订单
+            </view>
+          </view>
+          <text class="menu-item__arrow">
+            ›
+          </text>
+        </view>
+      </view>
+    </view>
+
+    <view v-if="canManageConfig || canEditShop || canManageRoles" class="profile-section">
+      <view class="profile-section__title">
+        门店管理
+      </view>
+      <view class="menu-list">
+        <view v-if="canManageConfig" class="menu-item" @click="handleEnterPackages">
+          <view>
+            <view class="menu-item__title">
+              套餐管理
+            </view>
+            <view class="menu-item__desc">
+              新增、编辑和启停固定套餐
+            </view>
+          </view>
+          <text class="menu-item__arrow">
+            ›
+          </text>
+        </view>
+        <view v-if="canManageConfig" class="menu-item" @click="handleEnterPricing">
+          <view>
+            <view class="menu-item__title">
+              计费规则
+            </view>
+            <view class="menu-item__desc">
+              配置首小时和续钟计费标准
+            </view>
+          </view>
+          <text class="menu-item__arrow">
+            ›
+          </text>
+        </view>
+        <view v-if="canEditShop" class="menu-item" @click="handleEnterSettings">
+          <view>
+            <view class="menu-item__title">
+              门店信息
+            </view>
+            <view class="menu-item__desc">
+              维护首页展示、联系方式和营业信息
+            </view>
+          </view>
+          <text class="menu-item__arrow">
+            ›
+          </text>
+        </view>
+        <view v-if="canManageRoles" class="menu-item" @click="handleEnterUsers">
+          <view>
+            <view class="menu-item__title">
+              员工角色
+            </view>
+            <view class="menu-item__desc">
+              设置普通员工和店长权限
             </view>
           </view>
           <text class="menu-item__arrow">

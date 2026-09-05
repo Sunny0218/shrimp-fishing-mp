@@ -271,6 +271,8 @@ export interface CheckInOrderParams {
 
 export interface CheckInOrderResult {
   order: Order
+  orderType?: OrderType
+  actionText?: string
   checkedInAt: string
 }
 

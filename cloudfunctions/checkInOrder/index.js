@@ -142,7 +142,8 @@ exports.main = async (event = {}) => {
       return fail(409, '当前订单不可核销')
     }
 
-    const pricingRuleSnapshot = targetOrder.orderType === 'metered'
+    const isMeteredOrder = targetOrder.orderType === 'metered'
+    const pricingRuleSnapshot = isMeteredOrder
       ? null
       : await getActivePricingRuleSnapshot()
     const now = new Date()
@@ -202,6 +203,7 @@ exports.main = async (event = {}) => {
         data: {
           orderId: targetOrderId,
           orderNo: latestOrder.orderNo,
+          orderType: latestOrder.orderType || 'package',
           checkinCode,
           customerOpenid: latestOrder.openid,
           checkedInBy: user._id,
@@ -232,6 +234,7 @@ exports.main = async (event = {}) => {
           payload: {
             checkinCode,
             source: orderId ? 'scan' : 'manual',
+            orderType: latestOrder.orderType || 'package',
             customerOpenid: latestOrder.openid,
             startedAt: now,
             expectedEndedAt,
@@ -259,6 +262,8 @@ exports.main = async (event = {}) => {
       message: 'ok',
       data: {
         order: result.order,
+        orderType: result.order.orderType || 'package',
+        actionText: result.order.orderType === 'metered' ? '现场开单已开始计时' : '套餐已核销并开始计时',
         checkedInAt: now.toISOString(),
         operationLogSaved: result.operationLogSaved,
       },

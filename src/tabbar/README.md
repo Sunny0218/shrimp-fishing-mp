@@ -49,7 +49,7 @@
     // 1）在fg-tabbar.vue页面上引入一下并注释掉（见tabbar/index.vue代码第2行）
     // 2）配置到 unocss.config.ts 的 safelist 中
     iconType: 'unocss',
-    icon: 'i-carbon-code',
+    icon: 'i-carbon-qr-code',
   }
   ```
 
