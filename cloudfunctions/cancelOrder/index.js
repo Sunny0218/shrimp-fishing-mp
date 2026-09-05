@@ -45,6 +45,21 @@ function getOperatorName(user, fallbackOpenid) {
   return user.nickname || user.phone || fallbackOpenid || ''
 }
 
+async function sendOrderNotification(orderId, eventType) {
+  try {
+    await cloud.callFunction({
+      name: 'sendOrderNotification',
+      data: {
+        orderId,
+        eventType,
+      },
+    })
+  }
+  catch (error) {
+    console.warn('[cancelOrder] send notification failed', error)
+  }
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -173,6 +188,10 @@ exports.main = async (event = {}) => {
         operationLogSaved,
       }
     })
+
+    if (result.status === 'refunded') {
+      await sendOrderNotification(orderId, 'customer_refunded')
+    }
 
     return {
       code: 0,

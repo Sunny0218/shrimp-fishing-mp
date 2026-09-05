@@ -8,6 +8,14 @@ cloud.init({
 const db = cloud.database()
 const validTargets = ['customer', 'staff']
 const validStatuses = ['accept', 'reject', 'ban', 'filter']
+const validEventTypes = [
+  'customer_paid',
+  'customer_started',
+  'customer_ended',
+  'customer_pending_checkout',
+  'customer_completed',
+  'customer_refunded',
+]
 const notificationTemplateConfig = {
   reservationNotice: {
     templateId: '8O7iDjllM5Yi1TBFTaxwwubW9kuNbr77rtbOQnjeaSc',
@@ -19,11 +27,11 @@ const notificationTemplateConfig = {
   },
 }
 
-function fail(code, message) {
+function fail(code, message, data = null) {
   return {
     code,
     message,
-    data: null,
+    data,
   }
 }
 
@@ -31,13 +39,18 @@ function normalizeString(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function normalizeSubscription(item, target) {
+function normalizeSubscription(item, target, eventTypeFallback) {
   const templateKey = normalizeString(item?.templateKey)
   const template = notificationTemplateConfig[templateKey]
   const templateId = normalizeString(item?.templateId)
   const status = normalizeString(item?.status)
+  const eventType = normalizeString(item?.eventType || eventTypeFallback)
 
   if (!template || template.templateId !== templateId || !validStatuses.includes(status)) {
+    return null
+  }
+
+  if (eventType && !validEventTypes.includes(eventType)) {
     return null
   }
 
@@ -50,6 +63,7 @@ function normalizeSubscription(item, target) {
     status: status === 'accept' ? 'accepted' : 'rejected',
     used: false,
     remainingCount: status === 'accept' ? 1 : 0,
+    ...(eventType ? { eventType } : {}),
   }
 }
 
@@ -58,6 +72,7 @@ exports.main = async (event = {}) => {
   const openid = wxContext.OPENID
   const target = validTargets.includes(event.target) ? event.target : 'customer'
   const orderId = normalizeString(event.orderId)
+  const eventType = normalizeString(event.eventType)
   const inputSubscriptions = Array.isArray(event.subscriptions) ? event.subscriptions : []
 
   if (!openid) {
@@ -65,11 +80,18 @@ exports.main = async (event = {}) => {
   }
 
   const subscriptions = inputSubscriptions
-    .map(item => normalizeSubscription(item, target))
+    .map(item => normalizeSubscription(item, target, eventType))
     .filter(Boolean)
 
   if (!subscriptions.length) {
-    return fail(400, '没有有效的订阅结果')
+    return fail(400, '没有有效的订阅结果', {
+      reason: 'invalid_subscriptions',
+      receivedCount: inputSubscriptions.length,
+      validTargets,
+      validStatuses,
+      validEventTypes,
+      validTemplateKeys: Object.keys(notificationTemplateConfig),
+    })
   }
 
   try {
@@ -120,6 +142,8 @@ exports.main = async (event = {}) => {
         rejectedCount: subscriptions.filter(item => item.status !== 'accepted').length,
         acceptedTemplateKeys: subscriptions.filter(item => item.status === 'accepted').map(item => item.templateKey),
         rejectedTemplateKeys: subscriptions.filter(item => item.status !== 'accepted').map(item => item.templateKey),
+        acceptedEventTypes: Array.from(new Set(subscriptions.filter(item => item.status === 'accepted').map(item => item.eventType).filter(Boolean))),
+        rejectedEventTypes: Array.from(new Set(subscriptions.filter(item => item.status !== 'accepted').map(item => item.eventType).filter(Boolean))),
       },
     }
   }

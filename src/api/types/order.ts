@@ -1,4 +1,5 @@
 import type { PricingRule, ShrimpPackage, TimeSlot } from './home'
+import type { NotificationEventType } from './notification'
 
 export interface CloudDateValue {
   $date?: string | number
@@ -195,6 +196,8 @@ export interface OrderDetailData {
     customer?: {
       hasAvailable: boolean
       templateKeys: string[]
+      eventTypes?: NotificationEventType[]
+      hasLegacyAvailable?: boolean
     }
   }
   serverTime: string

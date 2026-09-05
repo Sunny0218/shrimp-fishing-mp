@@ -186,10 +186,13 @@ async function getCustomerNotificationStatus(orderId, openid) {
   const retryableFailedItems = retryableFailedRes.data.filter(item => isRetryableNotificationFailure(item.failMessage || item.lastFailMessage))
   const availableItems = [...orderRes.data, ...legacyRes.data, ...retryableFailedItems]
   const templateKeys = Array.from(new Set(availableItems.map(item => item.templateKey).filter(Boolean)))
+  const eventTypes = Array.from(new Set(availableItems.map(item => item.eventType).filter(Boolean)))
 
   return {
     hasAvailable: templateKeys.length > 0,
     templateKeys,
+    eventTypes,
+    hasLegacyAvailable: availableItems.some(item => !item.eventType),
   }
 }
 
@@ -236,7 +239,7 @@ exports.main = async (event = {}) => {
       displayOrder.orderType !== 'metered' && !displayOrder.pricingRuleSnapshot
         ? db.collection('pricing_rules').where({ status: 'active' }).orderBy('sort', 'asc').limit(1).get().catch(() => ({ data: [] }))
         : Promise.resolve({ data: [] }),
-      isOwner ? getCustomerNotificationStatus(orderId, openid) : Promise.resolve({ hasAvailable: false, templateKeys: [] }),
+      isOwner ? getCustomerNotificationStatus(orderId, openid) : Promise.resolve({ hasAvailable: false, templateKeys: [], eventTypes: [], hasLegacyAvailable: false }),
     ])
 
     return {

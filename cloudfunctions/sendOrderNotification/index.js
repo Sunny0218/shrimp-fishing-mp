@@ -31,6 +31,12 @@ const notificationTemplateConfig = {
   },
 }
 const eventConfigMap = {
+  customer_paid: {
+    target: 'customer',
+    templateKey: 'orderStatus',
+    statusText: '已支付',
+    remark: '支付成功，请到店出示开始计时码',
+  },
   customer_started: {
     target: 'customer',
     templateKey: 'orderStatus',
@@ -60,6 +66,12 @@ const eventConfigMap = {
     templateKey: 'orderStatus',
     statusText: '已完成',
     remark: '感谢到店体验',
+  },
+  customer_refunded: {
+    target: 'customer',
+    templateKey: 'orderStatus',
+    statusText: '已退款',
+    remark: '退款已完成',
   },
   staff_near_end: {
     target: 'staff',
@@ -254,8 +266,28 @@ async function getRecipientOpenids(order, config) {
   return usersRes.data.map(item => item.openid).filter(Boolean)
 }
 
-async function getSubscription(openid, templateId, target, orderId) {
-  const exactRes = await db.collection('notification_subscriptions')
+async function findAcceptedSubscription(openid, templateId, target, orderId, eventType) {
+  if (eventType) {
+    const eventRes = await db.collection('notification_subscriptions')
+      .where({
+        openid,
+        templateId,
+        target,
+        orderId,
+        eventType,
+        status: 'accepted',
+        used: false,
+      })
+      .limit(1)
+      .get()
+      .catch(() => ({ data: [] }))
+
+    if (eventRes.data[0]) {
+      return eventRes.data[0]
+    }
+  }
+
+  const legacyRes = await db.collection('notification_subscriptions')
     .where({
       openid,
       templateId,
@@ -264,11 +296,33 @@ async function getSubscription(openid, templateId, target, orderId) {
       status: 'accepted',
       used: false,
     })
-    .limit(1)
+    .limit(10)
     .get()
+    .catch(() => ({ data: [] }))
 
-  if (exactRes.data[0]) {
-    return exactRes.data[0]
+  return legacyRes.data.find(item => !item.eventType) || null
+}
+
+async function findRetryableFailedSubscription(openid, templateId, target, orderId, eventType) {
+  if (eventType) {
+    const eventRes = await db.collection('notification_subscriptions')
+      .where({
+        openid,
+        templateId,
+        target,
+        orderId,
+        eventType,
+        status: 'failed',
+        used: true,
+      })
+      .limit(10)
+      .get()
+      .catch(() => ({ data: [] }))
+    const eventSubscription = eventRes.data.find(item => isRetryableSendError({}, item.failMessage || item.lastFailMessage || ''))
+
+    if (eventSubscription) {
+      return eventSubscription
+    }
   }
 
   const failedRes = await db.collection('notification_subscriptions')
@@ -283,25 +337,24 @@ async function getSubscription(openid, templateId, target, orderId) {
     .limit(10)
     .get()
     .catch(() => ({ data: [] }))
-  const retryableFailedSubscription = failedRes.data.find(item => isRetryableSendError({}, item.failMessage || item.lastFailMessage || ''))
+
+  return failedRes.data.find(item => !item.eventType && isRetryableSendError({}, item.failMessage || item.lastFailMessage || '')) || null
+}
+
+async function getSubscription(openid, templateId, target, orderId, eventType) {
+  const exactSubscription = await findAcceptedSubscription(openid, templateId, target, orderId, eventType)
+
+  if (exactSubscription) {
+    return exactSubscription
+  }
+
+  const retryableFailedSubscription = await findRetryableFailedSubscription(openid, templateId, target, orderId, eventType)
 
   if (retryableFailedSubscription) {
     return retryableFailedSubscription
   }
 
-  const res = await db.collection('notification_subscriptions')
-    .where({
-      openid,
-      templateId,
-      target,
-      orderId: '',
-      status: 'accepted',
-      used: false,
-    })
-    .limit(1)
-    .get()
-
-  return res.data[0] || null
+  return findAcceptedSubscription(openid, templateId, target, '', eventType)
 }
 
 async function markSubscription(subscriptionId, data) {
@@ -329,7 +382,7 @@ async function writeNotificationLog(logData) {
 
 async function sendToRecipient(order, eventType, config, recipientOpenid) {
   const template = notificationTemplateConfig[config.templateKey]
-  const subscription = await getSubscription(recipientOpenid, template.templateId, config.target, order._id)
+  const subscription = await getSubscription(recipientOpenid, template.templateId, config.target, order._id, eventType)
 
   if (!subscription) {
     const result = {

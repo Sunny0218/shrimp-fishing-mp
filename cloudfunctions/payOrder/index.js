@@ -104,6 +104,21 @@ async function createUniqueCheckinCode() {
   throw new Error('核销码生成失败，请重试')
 }
 
+async function sendOrderNotification(orderId, eventType) {
+  try {
+    await cloud.callFunction({
+      name: 'sendOrderNotification',
+      data: {
+        orderId,
+        eventType,
+      },
+    })
+  }
+  catch (error) {
+    console.warn('[payOrder] send notification failed', error)
+  }
+}
+
 exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -219,6 +234,8 @@ exports.main = async (event = {}) => {
     if (result.expired) {
       return fail(409, '订单已超时关闭，请重新预约')
     }
+
+    await sendOrderNotification(orderId, 'customer_paid')
 
     return {
       code: 0,

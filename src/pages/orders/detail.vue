@@ -11,6 +11,7 @@ import PageHero from '@/components/PageHero.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { NotificationTemplateKey } from '@/config/notificationTemplates'
+import type { NotificationEventType } from '@/api/types/notification'
 import { activeOrderNotificationTemplateIds, activeOrderNotificationTemplateKeys, notificationTemplateKeys } from '@/config/notificationTemplates'
 import { useFinishTimingOrder } from '@/hooks/useFinishTimingOrder'
 import { useUserStore } from '@/store'
@@ -32,6 +33,7 @@ const checkingInOrder = ref(false)
 const operatingRodSessionId = ref('')
 const notificationAuthorizationBlocked = ref(false)
 const optimisticNotificationTemplateKeys = ref<NotificationTemplateKey[]>([])
+const optimisticNotificationEventTypes = ref<NotificationEventType[]>([])
 const errorText = ref('')
 const orderDetail = ref<OrderDetailData>()
 const operationLogs = ref<OperationLog[]>([])
@@ -172,8 +174,98 @@ const availableNotificationTemplateKeys = computed<NotificationTemplateKey[]>(()
 const missingNotificationTemplateKeys = computed(() => {
   return requiredNotificationTemplateKeys.value.filter(templateKey => !availableNotificationTemplateKeys.value.includes(templateKey))
 })
+const notificationScenario = computed(() => {
+  const status = order.value?.status
+  const orderType = order.value?.orderType || 'package'
+
+  if (status === 'pending_payment') {
+    return {
+      eventType: 'customer_started' as NotificationEventType,
+      subscribedText: '已订阅开始计时',
+      subscribeText: '开始计时消息订阅',
+      desc: '授权后可在付款并由门店开始计时时提醒你',
+    }
+  }
+
+  if (status === 'paid' || status === 'checked_in') {
+    return {
+      eventType: 'customer_started' as NotificationEventType,
+      subscribedText: '已订阅开始计时',
+      subscribeText: '开始计时消息订阅',
+      desc: '授权后可在门店开始计时时提醒你',
+    }
+  }
+
+  if (status === 'in_progress') {
+    if (orderType === 'metered') {
+      return {
+        eventType: 'customer_pending_checkout' as NotificationEventType,
+        subscribedText: '已订阅结账提醒',
+        subscribeText: '结账提醒订阅',
+        desc: '授权后可在门店结束计时并生成待结账金额时提醒你',
+      }
+    }
+
+    return {
+      eventType: 'customer_completed' as NotificationEventType,
+      subscribedText: '已订阅完成提醒',
+      subscribeText: '完成消息订阅',
+      desc: '授权后可在套餐完成时提醒你',
+    }
+  }
+
+  if (status === 'pending_checkout') {
+    return {
+      eventType: 'customer_completed' as NotificationEventType,
+      subscribedText: '已订阅结账完成',
+      subscribeText: '结账完成消息订阅',
+      desc: '授权后可在结账完成时提醒你',
+    }
+  }
+
+  if (status === 'refund_pending') {
+    return {
+      eventType: 'customer_refunded' as NotificationEventType,
+      subscribedText: '已订阅退款结果',
+      subscribeText: '退款结果消息订阅',
+      desc: '授权后可接收退款处理结果提醒',
+    }
+  }
+
+  return {
+    eventType: undefined,
+    subscribedText: '已订阅',
+    subscribeText: '订单状态消息订阅',
+    desc: '授权后可接收订单状态变化提醒',
+  }
+})
+const availableNotificationEventTypes = computed<NotificationEventType[]>(() => {
+  const customerStatus = orderDetail.value?.notificationStatus?.customer
+  const sourceEvents = customerStatus?.hasAvailable
+    ? customerStatus.eventTypes || []
+    : optimisticNotificationEventTypes.value
+
+  return sourceEvents.filter((eventType): eventType is NotificationEventType => typeof eventType === 'string')
+})
+const missingNotificationEventType = computed(() => {
+  const eventType = notificationScenario.value.eventType
+
+  if (!eventType) {
+    return ''
+  }
+
+  const customerStatus = orderDetail.value?.notificationStatus?.customer
+
+  if (availableNotificationEventTypes.value.includes(eventType) || customerStatus?.hasLegacyAvailable) {
+    return ''
+  }
+
+  return eventType
+})
 const hasSubscribedOrderNotification = computed(() => {
-  return canSubscribeOrderNotification.value && missingNotificationTemplateKeys.value.length === 0
+  return canSubscribeOrderNotification.value
+    && missingNotificationTemplateKeys.value.length === 0
+    && !missingNotificationEventType.value
 })
 const subscribeOrderNotificationText = computed(() => {
   if (subscribingNotification.value) {
@@ -181,14 +273,14 @@ const subscribeOrderNotificationText = computed(() => {
   }
 
   if (hasSubscribedOrderNotification.value) {
-    return '已订阅'
+    return notificationScenario.value.subscribedText
   }
 
   if (notificationAuthorizationBlocked.value) {
     return '去设置开启'
   }
 
-  return '订阅订单提醒'
+  return notificationScenario.value.subscribeText
 })
 const canShowCheckinCode = computed(() => order.value?.status === 'paid' && !!order.value.checkinCode)
 const checkinQrCodeUrl = computed(() => {
@@ -488,11 +580,24 @@ function normalizeNotificationTemplateKeys(values: unknown) {
     : []
 }
 
-function markOptimisticNotificationSubscribed(templateKeys: NotificationTemplateKey[]) {
+function normalizeNotificationEventTypes(values: unknown) {
+  return Array.isArray(values)
+    ? values.filter((value): value is NotificationEventType => typeof value === 'string')
+    : []
+}
+
+function markOptimisticNotificationSubscribed(templateKeys: NotificationTemplateKey[], eventType?: NotificationEventType) {
   optimisticNotificationTemplateKeys.value = Array.from(new Set([
     ...optimisticNotificationTemplateKeys.value,
     ...templateKeys,
   ]))
+
+  if (eventType) {
+    optimisticNotificationEventTypes.value = Array.from(new Set([
+      ...optimisticNotificationEventTypes.value,
+      eventType,
+    ]))
+  }
 }
 
 function syncOptimisticNotificationSubscription(detail: OrderDetailData) {
@@ -504,9 +609,11 @@ function syncOptimisticNotificationSubscription(detail: OrderDetailData) {
 
   if (customerStatus.hasAvailable) {
     optimisticNotificationTemplateKeys.value = normalizeNotificationTemplateKeys(customerStatus.templateKeys)
+    optimisticNotificationEventTypes.value = normalizeNotificationEventTypes(customerStatus.eventTypes)
   }
   else {
     optimisticNotificationTemplateKeys.value = []
+    optimisticNotificationEventTypes.value = []
   }
 }
 
@@ -1260,19 +1367,23 @@ async function handleSubscribeOrderNotification() {
   try {
     const res = await requestNotificationSubscription('customer', {
       orderId: orderId.value,
+      ...(notificationScenario.value.eventType ? { eventType: notificationScenario.value.eventType } : {}),
       templateKeys: missingNotificationTemplateKeys.value,
     })
     const acceptedTemplateKeys = normalizeNotificationTemplateKeys(res.acceptedTemplateKeys)
+    const acceptedEventTypes = normalizeNotificationEventTypes(res.acceptedEventTypes)
+    const targetEventType = notificationScenario.value.eventType
     const allMissingTemplatesAccepted = missingNotificationTemplateKeys.value.every(templateKey => acceptedTemplateKeys.includes(templateKey))
+    const targetEventAccepted = targetEventType ? acceptedEventTypes.includes(targetEventType) : true
 
     uni.showToast({
-      title: res.acceptedCount > 0 && allMissingTemplatesAccepted
+      title: res.acceptedCount > 0 && allMissingTemplatesAccepted && targetEventAccepted
         ? '订阅成功'
         : '仍有模板未订阅',
       icon: res.acceptedCount > 0 ? 'success' : 'none',
     })
     if (acceptedTemplateKeys.length && orderId.value) {
-      markOptimisticNotificationSubscribed(acceptedTemplateKeys)
+      markOptimisticNotificationSubscribed(acceptedTemplateKeys, targetEventAccepted ? targetEventType : undefined)
     }
     await fetchOrderDetail(false)
     await refreshNotificationAuthorizationStatus()
@@ -1292,6 +1403,7 @@ async function handleSubscribeOrderNotification() {
 onLoad((query) => {
   orderId.value = typeof query?.id === 'string' ? query.id : ''
   optimisticNotificationTemplateKeys.value = []
+  optimisticNotificationEventTypes.value = []
   startCountdownTimer()
   refreshNotificationAuthorizationStatus()
   fetchOrderDetail()
@@ -1362,20 +1474,17 @@ onUnload(() => {
             消息提醒
           </view>
           <view class="notify-card__desc">
-            授权后可接收快到点、到点和订单状态提醒
+            {{ notificationScenario.desc }}
           </view>
         </view>
-        <ActionButton
+        <button
           class="notify-card__btn"
           :class="{ 'notify-card__btn--disabled': hasSubscribedOrderNotification }"
-          :label="subscribeOrderNotificationText"
-          block
-          :variant="hasSubscribedOrderNotification ? 'ghost' : 'primary'"
           :disabled="subscribingNotification || hasSubscribedOrderNotification"
-          :loading="subscribingNotification"
-          loading-text="订阅中..."
-          @tap="handleSubscribeOrderNotification"
-        />
+          @tap.stop="handleSubscribeOrderNotification"
+        >
+          {{ subscribingNotification ? '订阅中...' : subscribeOrderNotificationText }}
+        </button>
       </SectionCard>
 
       <SectionCard v-if="canPayOrder" class="payment-card" title="支付信息">
@@ -1925,6 +2034,10 @@ onUnload(() => {
     font-size: 24rpx;
     line-height: 62rpx;
     white-space: nowrap;
+
+    &::after {
+      border: none;
+    }
 
     &--disabled {
       background: #dfe8e3;
